@@ -239,8 +239,10 @@
   }
   function update(data) { if (S.ok && S.host) build(data); }
   function front() { if (S.group) { S.group.rotation.y = 0; S.spinAt = Date.now() + 4000; } }
+  /* 앞(0)·옆(π/2)·뒤(π) 등 정한 각도로 돌려 세우고, 손으로 돌릴 때까지 자동 회전을 멈춘다 */
+  function turn(rad) { if (S.group) { S.group.rotation.y = rad; S.spinAt = Infinity; } }
   function pause() { if (S.raf) { cancelAnimationFrame(S.raf); S.raf = 0; } S.host = null; }
   root.addEventListener('resize', function () { resize(); });
 
-  root.Fit3D = { setFace: setFace, mount: mount, update: update, pause: pause, front: front, supported: function () { return ensure(); }, heat: HEAT };
+  root.Fit3D = { setFace: setFace, mount: mount, update: update, pause: pause, front: front, turn: turn, supported: function () { return ensure(); }, heat: HEAT };
 })(window);

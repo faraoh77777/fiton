@@ -607,11 +607,15 @@
     } else {
       var H = Fit3D.heat, names = [['tightBad', '많이 껴요'], ['tight', '약간 껴요'], ['fit', '딱 맞아요'], ['loose', '넉넉해요'], ['over', '너무 커요']];
       var leg = names.map(function (n) { return '<span><i style="background:#' + ('000000' + H[n[0]].toString(16)).slice(-6) + '"></i>' + n[1] + '</span>'; }).join('');
-      o.innerHTML = '<div id="d3host"></div><div class="d3legend">' + leg + '</div><button type="button" class="d3front">정면</button><div class="d3hint">좌우로 밀면 돌아가요</div><button type="button" class="fsx" aria-label="닫기">✕</button>';
+      o.innerHTML = '<div id="d3host"></div><div class="d3legend">' + leg + '</div><div class="d3dirs"><button type="button" data-turn="0">앞모습</button><button type="button" data-turn="1">옆모습</button><button type="button" data-turn="2">뒷모습</button></div><div class="d3hint">좌우로 밀면 돌아가요</div><button type="button" class="fsx" aria-label="닫기">✕</button>';
     }
     o.addEventListener('click', function (e) {
       if (e.target.closest('.fsx')) close3d();
-      else if (e.target.closest('.d3front') && window.Fit3D) Fit3D.front();
+      else if (e.target.closest('[data-turn]') && window.Fit3D) {
+        var b = e.target.closest('[data-turn]');
+        Fit3D.turn(Number(b.dataset.turn) * Math.PI / 2);
+        o.querySelectorAll('[data-turn]').forEach(function (x) { x.classList.toggle('on', x === b); });
+      }
     });
     document.body.appendChild(o);
     document.addEventListener('keydown', key3d);
