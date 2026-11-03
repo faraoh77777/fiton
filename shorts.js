@@ -550,6 +550,7 @@
     var head = '<div class="h"><span>' + CATS[r.cat] + ' · ' + h(it.name) + ' <span class="sub">' + (ggTag(it) ? h(ggTag(it)) + ' ' : '') + h(r.chosen) + '</span></span>' +
       (p ? '<span class="grade gk-' + p.gradeKey + '">' + p.grade + ' ' + sgn(p.ease) + p.unit + '</span>' : '') + '</div>';
     var out = head;
+    if ((r.cat === 'top' || r.cat === 'bottom') && window.Fit3D) out += '<div class="line"><span></span><button type="button" class="btn sm" data-act="view3d">3D로 보기</button></div>';
     if (priceText(it.price) || safeUrl(it.url)) out += '<div class="line"><span>' + (priceText(it.price) ? '가격 ' + priceText(it.price) : '') + '</span>' + buyLink(it, 'buy') + '</div>';
     if (cur.labelEst) out += '<div class="warn">실측표가 없어 ' + (cur.labelEst.unisex ? '공용(남성 기준)' : cur.labelEst.gender === 'male' ? '남성' : '여성') + ' ' + h(cur.labelEst.name) + ' 표준 치수로 추정했어요. 가슴·허리·엉덩이만 대략 보며, 실측표를 넣으면 정확해져요.</div>';
     if (p) out += scaleBar(p) + '<div class="line"><span>' + h(p.label) + ' ' + srcTag(p.src) + '</span><b>' + h(p.detail) + '</b></div>';
@@ -571,6 +572,51 @@
     if (fv !== undefined && fv !== '' && p) match = Number(fv) === p.gradeIdx ? ' <span class="ok">앱 판정과 일치</span>' : ' <span class="ng">앱: ' + p.grade + '</span>';
     out += '<div class="feel">실제 입어본 느낌 <select data-feel="' + h(fk) + '" aria-label="실제 입어본 느낌">' + opts + '</select>' + match + '</div>';
     return '<div class="card">' + out + '</div>';
+  }
+
+  /* ---- 3D로 보기(결과 카드 버튼): 몸 치수(입력값, 없으면 키·몸무게 추정값) + 고른 상의·하의의 선택 사이즈 치수로 3D 체형에 옷을 얹어 끼는 정도를 색으로 표시.
+     기본 화면은 캐릭터 그대로, 이 버튼을 누를 때만 전체 화면으로 연다(옛 3D 화면 a4c22f6 의 collect3d·범례를 다시 씀) ---- */
+  function circOf(it, v) { var n = E.num(v); return n ? (it.measureType === 'circ' ? n : n * 2) : 0; }
+  function collect3d(ev) {
+    var bv = E.bodyOf(state.profile, cfgNow()).vals;
+    var v = { height: bv.height, chest: bv.chest, shoulder: bv.shoulder, waist: bv.waist, hip: bv.hip, thigh: bv.thigh, arm: bv.arm, inseam: bv.inseam, rise: bv.rise, foot: bv.foot };
+    var gars = [];
+    ((ev && ev.results) || []).forEach(function (r) {
+      if ((r.cat !== 'top' && r.cat !== 'bottom') || !r.garment) return;
+      var row = r.garment.sizes.filter(function (z) { return z.label === r.chosen; })[0];
+      if (!row) return;
+      var p = r.current && r.current.primary, heat = p ? p.gradeKey : 'fit';
+      if (r.cat === 'top') {
+        var c = circOf(r.garment, row.chest); if (!c) return;
+        gars.push({ cat: 'top', heat: heat, chest: c, shoulder: E.num(row.shoulder) || 0, length: E.num(row.length) || 0, sleeve: E.num(row.sleeve) || 0 });
+      } else {
+        var w = circOf(r.garment, row.waist), hp = circOf(r.garment, row.hip), th = circOf(r.garment, row.thigh);
+        if (!w && !hp) return;
+        gars.push({ cat: 'bottom', heat: heat, waist: w, hip: hp, thigh: th, rise: E.num(row.rise) || 0, inseam: E.num(row.inseam) || 0 });
+      }
+    });
+    return { body: v, garments: gars };
+  }
+  function close3d() { var o = document.getElementById('d3view'); if (o) o.remove(); if (window.Fit3D) Fit3D.pause(); document.removeEventListener('keydown', key3d); }
+  function key3d(e) { if (e.key === 'Escape') close3d(); }
+  function open3d() {
+    close3d();
+    var o = document.createElement('div'); o.id = 'd3view';
+    if (!(window.Fit3D && Fit3D.supported())) {
+      o.innerHTML = '<div class="d3off">이 기기에서는 3D를 표시할 수 없어요.</div><button type="button" class="fsx" aria-label="닫기">✕</button>';
+    } else {
+      var H = Fit3D.heat, names = [['tightBad', '많이 껴요'], ['tight', '약간 껴요'], ['fit', '딱 맞아요'], ['loose', '넉넉해요'], ['over', '너무 커요']];
+      var leg = names.map(function (n) { return '<span><i style="background:#' + ('000000' + H[n[0]].toString(16)).slice(-6) + '"></i>' + n[1] + '</span>'; }).join('');
+      o.innerHTML = '<div id="d3host"></div><div class="d3legend">' + leg + '</div><button type="button" class="d3front">정면</button><div class="d3hint">좌우로 밀면 돌아가요</div><button type="button" class="fsx" aria-label="닫기">✕</button>';
+    }
+    o.addEventListener('click', function (e) {
+      if (e.target.closest('.fsx')) close3d();
+      else if (e.target.closest('.d3front') && window.Fit3D) Fit3D.front();
+    });
+    document.body.appendChild(o);
+    document.addEventListener('keydown', key3d);
+    var host = o.querySelector('#d3host');
+    if (host) { Fit3D.setFace({ url: isMale() ? 'assets/avatar_male.jpg' : 'assets/avatar_default.jpg', kind: 'avatar' }); Fit3D.mount(host, collect3d(safeEval())); }
   }
 
   function compareTable(r) {
@@ -1156,6 +1202,7 @@
   });
 
   ACT.open = function (el) { openSheet(el.dataset.name); };
+  ACT.view3d = function () { open3d(); };
   ACT.closeSheet = function () {
     var hs = !!(history.state && history.state.sh);
     closeOne();
