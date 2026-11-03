@@ -1033,8 +1033,10 @@
     try { localStorage.setItem('fit-gen-ok', '1'); } catch (e) {}
     var id = it.id;
     genPending = id; sheet = null; state.draft = null; render(); waitStart(it.name);
-    Promise.all([photoData(it), avatarData()]).then(function (a) {
+    var shoeIt = it.cat !== 'shoe' ? tryShoeItem() : null;
+    Promise.all([photoData(it), avatarData(), shoeIt ? photoData(shoeIt) : null]).then(function (a) {
       var body = { device: deviceId(), cat: it.cat, garment: a[0], gender: isMale() ? 'male' : 'female' };
+      if (a[2]) { body.shoe = a[2]; if (shoeIt.name) body.shoeName = String(shoeIt.name).slice(0, 60); } /* 고른 신발(없으면 서버가 검정 구두) */
       if (it.name) body.name = String(it.name).slice(0, 60); /* 옷 이름: 상품 사진이 코디 사진이어도 서버가 이 옷만 입히게 한다 */
       if (it.cat !== 'shoe') body.garmentGender = garGender(it); /* 여성용/남성용/공용: 내 성별과 다르면 서버가 원래 재단을 유지하라고 AI에 알린다 */
       if (a[1]) body.avatar = a[1];
@@ -1310,9 +1312,19 @@
       '<div class="sview"><button type="button" data-act="view" data-v="model" class="' + (me ? '' : 'on') + '">기본 모델</button>' +
       '<button type="button" data-act="view" data-v="me" class="' + (me ? 'on' : '') + '">내 아바타</button>' +
       (styleApplied(st) ? '<span class="sapplied">코디 적용됨</span>' : '<button type="button" class="sapply" data-act="styleApply">이 코디로 핏 보기</button>') + '</div>' +
+      shoePick() +
       '<button type="button" class="sgo" data-act="styleTryon">내 아바타로 입어보기<small>남은 ' + tryLeft() + '회 · ' + h(planNow().name) + '</small></button>' +
       quickBtn() +
       '<div class="sshop">' + shopBtn(st, 'coupang') + shopBtn(st, 'naver') + '</div></div>';
+  }
+  /* ---- 입어보기 신발: 기본은 검정 구두, 옷장의 신발(사진 있는 것)을 고르면 그 신발을 같이 신긴다(2026-11-03 사용자 결정). 횟수는 그대로 1회 ---- */
+  function shoeChoices() { return state.closet.filter(function (x) { return x.cat === 'shoe' && x.photo; }); }
+  function tryShoeItem() { var id = state.tryShoe; return id ? shoeChoices().filter(function (x) { return x.id === id; })[0] || null : null; }
+  function shoePick() {
+    var cur = tryShoeItem(), opts = '<option value="">검정 구두 (기본)</option>' + shoeChoices().map(function (x) {
+      return '<option value="' + h(x.id) + '"' + (cur && cur.id === x.id ? ' selected' : '') + '>' + h(x.name || '신발') + '</option>';
+    }).join('');
+    return '<div class="sshoe"><span>입어볼 때 신발</span><select data-path="tryShoe" aria-label="입어볼 때 신발">' + opts + '</select></div>';
   }
   /* ---- 옷 사진으로 입어보기: 쇼핑몰 캡처 사진 고르기 → 종류 하나 고르기 → 바로 내 아바타에 입히기(옷장 등록은 자동) ---- */
   var quickFile = null;
