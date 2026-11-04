@@ -1036,7 +1036,8 @@
     var shoeIt = it.cat !== 'shoe' ? tryShoeItem() : null;
     Promise.all([photoData(it), avatarData(), shoeIt ? photoData(shoeIt) : null]).then(function (a) {
       var body = { device: deviceId(), cat: it.cat, garment: a[0], gender: isMale() ? 'male' : 'female' };
-      if (a[2]) { body.shoe = a[2]; if (shoeIt.name) body.shoeName = String(shoeIt.name).slice(0, 60); } /* 고른 신발(없으면 서버가 검정 구두) */
+      if (a[2]) { body.shoe = a[2]; if (shoeIt.name) body.shoeName = String(shoeIt.name).slice(0, 60); } /* 옷장 신발 사진이 있으면 그걸 우선 */
+      else if (it.cat !== 'shoe') body.shoeType = tryShoeTypeId(); /* 없으면 고른 신발 종류(기본값 구두) */
       if (it.name) body.name = String(it.name).slice(0, 60); /* 옷 이름: 상품 사진이 코디 사진이어도 서버가 이 옷만 입히게 한다 */
       if (it.cat !== 'shoe') body.garmentGender = garGender(it); /* 여성용/남성용/공용: 내 성별과 다르면 서버가 원래 재단을 유지하라고 AI에 알린다 */
       if (a[1]) body.avatar = a[1];
@@ -1317,14 +1318,28 @@
       quickBtn() +
       '<div class="sshop">' + shopBtn(st, 'coupang') + shopBtn(st, 'naver') + '</div></div>';
   }
-  /* ---- 입어보기 신발: 기본은 검정 구두, 옷장의 신발(사진 있는 것)을 고르면 그 신발을 같이 신긴다(2026-11-03 사용자 결정). 횟수는 그대로 1회 ---- */
+  /* ---- 입어보기 신발: 사진 없이 고르는 신발 종류(많이 쓰는 것 기본 세팅, 2026-11-04 사용자 결정) + 옷장의 신발(사진 있는 것)을 고르면 그 신발을 같이 신긴다(2026-11-03 결정). 횟수는 그대로 1회 ---- */
+  var SHOE_TYPES = [['pumps', '구두 (기본)'], ['sneakers', '운동화'], ['loafers', '로퍼'], ['sandals', '샌들'], ['boots', '부츠']];
   function shoeChoices() { return state.closet.filter(function (x) { return x.cat === 'shoe' && x.photo; }); }
-  function tryShoeItem() { var id = state.tryShoe; return id ? shoeChoices().filter(function (x) { return x.id === id; })[0] || null : null; }
+  function tryShoeItem() {
+    var cur = state.tryShoe || '';
+    if (cur.indexOf('closet:') !== 0) return null;
+    return shoeChoices().filter(function (x) { return x.id === cur.slice(7); })[0] || null;
+  }
+  function tryShoeTypeId() {
+    var cur = state.tryShoe || '';
+    return cur.indexOf('type:') === 0 ? cur.slice(5) : 'pumps'; /* 기본값: 구두 */
+  }
   function shoePick() {
-    var cur = tryShoeItem(), opts = '<option value="">검정 구두 (기본)</option>' + shoeChoices().map(function (x) {
-      return '<option value="' + h(x.id) + '"' + (cur && cur.id === x.id ? ' selected' : '') + '>' + h(x.name || '신발') + '</option>';
+    var cur = state.tryShoe || '', closetIt = tryShoeItem();
+    var typeOpts = SHOE_TYPES.map(function (t) {
+      return '<option value="type:' + t[0] + '"' + ((cur === 'type:' + t[0] || (!cur && t[0] === 'pumps')) ? ' selected' : '') + '>' + t[1] + '</option>';
     }).join('');
-    return '<div class="sshoe"><span>입어볼 때 신발</span><select data-path="tryShoe" aria-label="입어볼 때 신발">' + opts + '</select></div>';
+    var closet = shoeChoices();
+    var closetOpts = closet.length ? '<optgroup label="내 옷장 신발">' + closet.map(function (x) {
+      return '<option value="closet:' + h(x.id) + '"' + (closetIt && closetIt.id === x.id ? ' selected' : '') + '>' + h(x.name || '신발') + '</option>';
+    }).join('') + '</optgroup>' : '';
+    return '<div class="sshoe"><span>입어볼 때 신발</span><select data-path="tryShoe" aria-label="입어볼 때 신발"><optgroup label="신발 종류">' + typeOpts + '</optgroup>' + closetOpts + '</select></div>';
   }
   /* ---- 옷 사진으로 입어보기: 쇼핑몰 캡처 사진 고르기 → 종류 하나 고르기 → 바로 내 아바타에 입히기(옷장 등록은 자동) ---- */
   var quickFile = null;
