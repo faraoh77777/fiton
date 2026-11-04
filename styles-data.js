@@ -57,9 +57,8 @@ window.FITON = {
       modelImage: 'assets/styles/look3.jpg',
       coupangUrl: '', naverUrl: '',
       items: {
-        top: { name: '버건디 골지 니트 원피스', measureType: 'flat', fabric: 'knit', price: '35000', url: '', sizes: [
+        dress: { name: '버건디 골지 니트 원피스', measureType: 'flat', fabric: 'knit', price: '35000', url: '', sizes: [
           { label: 'S', chest: '40', shoulder: '34', length: '120', sleeve: '58' }, { label: 'M', chest: '43', shoulder: '36', length: '122', sleeve: '59' }, { label: 'L', chest: '46', shoulder: '38', length: '124', sleeve: '60' }] },
-        bottom: null,
         shoe: { name: '버건디 앵클부츠', measureType: '', fabric: 'normal', price: '69000', url: '', sizes: [
           { label: '230' }, { label: '235' }, { label: '240' }, { label: '245' }] }
       }

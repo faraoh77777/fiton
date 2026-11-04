@@ -1287,8 +1287,9 @@
   function styleItemId(st, cat) { return 's_' + st.id + '_' + cat; }
   /* 스타일의 상의/하의/신발을 옷장에 넣고(이미 있으면 그대로) 코디로 고른다 → 기존 옷장·핏 판정 흐름에 그대로 연결된다 */
   function importStyle(st) {
-    delete state.sel.dress; /* 스타일 코디는 상의·하의·신발 구성 */
-    ['top', 'bottom', 'shoe'].forEach(function (cat) {
+    /* 스타일이 원피스 구성이면 상의·하의를 비우고, 상의·하의 구성이면 원피스를 비운다 */
+    if (st.items && st.items.dress) { delete state.sel.top; delete state.sel.bottom; } else delete state.sel.dress;
+    ['top', 'bottom', 'dress', 'shoe'].forEach(function (cat) {
       var src = st.items && st.items[cat];
       if (!src) { delete state.sel[cat]; return; }
       var id = styleItemId(st, cat);
@@ -1306,7 +1307,7 @@
     save();
   }
   function styleApplied(st) {
-    return !state.sel.dress && ['top', 'bottom', 'shoe'].every(function (cat) {
+    return ['top', 'bottom', 'dress', 'shoe'].every(function (cat) {
       var src = st.items && st.items[cat], s = state.sel[cat];
       return src ? !!(s && s.id === styleItemId(st, cat)) : !s;
     });
@@ -1490,7 +1491,7 @@
     if (tryLeft() <= 0) { toast('이번 달 입어보기 횟수를 다 썼어요.'); openSheet('plan'); return; }
     if (!genEnabled()) { toast('AI 입혀 보기 서버가 꺼져 있어요.'); return; }
     importStyle(st);
-    var main = ['top', 'bottom', 'shoe'].map(function (c) { return item(styleItemId(st, c)); }).filter(function (x) { return x && x.photo; })[0];
+    var main = ['dress', 'top', 'bottom', 'shoe'].map(function (c) { return item(styleItemId(st, c)); }).filter(function (x) { return x && x.photo; })[0];
     if (!main) { toast('이 스타일의 상품 사진을 올리면 내 아바타에 입혀 드려요.'); openSheet('top'); return; }
     ACT.genTryon({ dataset: { id: main.id } });
   };
