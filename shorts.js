@@ -55,12 +55,12 @@
   function blankState() {
     return { step: 'profile', profile: { gender: 'male', height: '', weight: '', pref: 'fit', m: {} },
       closet: [], sel: {}, draft: null, motion: 0, cfg: null, feel: {}, seq: 1,
-      /* FITON: 고른 분류 탭·스타일, 화면(기본 모델/내 아바타), 구독 플랜과 이번 달 입어보기 사용 횟수 */
-      styleTab: 'today', styleId: null, view: 'model', sub: { plan: 'free', used: 0, month: '' } };
+      /* FITON: 고른 스타일, 화면(기본 모델/내 아바타), 구독 플랜과 이번 달 입어보기 사용 횟수. 분류 탭은 없고 계절로 자동 분류(curSeason 참고) */
+      styleId: null, view: 'model', sub: { plan: 'free', used: 0, month: '' } };
   }
-  /* 둘러보기 중 보던 분류·스타일을 로그인 뒤에도 이어서 보여 준다 */
-  function pickKeep() { return { tab: state.styleTab, id: state.styleId }; }
-  function applyKeep(k) { if (k && k.id) { state.styleTab = k.tab; state.styleId = k.id; state.view = 'model'; } }
+  /* 둘러보기 중 보던 스타일을 로그인 뒤에도 이어서 보여 준다 */
+  function pickKeep() { return { id: state.styleId }; }
+  function applyKeep(k) { if (k && k.id) { state.styleId = k.id; state.view = 'model'; } }
   /* ---------- 프로필(이 기기 안 로그인) ---------- */
   function readUsers() { try { return JSON.parse(localStorage.getItem(USERS_KEY)) || []; } catch (e) { return []; } }
   function writeUsers(list) { try { localStorage.setItem(USERS_KEY, JSON.stringify(list)); } catch (e) { /* 저장 불가 */ } }
@@ -1153,7 +1153,7 @@
     return '<div class="reel">' + reelMedia() +
       '<div class="rtop"><div class="rsegs">' + segs + '</div><div class="rbar"><div class="wm">FITON</div>' + (user ? '<span class="rtag">' + h(user.nick) + ' 님</span>' : '<button type="button" class="rtag" data-act="lgOpen">로그인</button>') + '</div></div>' +
       '<div class="rrail">' + rail + '</div>' +
-      '<div class="rcap">' + styleTabs() + (reelBadge ? '<span class="rbadge">' + h(reelBadge) + '</span>' : '') + styleCard() +
+      '<div class="rcap">' + styleSeason() + (reelBadge ? '<span class="rbadge">' + h(reelBadge) + '</span>' : '') + styleCard() +
       '</div>' + fab() + sh + '</div>';
   }
 
@@ -1249,14 +1249,22 @@
   /* 코디는 내 성별(+공용)만 보여 준다. 둘러보기(프로필 없음)이거나 내 성별 코디가 하나도 없으면 전체를 보여 준다 */
   function styleForMe(s) { var g = s.gender || 'female'; return !user || g === 'unisex' || g === (isMale() ? 'male' : 'female'); }
   function myStylesExist() { return FD.styles.some(styleForMe); }
-  function stylesIn(tab) {
-    var mine = myStylesExist();
-    return FD.styles.filter(function (s) { return (!mine || styleForMe(s)) && (tab === 'today' || (s.tags || []).indexOf(tab) >= 0); });
+  /* ---- 계절: 분류 탭 대신 계절이 시작되는 달(3·6·9·12월) 기준으로 봄/여름/가을/겨울이 자동으로 바뀐다(2026-11-04 사용자 결정) ---- */
+  var SEASON_LABEL = { spring: '봄', summer: '여름', fall: '가을', winter: '겨울' };
+  function curSeason() {
+    var m = new Date().getMonth() + 1;
+    if (m >= 3 && m <= 5) return 'spring';
+    if (m >= 6 && m <= 8) return 'summer';
+    if (m >= 9 && m <= 11) return 'fall';
+    return 'winter';
+  }
+  function stylesIn() {
+    var mine = myStylesExist(), season = curSeason();
+    return FD.styles.filter(function (s) { return (!mine || styleForMe(s)) && (!s.season || s.season === 'all' || s.season === season); });
   }
   function curStyle() { return FD.styles.filter(function (s) { return s.id === state.styleId; })[0] || null; }
   function ensureStyle() {
-    if (!FD.tabs.some(function (t) { return t.key === state.styleTab; })) state.styleTab = 'today';
-    var list = stylesIn(state.styleTab), cur = curStyle();
+    var list = stylesIn(), cur = curStyle();
     if (!cur || list.indexOf(cur) < 0) state.styleId = list.length ? list[0].id : null;
   }
   function styleItemId(st, cat) { return 's_' + st.id + '_' + cat; }
@@ -1286,10 +1294,8 @@
       return src ? !!(s && s.id === styleItemId(st, cat)) : !s;
     });
   }
-  function styleTabs() {
-    return '<div class="stabs">' + FD.tabs.map(function (t) {
-      return '<button type="button" class="' + (state.styleTab === t.key ? 'on' : '') + '" data-act="styleTab" data-tab="' + h(t.key) + '">' + h(t.label) + '</button>';
-    }).join('') + '</div>';
+  function styleSeason() {
+    return '<div class="sseason">올 ' + SEASON_LABEL[curSeason()] + ' 유행할 패션</div>';
   }
   function shopBtn(st, shop) {
     var u = safeUrl(st[shop + 'Url']), label = shop === 'coupang' ? '쿠팡에서 보기' : '네이버에서 보기';
@@ -1304,7 +1310,7 @@
   function styleCard() {
     var st = curStyle();
     if (!st) return '<div class="scard"><div class="sp">이 분류에 등록된 스타일이 없습니다.</div></div>';
-    var list = stylesIn(state.styleTab), i = list.indexOf(st), n = list.length, me = state.view === 'me';
+    var list = stylesIn(), i = list.indexOf(st), n = list.length, me = state.view === 'me';
     return '<div class="scard">' +
       '<div class="sh"><button type="button" data-act="styleNext" data-d="-1" aria-label="이전 스타일"' + (n < 2 ? ' disabled' : '') + '>‹</button>' +
       '<div class="st"><b>' + h(st.title) + '</b><span>' + h(st.priceText || '') + (n > 1 ? ' · ' + (i + 1) + '/' + n : '') + '</span></div>' +
@@ -1447,9 +1453,8 @@
       '<div class="note">결제 연동 전이라 플랜 선택은 이 기기 안에서만 적용되는 체험용입니다. AI 서버에는 기기당 하루 이용 한도가 따로 있어요.</div>' +
       '<button class="btn" data-act="closeSheet">닫기</button>';
   }
-  ACT.styleTab = function (el) { state.styleTab = el.dataset.tab; ensureStyle(); state.view = 'model'; save(); render(); };
   ACT.styleNext = function (el) {
-    var list = stylesIn(state.styleTab); if (list.length < 2) return;
+    var list = stylesIn(); if (list.length < 2) return;
     var i = list.indexOf(curStyle()), j = (i + Number(el.dataset.d) + list.length) % list.length;
     state.styleId = list[j].id; state.view = 'model'; save(); render();
   };

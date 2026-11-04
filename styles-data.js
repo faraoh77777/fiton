@@ -1,5 +1,7 @@
 /* FITON 스타일 카드 데이터(1차: 수동 등록 더미). shorts.js 가 읽는다. 서버 없음.
-   - tabs: 메인 화면 분류 탭. 'today' 는 전체(오늘의 스타일).
+   - 분류 탭(오늘/가을룩/출근룩/데이트룩/가성비룩) 삭제, 계절이 시작되는 달(3·6·9·12월) 기준 봄/여름/가을/겨울이 자동으로 바뀌며
+     "올 OO 유행할 패션" 한 줄만 보여 준다(2026-11-04 사용자 결정). styles[].season 이 그 계절('spring'|'summer'|'fall'|'winter')일 때만 보이고,
+     'all' 이면 계절과 상관없이 항상 보인다. 계절 계산·화면은 shorts.js 의 curSeason()/styleSeason() 참고.
    - plans: 구독 플랜과 월 입어보기 횟수. 결제 연동 전이라 선택은 이 기기 안에서만 적용된다.
    - styles[].items: 상의(top)/하의(bottom)/신발(shoe) 구성 상품. 옷장 기록과 같은 형식(cat·measureType·fabric·sizes)이라
      스타일을 고르면 그대로 옷장에 들어가 기존 핏 판정(fit-engine.js)에 연결된다. photo 가 비어 있으면 modelImage 를 상품 사진 대신 쓴다.
@@ -9,13 +11,6 @@
      옷장에 넣을 때 items 의 옷 성별로도 쓰인다(items 에 gender 를 따로 적으면 그 값이 우선). */
 window.FITON = {
   slogan: '쇼츠에서 본 스타일, 바로 입어보기',
-  tabs: [
-    { key: 'today', label: '오늘' },
-    { key: 'fall', label: '가을룩' },
-    { key: 'work', label: '출근룩' },
-    { key: 'date', label: '데이트룩' },
-    { key: 'value', label: '가성비룩' }
-  ],
   plans: {
     free: { name: '무료', limit: 3, price: '0원', features: ['기본 모델 착용 보기', '구매 링크', '내 아바타 입어보기 월 3회 체험'] },
     basic: { name: '베이직', limit: 30, price: '월 4,900원(예정)', features: ['내 아바타 입어보기 월 30회', '스타일 저장'] },
@@ -24,7 +19,7 @@ window.FITON = {
   },
   styles: [
     {
-      id: 'fall_work', gender: 'female', title: '2026 가을 출근룩', tags: ['today', 'fall', 'work'],
+      id: 'fall_work', gender: 'female', title: '트렌치 코트 오피스룩', season: 'fall',
       priceText: '39,000원부터', worn: '베이지 트렌치(M) + 블랙 슬랙스(S) + 로퍼(240)', points: '베이지 트렌치 + 블랙 슬랙스 + 로퍼. 깔끔하고 단정한 오피스 핏',
       fitNote: '트렌치는 어깨가 살짝 떨어지는 세미오버, 슬랙스는 일자 정핏',
       modelImage: 'assets/styles/look1.jpg',
@@ -40,7 +35,7 @@ window.FITON = {
       }
     },
     {
-      id: 'fall_cardigan', gender: 'female', title: '가을 카디건 데이트룩', tags: ['today', 'fall', 'date', 'value'],
+      id: 'fall_cardigan', gender: 'female', title: '가을 카디건 데이트룩', season: 'fall',
       priceText: '19,900원부터', worn: '카멜 카디건(S) + 흰 티(S) + 연청 데님(S) + 흰 스니커즈(160)', points: '카멜 카디건 + 흰 티 + 연청 데님 + 흰 스니커즈. 편하면서 포근한 캐주얼',
       fitNote: '카디건은 여유 있는 오버핏, 데님은 스트레이트',
       modelImage: 'assets/styles/look2.jpg',
@@ -56,7 +51,7 @@ window.FITON = {
       }
     },
     {
-      id: 'knit_dress', gender: 'female', title: '니트 원피스 데이트룩', tags: ['fall', 'date'],
+      id: 'knit_dress', gender: 'female', title: '니트 원피스 데이트룩', season: 'fall',
       priceText: '35,000원부터', worn: '버건디 골지 니트 롱 원피스(S) + 앵클부츠(240)', points: '버건디 골지 니트 롱 원피스 + 앵클부츠. 라인이 살아나는 가을 데이트 핏',
       fitNote: '몸에 붙는 슬림핏, 스판이 있어 한 사이즈 작게 입어도 됨',
       modelImage: 'assets/styles/look3.jpg',
@@ -70,7 +65,7 @@ window.FITON = {
       }
     },
     {
-      id: 'active', gender: 'female', title: '가성비 운동룩', tags: ['today', 'value'],
+      id: 'active', gender: 'female', title: '가성비 운동룩', season: 'fall',
       priceText: '15,900원부터', worn: '라벤더 레깅스(S) + 크롭 브라탑(S) + 바람막이(S) + 러닝화(240)', points: '라벤더 레깅스 + 크롭 브라탑 + 바람막이 + 러닝화. 헬스장도 산책도 OK',
       fitNote: '레깅스는 하이웨이스트 압박핏, 바람막이는 여유핏',
       modelImage: 'assets/styles/look4.jpg',
@@ -85,7 +80,7 @@ window.FITON = {
       }
     },
     {
-      id: 'home', gender: 'female', title: '포근한 홈웨어 세트', tags: ['value'],
+      id: 'home', gender: 'female', title: '포근한 홈웨어 세트', season: 'all',
       priceText: '24,900원부터', worn: '아이보리 플리스 파자마 상하 세트(M) + 룸슈즈(240)', points: '아이보리 플리스 파자마 상하 세트 + 룸슈즈. 집에서 쇼츠 찍기 좋은 편안함',
       fitNote: '상하 모두 넉넉한 여유핏',
       modelImage: 'assets/styles/look5.jpg',

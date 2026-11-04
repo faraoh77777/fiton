@@ -84,14 +84,11 @@ body:has(#app.lgfull){padding:0;background:#000}
 @keyframes fdot{0%,100%{opacity:.25}50%{opacity:1}}
 @media (prefers-reduced-motion:reduce){#fwait .fcl,#fwait .fcr{transition:none}}
 
-/* FITON: 스타일 분류 탭 · 스타일 카드 · 아바타 만들기 플로팅 버튼 (메인 화면 하단 rcap 안, 오른쪽 72px 는 rrail 자리) */
+/* FITON: 계절 안내 한 줄(분류 탭 대신, 2026-11-04) · 스타일 카드 · 아바타 만들기 플로팅 버튼 (메인 화면 하단 rcap 안, 오른쪽 72px 는 rrail 자리) */
 .hv-cap small{display:block;font-size:13px;font-weight:500;opacity:.92;margin-top:2px}
 .rcap{padding-top:56px}
 .rcap .rbadge{position:static;transform:none;align-self:flex-start;margin:0}
-.stabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
-.stabs::-webkit-scrollbar{display:none}
-.stabs button{flex:none;border:1px solid rgba(255,255,255,.45);background:rgba(0,0,0,.38);color:#fff;border-radius:99px;padding:5px 12px;font-size:12px;font-weight:600;backdrop-filter:blur(4px)}
-.stabs button.on{background:#fff;color:#141414;border-color:#fff}
+.sseason{display:inline-block;align-self:flex-start;border:1px solid rgba(255,255,255,.45);background:rgba(0,0,0,.38);color:#fff;border-radius:99px;padding:5px 12px;font-size:12px;font-weight:600;backdrop-filter:blur(4px)}
 .scard{background:rgba(255,255,255,.96);color:#141414;border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;box-shadow:0 4px 18px rgba(0,0,0,.3)}
 .scard .sh{display:flex;align-items:center;gap:6px}
 .scard .sh > button{flex:none;width:28px;height:28px;border:0;border-radius:50%;background:#f0ede8;color:#141414;font-size:18px;line-height:1;padding:0}
