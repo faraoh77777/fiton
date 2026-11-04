@@ -935,6 +935,21 @@
     el.className = 'toast'; el.textContent = msg; document.body.appendChild(el);
     setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 4500);
   }
+  /* ---- 완성 알림: 생성이 최대 6분 걸려서, 화면을 닫거나 다른 일을 해도 다 만들어지면 알려 준다(2026-11-04 사용자 결정).
+     권한은 '내 아바타로 입어보기' 클릭 시(사용자 동작 안) 한 번 묻는다. 화면을 보고 있을 땐 토스트로 충분해서 알림은 안 띄운다 ---- */
+  function notifySupported() { return typeof Notification !== 'undefined'; }
+  function ensureNotifyPermission() {
+    if (!notifySupported() || Notification.permission !== 'default') return;
+    try { Notification.requestPermission(); } catch (e) {}
+  }
+  function notifyDone(title, body) {
+    if (!notifySupported() || Notification.permission !== 'granted') return;
+    if (document.visibilityState === 'visible') return;
+    try {
+      var n = new Notification(title, { body: body, icon: 'assets/icons/icon-192.png', tag: 'fiton-tryon' });
+      n.onclick = function () { try { window.focus(); } catch (e) {} n.close(); };
+    } catch (e) {}
+  }
   function genButton(it) {
     if (!genEnabled() || !it.photo) return '';
     if (genPending === it.id) return '<button class="btn sm" disabled>만드는 중… 다른 걸 해도 돼요</button>';
@@ -969,8 +984,9 @@
           state.aiGen = state.aiGen || {}; state.aiGen[id] = true;
           state.aiHem = state.aiHem || {}; if (genHem > 0) state.aiHem[id] = genHem; else delete state.aiHem[id];
           save();
-          var it = item(id);
-          genFinish(id, true, (it ? it.name : '옷') + ' 입은 모습이 완성됐어요!');
+          var it = item(id), msg = (it ? it.name : '옷') + ' 입은 모습이 완성됐어요!';
+          notifyDone('FITON', msg);
+          genFinish(id, true, msg);
         });
       }
       if (j.status === 'failed') { genFinish(id, false, '입은 모습을 만들지 못했어요. 잠시 뒤 다시 시도해 주세요.'); return; }
@@ -1031,6 +1047,7 @@
       try { localStorage.setItem('fit-gen-av-ok', '1'); } catch (e) {}
     }
     try { localStorage.setItem('fit-gen-ok', '1'); } catch (e) {}
+    ensureNotifyPermission(); /* 생성이 오래 걸려서, 클릭한 김에(사용자 동작 안) 완성 알림 권한을 물어 둔다 */
     var id = it.id;
     genPending = id; sheet = null; state.draft = null; render(); waitStart(it.name);
     var shoeIt = it.cat !== 'shoe' ? tryShoeItem() : null;
