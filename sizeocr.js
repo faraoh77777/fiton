@@ -68,6 +68,9 @@
   function parse(text, cat) {
     var lines = String(text || '').split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean);
     if (cat !== 'shoe') {
+      /* OCR이 사이즈 이름 'S'를 숫자 '5'로 잘못 읽는 경우가 많아, 줄 맨 앞에 홀로 있는 5만 S로 보정한다
+         (5.5처럼 소수점으로 이어지거나 50처럼 다른 숫자와 붙어 있으면 손대지 않는다) */
+      lines = lines.map(function (l) { return l.replace(/^5\b(?!\.)/, 'S'); });
       var col = parseColumns(lines, cat), all = lines.join('').replace(/\s+/g, '');
       if (col) {
         var big = col.sizes.some(function (r) { return Number(r.chest || r.waist || r.hip || 0) > 70; });
