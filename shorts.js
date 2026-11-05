@@ -1149,7 +1149,7 @@
     try { localStorage.setItem('fit-gen-ok', '1'); } catch (e) {}
     ensureNotifyPermission(); /* 생성이 오래 걸려서, 클릭한 김에(사용자 동작 안) 완성 알림 권한을 물어 둔다 */
     var id = it.id;
-    genPending = id; sheet = null; state.draft = null; render(); waitStart(it.name);
+    genPending = id; sheet = null; state.draft = null; render(); waitStart(it.name, wearSize(it));
     var shoeIt = it.cat !== 'shoe' ? tryShoeItem() : null;
     Promise.all([photoData(it), avatarData(), shoeIt ? photoData(shoeIt) : null]).then(function (a) {
       var body = { device: deviceId(), cat: it.cat, garment: a[0], gender: isMale() ? 'male' : 'female' };
@@ -1173,40 +1173,64 @@
     if (!user || genPending || !genEnabled()) return;
     try {
       var p = JSON.parse(localStorage.getItem(GEN_KEY()) || 'null');
-      if (p && p.id && p.taskId && item(p.id) && Date.now() - p.t0 < 6 * 60 * 1000) { genPending = p.id; genHem = Number(p.hem) || 0; render(); waitStart((item(p.id) || {}).name || ''); genPoll(p.id, p.taskId, p.t0); }
+      if (p && p.id && p.taskId && item(p.id) && Date.now() - p.t0 < 6 * 60 * 1000) { genPending = p.id; genHem = Number(p.hem) || 0; render(); waitStart(item(p.id).name || '', wearSize(item(p.id)), true); genPoll(p.id, p.taskId, p.t0); }
       else if (p) localStorage.removeItem(GEN_KEY());
     } catch (e) {}
   }
-  /* ---- 피팅룸 대기 연출: 커튼이 닫히고 문구가 바뀌며 진행 막대가 찬다. 닫고 다른 옷을 봐도 되고, 끝나면 커튼이 열린다 ---- */
-  var WAIT_MSGS = ['치수 확인 중', '옷을 고르는 중', '피팅룸에 들어가는 중', '옷 입는 중', '거울 앞에 서는 중', '마무리하는 중'];
-  var waitT = null, waitP = null, waitStep = 0, waitName = '';
-  function waitStart(name) {
+  /* ---- 피팅룸 대기 연출(2026-11-05 사용자 지정 순서): 문 닫힘 → 다가서면 열림(안쪽이 보임) → 들어가면 닫힘 → 옷 입는 중(입는 사이즈 표시) → 다 입으면 열림.
+     닫고 다른 옷을 봐도 된다. 화면을 다시 열어 이어 볼 때(resume)는 도입부 없이 바로 옷 입는 중으로 간다 ---- */
+  var WAIT_INTRO = ['피팅룸 앞으로 가는 중', '피팅룸에 들어가는 중'];
+  var WAIT_MSGS = ['옷 입는 중', '거울 앞에 서는 중', '마무리하는 중'];
+  var WAIT_CLOSED = 2200, WAIT_PEEK = 2000, WAIT_SHUT = 1200; /* 닫힌 채 대기(닫히는 1.2초 포함), 열려 있는 시간, 다시 닫히는 시간 */
+  var waitT = null, waitQ = [], waitStep = 0, waitName = '';
+  /* 입고 있는 옷 사이즈: 고른 사이즈, 안 골랐으면 AI에 보내는 추천 사이즈 */
+  function wearSize(it) {
+    var s = state.sel[it.cat], picked = s && s.id === it.id ? s.size : null;
+    if (picked) return picked + ' 사이즈';
+    var f = fitHint(it);
+    return f && f.size ? f.size + ' 사이즈 (추천)' : '';
+  }
+  function waitStart(name, size, resume) {
     waitEnd(false, true);
     waitName = name || ''; waitStep = 0;
     var o = document.createElement('div'); o.id = 'fwait';
     o.innerHTML = '<div class="fcl"></div><div class="fcr"></div><div class="fbody"><div class="fsign">FITTING ROOM</div>' +
-      '<div class="fmsg" id="fmsg">' + h(WAIT_MSGS[0]) + '<i>.</i><i>.</i><i>.</i></div><div class="fname">' + h(waitName) + '</div>' +
+      '<div class="fmsg" id="fmsg">' + h(resume ? WAIT_MSGS[0] : WAIT_INTRO[0]) + '<i>.</i><i>.</i><i>.</i></div><div class="fname">' + h(waitName) + '</div>' +
+      '<div class="fsize" id="fsize" hidden>' + h(size || '') + '</div>' +
       '<div class="fbar"><b id="fbar"></b></div><div class="fhint">보통 1~2분 걸려요. 닫고 다른 옷을 봐도 됩니다.</div>' +
       '<button type="button" class="fbtn" id="fclose">닫고 계속 보기</button></div>';
     document.body.appendChild(o);
-    requestAnimationFrame(function () { requestAnimationFrame(function () { o.classList.add('shut'); }); });
     o.querySelector('#fclose').addEventListener('click', function () { o.classList.add('hide'); });
-    var t0 = Date.now();
+    var t0 = Date.now(), dressT = 0;
+    function setMsg(t) { var m = document.getElementById('fmsg'); if (m) m.firstChild.nodeValue = t; }
+    function dressing() {
+      dressT = Date.now(); setMsg(WAIT_MSGS[0]);
+      var z = document.getElementById('fsize'); if (z && size) z.hidden = false;
+    }
+    if (resume) { o.classList.add('shut', 'room'); dressing(); }
+    else {
+      requestAnimationFrame(function () { requestAnimationFrame(function () { if (!o.classList.contains('opening')) o.classList.add('shut'); }); });
+      waitQ.push(setTimeout(function () { o.classList.add('room'); o.classList.remove('shut'); setMsg(WAIT_INTRO[1]); }, WAIT_CLOSED));
+      waitQ.push(setTimeout(function () { o.classList.add('shut'); }, WAIT_CLOSED + WAIT_PEEK));
+      waitQ.push(setTimeout(dressing, WAIT_CLOSED + WAIT_PEEK + WAIT_SHUT));
+    }
     waitT = setInterval(function () {
-      var s = Math.min(WAIT_MSGS.length - 1, Math.floor((Date.now() - t0) / 14000));
-      var m = document.getElementById('fmsg');
-      if (m && s !== waitStep) { waitStep = s; m.firstChild.nodeValue = WAIT_MSGS[s]; }
+      if (dressT) {
+        var s = Math.min(WAIT_MSGS.length - 1, Math.floor((Date.now() - dressT) / 25000));
+        if (s !== waitStep) { waitStep = s; setMsg(WAIT_MSGS[s]); }
+      }
       var p = 90 * (1 - Math.exp(-(Date.now() - t0) / 40000));  /* 처음엔 빨리, 90% 근처에서 천천히 */
       var bar = document.getElementById('fbar'); if (bar) bar.style.width = p.toFixed(1) + '%';
     }, 500);
   }
   function waitEnd(ok, quick) {
     if (waitT) { clearInterval(waitT); waitT = null; }
+    waitQ.forEach(clearTimeout); waitQ = [];
     var o = document.getElementById('fwait'); if (!o) return;
     if (quick) { o.remove(); return; }
     var bar = document.getElementById('fbar'); if (bar && ok) bar.style.width = '100%';
     o.classList.remove('hide');
-    setTimeout(function () { o.classList.remove('shut'); o.classList.add('opening'); setTimeout(function () { o.remove(); }, 1300); }, ok ? 500 : 0);
+    setTimeout(function () { o.classList.remove('shut', 'room'); o.classList.add('opening'); setTimeout(function () { o.remove(); }, 1300); }, ok ? 500 : 0);
   }
   function tryonRow(it) {
     var has = !!urls.tryon[it.id];
