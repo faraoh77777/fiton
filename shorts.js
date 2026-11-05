@@ -994,7 +994,7 @@
     if (!urls.avatar) return Promise.resolve(null);
     return fetch(urls.avatar).then(function (r) { return r.blob(); }).then(function (b) { return shrink(b, 1280, 0.88); }).then(function (b) {
       return new Promise(function (res, rej) { var fr = new FileReader(); fr.onload = function () { res(fr.result); }; fr.onerror = rej; fr.readAsDataURL(b); });
-    }).catch(function () { return null; });
+    }).then(klingSafe).catch(function () { return null; });
   }
   function genCall(body) {
     var c = window.TRYON_CFG;
@@ -1072,19 +1072,20 @@
     }).catch(function () { setTimeout(function () { genPoll(id, taskId, t0); }, 6000); });
   }
   /* 상품 사진은 서버가 data URL(base64)만 받는다. 스타일 데이터의 사진은 파일 경로라 먼저 읽어서 바꾼다 */
-  /* Kling 입력 규격에 맞춘다: 짧은 변 300px 이상, 비율 1:2.5~2.5:1. 이미 맞으면 그대로 두고, 작은 사진은 키우고(흐려질 수 있음) 너무 길쭉하면 흰 여백을 붙인다 */
+  /* 어떤 사진이든 Kling 입력 규격에 맞춘다: 짧은 변 300px 이상, 비율 1:2.5~2.5:1, JPG/PNG, 서버 용량 상한 이내.
+     이미 맞으면 그대로 두고, 작으면 키우고(흐려질 수 있음), 크면 줄이고, 길쭉하면 흰 여백을 붙인다 */
   function klingSafe(u) {
     return new Promise(function (res) {
       var img = new Image();
       img.onload = function () {
-        var w = img.width, h = img.height, k = Math.max(1, 320 / Math.min(w, h));
-        var dw = Math.round(w * k), dh = Math.round(h * k);
-        var cw = Math.max(dw, Math.ceil(dh / 2.4)), ch = Math.max(dh, Math.ceil(dw / 2.4));
-        if (Math.min(w, h) >= 300 && Math.max(w, h) / Math.min(w, h) <= 2.5) { res(u); return; }
-        var c = document.createElement('canvas'); c.width = cw; c.height = ch;
-        var g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, cw, ch); g.imageSmoothingQuality = 'high';
-        g.drawImage(img, Math.round((cw - dw) / 2), Math.round((ch - dh) / 2), dw, dh);
-        res(c.toDataURL('image/jpeg', 0.9));
+        var w = img.width, h = img.height, mn = Math.min(w, h), mx = Math.max(w, h);
+        if (mn >= 300 && mx / mn <= 2.5 && mx <= 2048 && /^data:image\/(jpeg|png);/.test(u) && u.length < 3500000) { res(u); return; }
+        var pw = Math.max(w, h / 2.4), ph = Math.max(h, w / 2.4), pmn = Math.min(pw, ph), pmx = Math.max(pw, ph);
+        var k = pmn < 320 ? 320 / pmn : (pmx > 2048 ? 2048 / pmx : 1);
+        var c = document.createElement('canvas'); c.width = Math.ceil(pw * k); c.height = Math.ceil(ph * k);
+        var g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.imageSmoothingQuality = 'high';
+        g.drawImage(img, Math.round((c.width - w * k) / 2), Math.round((c.height - h * k) / 2), w * k, h * k);
+        res(c.toDataURL('image/jpeg', 0.88));
       };
       img.onerror = function () { res(u); };
       img.src = u;
