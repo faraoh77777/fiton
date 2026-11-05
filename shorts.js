@@ -376,16 +376,19 @@
   };
   /* 사이즈표 캡처 → 실측표 자동 입력, 이어서 상품 사진 캡처 */
   var ocr = { busy: false, msg: '', ok: false };
+  var pocr = { busy: false, msg: '', ok: false };
   function captureCards(d) {
     var st = ocr.busy ? '<span class="tag">읽는 중</span>' : (ocr.msg ? '<span class="tag' + (ocr.ok ? ' real' : '') + '">' + (ocr.ok ? '읽음' : '확인 필요') + '</span>' : '');
+    var pst = pocr.busy ? '<span class="tag">읽는 중</span>' : '';
     return '<div class="card" tabindex="0" data-paste="sizeCap"><div class="h"><span>① 사이즈표 캡처</span>' + st + '</div>' +
       '<div class="note">쿠팡 상품 페이지의 사이즈표(실측표)를 캡처해서 올리면 아래 실측표를 자동으로 채웁니다. 인식이 틀릴 수 있으니 꼭 확인해 주세요. 이 영역을 한 번 눌러 둔 뒤 캡처한 이미지를 Ctrl+V(붙여넣기)해도 됩니다.</div>' +
       '<label class="btn sm" style="cursor:pointer;align-self:flex-start">' + (ocr.busy ? '읽는 중…' : '사이즈표 사진 선택') + '<input type="file" accept="image/*" data-file="sizeCap" hidden' + (ocr.busy ? ' disabled' : '') + '></label>' +
       (ocr.msg ? '<div data-ocrmsg class="' + (ocr.ok ? 'note' : 'warn') + '">' + h(ocr.msg) + '</div>' : '') + '</div>' +
-      '<div class="card" tabindex="0" data-paste="draftPhoto"><div class="h"><span>② 상품 사진 캡처</span>' + (d.photo ? '<span class="tag real">등록됨</span>' : '') + '</div>' +
+      '<div class="card" tabindex="0" data-paste="draftPhoto"><div class="h"><span>② 상품 사진 캡처</span>' + (d.photo ? '<span class="tag real">등록됨</span>' : '') + pst + '</div>' +
       '<div class="photo">' + (d.photo ? '<img alt="상품 사진" src="' + d.photo + '">' : '상품 사진 (선택, 참고용)') + '</div>' +
       '<label class="btn sm" style="cursor:pointer;align-self:flex-start">상품 사진 선택<input type="file" accept="image/*" data-file="draftPhoto" hidden></label>' +
-      '<div class="note">이 영역을 한 번 눌러 둔 뒤 Ctrl+V로 붙여넣기도 됩니다.</div></div>';
+      '<div class="note">이 영역을 한 번 눌러 둔 뒤 Ctrl+V로 붙여넣기도 됩니다. 상품 이름·가격이 보이게 캡처하면 아래 칸에 자동으로 채워 봅니다(확인 필요).</div>' +
+      (pocr.msg ? '<div data-pocrmsg class="' + (pocr.ok ? 'note' : 'warn') + '">' + h(pocr.msg) + '</div>' : '') + '</div>';
   }
   function viewEditor(cat) {
     var d = state.draft;
@@ -864,7 +867,24 @@
     } else if (kind === 'quick') {
       quickAsk(file);
     } else if (kind === 'draftPhoto') {
+      var d1 = state.draft;
       shrink(file, 240, 0.8).then(blobToDataUrl).then(function (u) { state.draft.photo = u; save(); render(); }).catch(function (err) { alert(err.message); });
+      if (d1 && window.SizeOcr && (!d1.name || !d1.price)) {
+        pocr = { busy: true, msg: '상품 이름·가격을 읽는 중입니다. 처음에는 인식 데이터를 내려받느라 1분 가까이 걸릴 수 있어요.', ok: false }; render();
+        SizeOcr.recognize(file, function (stt, p) {
+          if (p != null && pocr.busy) { pocr.msg = '상품 이름·가격을 읽는 중… ' + Math.round(p * 100) + '%'; var el = root.querySelector('[data-pocrmsg]'); if (el) el.textContent = pocr.msg; }
+        }).then(function (text) {
+          var d = state.draft;
+          if (!d || d !== d1) { pocr = { busy: false, msg: '', ok: false }; return; }
+          var r = SizeOcr.parseProduct(text), got = false;
+          if (r.name && !d.name) { d.name = r.name; got = true; }
+          if (r.price != null && !d.price) { d.price = String(r.price); got = true; }
+          if (got) save();
+          pocr = got ? { busy: false, msg: '상품 이름·가격을 읽어 채웠습니다. 맞는지 꼭 확인해 주세요.', ok: true }
+            : { busy: false, msg: '상품 이름·가격을 읽지 못했습니다. 위에 직접 입력해 주세요.', ok: false };
+          render();
+        }).catch(function () { pocr = { busy: false, msg: '상품 이름·가격을 읽지 못했습니다. 위에 직접 입력해 주세요.', ok: false }; render(); });
+      }
     } else if (kind === 'avatar') {
       shrink(file, 1000, 0.92).then(function (b) { return blobPut('avatar', b).then(function () { if (urls.avatar) URL.revokeObjectURL(urls.avatar); urls.avatar = URL.createObjectURL(b); render(); }); })
         .catch(function (err) { alert(err.message); });
@@ -1267,8 +1287,8 @@
   };
   ACT.clearSel = function (el) { delete state.sel[el.dataset.cat]; save(); render(); };
   var _new = ACT.new, _edit = ACT.edit, _save = ACT.saveDraft, _logout = ACT.logout;
-  ACT.new = function (el) { editCat = el.dataset.cat; ocr = { busy: false, msg: '', ok: false }; _new(el); openSheet('edit'); };
-  ACT.edit = function (el) { var it = item(el.dataset.id); if (!it) return; editCat = it.cat; ocr = { busy: false, msg: '', ok: false }; _edit(el); openSheet('edit'); };
+  ACT.new = function (el) { editCat = el.dataset.cat; ocr = { busy: false, msg: '', ok: false }; pocr = { busy: false, msg: '', ok: false }; _new(el); openSheet('edit'); };
+  ACT.edit = function (el) { var it = item(el.dataset.id); if (!it) return; editCat = it.cat; ocr = { busy: false, msg: '', ok: false }; pocr = { busy: false, msg: '', ok: false }; _edit(el); openSheet('edit'); };
   ACT.saveDraft = function () { _save(); if (!state.draft) { sheet = 'edit'; ACT.closeSheet(); } }; /* _save 의 render 가 시트를 editCat 으로 바꿔 두므로 다시 edit 로 놓고 한 겹만 닫는다 */
   ACT.cancelEdit = function () { state.draft = null; ACT.closeSheet(); };
   ACT.logout = function () { onbShown = false; sheet = null; try { history.replaceState({}, ''); } catch (e) {} _logout(); };

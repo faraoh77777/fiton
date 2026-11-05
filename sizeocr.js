@@ -133,6 +133,34 @@
     return { sizes: out, found: found.length, circ: circ && !flat, bad: suspect(out) };
   }
 
+  /* 상품 사진 캡처에서 상품 이름·가격 읽기. 화면에 섞여 있는 리뷰·배송·적립 안내 등은 걸러낸다 */
+  var PRODUCT_NOISE = ['리뷰', '평점', '별점', '쿠팡', '로켓배송', '무료배송', '당일배송', '판매자', '브랜드관', '알림받기', '사은품',
+    '쿠폰', '적립', '할인쿠폰', '이벤트', '광고', '구성', '옵션', '바로구매', '장바구니', '찜하기', '배송비'];
+  function parseProduct(text) {
+    var lines = String(text || '').split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean);
+    var prices = [];
+    lines.forEach(function (l) {
+      if (/적립|쿠폰/.test(l)) return;
+      var m = l.replace(/\s+/g, '').match(/\d[\d,]*(?=원)/g);
+      if (!m) return;
+      m.forEach(function (s) {
+        var n = Number(s.replace(/,/g, ''));
+        if (n >= 100 && n <= 50000000) prices.push(n);
+      });
+    });
+    /* 할인 표시는 보통 '세일가 ... 정가' 순서라 작은 값이 실제 가격일 때가 많다 */
+    var price = prices.length ? Math.min.apply(null, prices) : null;
+    var name = '';
+    lines.forEach(function (l) {
+      if (l.length < 4 || l.length > 60) return;
+      if (PRODUCT_NOISE.some(function (w) { return l.indexOf(w) >= 0; })) return;
+      var letters = (l.match(/[가-힣a-zA-Z]/g) || []).length;
+      if (letters < l.replace(/\s+/g, '').length * 0.5) return;
+      if (letters > (name.match(/[가-힣a-zA-Z]/g) || []).length) name = l;
+    });
+    return { name: name, price: price };
+  }
+
   var loading = null;
   function loadEngine() {
     if (root.Tesseract) return Promise.resolve();
@@ -201,6 +229,6 @@
       function (e) { if (worker) worker.terminate(); throw e; });
   }
 
-  root.SizeOcr = { parse: parse, recognize: recognize };
+  root.SizeOcr = { parse: parse, parseProduct: parseProduct, recognize: recognize };
   if (typeof module !== 'undefined') module.exports = root.SizeOcr;
 })(typeof window !== 'undefined' ? window : globalThis);
