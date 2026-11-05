@@ -14,10 +14,14 @@ const ALLOWED = (Deno.env.get("ALLOWED_ORIGINS") ?? "https://faraoh77777.github.
 const MAX_B64 = 7_000_000; // 상품 사진 base64 길이 상한(약 5MB)
 const MAX_AV_B64 = 4_000_000; // 내 아바타 base64 길이 상한(약 3MB)
 
+/* 하의 기장: 사이즈표·다리 길이와 상관없이 상품 사진의 스타일 길이대로. 허리·엉덩이·허벅지·밑위는 FIT 문장이 치수대로 그린다 */
+const bottomLen = (img: string) => " The length of the bottoms follows the style in " + img + " regardless of size: full-length trousers end at her ankles, never dragging or too short; cropped styles, shorts and skirts stay as in " + img + ".";
 const PROMPTS: Record<string, string> = {
   top: "Image 1 is a full-body photo of a woman standing. Image 2 is a product photo of a top. Edit image 1 so she wears exactly the top shown in image 2 (same color, collar, pattern, sleeve length and fit) instead of her current top.",
-  bottom: "Image 1 is a full-body photo of a woman standing. Image 2 is a product photo of bottoms. Edit image 1 so she wears exactly the bottoms shown in image 2 (same color, length, cut and fit) instead of her current bottoms.",
+  bottom: "Image 1 is a full-body photo of a woman standing. Image 2 is a product photo of bottoms. Edit image 1 so she wears exactly the bottoms shown in image 2 (same color, fabric and cut) instead of her current bottoms." + bottomLen("image 2"),
   dress: "Image 1 is a full-body photo of a woman standing. Image 2 is a product photo of a dress. Edit image 1 so she wears exactly the dress shown in image 2 (same color, neckline, pattern, sleeve length, hem length and fit) instead of her current top and bottoms.",
+  /* 2026-11-05 사용자 결정: 상의+하의를 원본 캐릭터에 한 번에 입힌다(그림 위에 다시 입히면 얼굴이 누적으로 변함). 길이·핏은 FIT 문장이 정하므로 여기서는 상품 사진의 길이를 따르라고 하지 않는다 */
+  outfit: "Image 1 is a full-body photo of a woman standing. Image 2 shows a top and image 3 shows bottoms. Edit image 1 so she wears exactly that top (same color, collar, pattern and sleeve style) and those bottoms (same color, fabric and cut) instead of her current clothes." + bottomLen("image 3"),
   shoe: "Image 1 is a full-body photo of a woman standing barefoot. Image 2 is a product photo of shoes. Edit image 1 so she wears exactly the shoes shown in image 2 (same color and design).",
 };
 const KEEP = " Keep her face, hair, pose, body proportions, the other clothing, the plain gray background and the framing unchanged. Photorealistic result. Do not add text, logos or accessories.";
@@ -48,7 +52,7 @@ function fitWord(e: number) {
   if (e < 18) return "relaxed and loose with visible folds and extra fabric";
   return "oversized and baggy: much too big, the fabric hangs loosely in deep folds";
 }
-/* 길이 정보(앱이 계산한 숫자만 받음): 어깨선·소매·밑위·바지 기장(cm 차이), 총장(밑단 높이/키 비율) */
+/* 길이 정보(앱이 계산한 숫자만 받음): 어깨선·소매·밑위(cm 차이), 총장(밑단 높이/키 비율) */
 function lenNum(len: Record<string, unknown>, k: string, lo: number, hi: number): number | null {
   if (len[k] == null) return null;
   const v = Number(len[k]);
@@ -103,40 +107,7 @@ function lenText(fit: unknown, cat: string): string[] {
       else if (ri > 4) out.push("the rise is deep so the waistband sits high and the crotch hangs low");
       else if (ri > 2) out.push("the rise is slightly deep so the waistband sits a little high");
     }
-    const ins = lenNum(len, "inseam", -90, 30);
-    const ip = lenNum(len, "inseamPos", 0, 2);
-    /* 다리 안쪽 길이보다 12cm 넘게 짧음 = 원래 짧게 만든 바지(반바지·7부 등): 끝나는 위치만 알린다(앱과 같은 기준) */
-    if (ins !== null && ins < -12 && ip !== null) {
-      if (ip < 0.2) out.push("the shorts end high on her upper thighs");
-      else if (ip < 0.35) out.push("the shorts end at her mid-thighs");
-      else if (ip < 0.5) out.push("the legs end around her knees");
-      else if (ip < 0.7) out.push("the legs end just below her knees");
-      else out.push("the legs end on her calves");
-    } else if (ins !== null) {
-      if (ins >= 3) out.push("the legs are too long: the hems pile up and drag on the floor over her shoes");
-      else if (ins >= 0) out.push("the hems fall over the tops of her feet with a slight break");
-      else if (ins >= -4) out.push("the hems end between her ankle bones and the tops of her feet");
-      else if (ins >= -12) out.push("the legs are short and end above her ankles, showing the ankles");
-      else out.push("the legs are much too short, ending up on her calves");
-    }
-    /* 바지 기장 '내 몸에 맞춤'(앱이 줄인 길이 cm 숫자만 보냄): 위 기장 문장은 줄인 뒤 기준이고, 밑단 위치 말고는 아무것도 바꾸지 않게 한다 */
-    const hm = ins !== null ? lenNum(len, "hemmed", 0, 60) : null;
-    if (hm !== null && hm > 0) out.push("these trousers have been hemmed about " + Math.round(hm) + " cm shorter to fit her legs: only the hem position changes, while the leg width, hem opening width, silhouette, color, wash and fabric texture stay exactly as in image 2, finished with a clean natural hem (not cut off or frayed)");
-    /* 총장(허리~밑단)만 있는 하의(스커트·총장만 적힌 바지): 인심과 같은 기준, 스커트에도 맞게 'hem'으로 말한다 */
-    const bl = ins === null ? lenNum(len, "length", -120, 40) : null;
-    const bp = lenNum(len, "lengthPos", -1, 2);
-    if (bl !== null && bl < -12 && bp !== null) {
-      if (bp < 0.2) out.push("the hem ends high on her upper thighs");
-      else if (bp < 0.35) out.push("the hem ends at her mid-thighs");
-      else if (bp < 0.5) out.push("the hem ends around her knees");
-      else if (bp < 0.7) out.push("the hem ends just below her knees");
-      else out.push("the hem ends on her calves");
-    } else if (bl !== null) {
-      if (bl >= 3) out.push("the garment is too long: the hem piles up and drags on the floor over her shoes");
-      else if (bl >= 0) out.push("the hem falls over the tops of her feet");
-      else if (bl >= -4) out.push("the hem ends between her ankle bones and the tops of her feet");
-      else out.push("the hem ends above her ankles, showing the ankles");
-    }
+    /* 바지·스커트 기장은 치수로 그리지 않는다(2026-11-06 사용자 결정): BOTTOM_LEN 문장대로 상품 사진의 스타일 길이를 따른다 */
   }
   return out;
 }
@@ -183,7 +154,11 @@ const SLOT: Record<string, string> = { top: "top", bottom: "bottoms", dress: "to
 function cleanName(v: unknown) {
   return String(v ?? "").replace(/[\u0000-\u001f\u007f"<>\\]/g, " ").replace(/\s+/g, " ").trim().slice(0, 60);
 }
-function nameText(cat: string, name: string) {
+function nameText(cat: string, name: string, name2 = "") {
+  if (cat === "outfit") {
+    const top = name ? "the @@NAME@@" : "the top", bot = name2 ? "the @@NAME2@@" : "the bottoms";
+    return " Image 2 and image 3 may be model photos: take ONLY " + top + " from image 2 and ONLY " + bot + " from image 3; ignore the models' faces, hair, bodies, shoes and all other clothing there (but if the top is an outer layer such as a coat or cardigan, she also wears the inner top under it in image 2). She is fully and modestly dressed and nothing of her old top or bottoms remains visible.";
+  }
   if (!name) return "";
   var base = " The item to put on is the product named \"@@NAME@@\". Image 2 may be a photo of a model wearing a full outfit: take ONLY the @@NAME@@ from image 2 and ignore the face, hair and body of the model in image 2 and every other item of clothing and the shoes there" +
     (cat === "top" ? ", except that if the @@NAME@@ is an outer layer (a coat, jacket, cardigan or similar), she also wears the inner top worn under it in image 2" : "");
@@ -206,6 +181,9 @@ function keepOthersText(cat: string, male: boolean, shoeName: string | null, sho
     : " On her feet she wears " + typeDesc + "; these are NOT the shoes from image 2, do not copy any shoes from image 2.";
   /* 2026-11-04 6차 시험: 신발 안 고름(기본 구두)인데 코디 사진의 슬랙스+로퍼를 입고 손을 주머니에 넣음 → 하의 유지·손 유지 문장 강화(사용자 결정) */
   const hands = " Her arms and hands stay exactly as in image 1; do not put her hands in pockets.";
+  if (cat === "outfit") return (shoeName !== null
+    ? " On her feet she wears exactly the shoes" + (shoeName ? " (" + shoeName + ")" : "") + " from image 4 (same color and design), nothing else from image 4."
+    : " On her feet she wears " + typeDesc + ", NOT shoes from image 2 or image 3.") + hands;
   if (cat === "top") return " Keep her current bottoms from image 1 exactly as they are (same type, length and color); do not take the trousers, skirt, shorts or shoes from image 2." + feet + hands;
   if (cat === "bottom") return " Keep her current top from image 1 exactly as it is; do not take any top or outer layer from image 2." + feet + hands;
   if (cat === "dress") return feet + hands;
@@ -252,25 +230,57 @@ async function kl(path: string, init: RequestInit = {}) {
 }
 /* 문장 안의 'image 1/2' 를 Kling 의 그림 참조(<<<image_1>>>)로 바꾸고, 길이 상한을 넘으면 몸 유지 문장을 짧은 것으로, 그래도 넘으면 문장 끝에서 자른다 */
 const KEEP_BODY_SHORT = " This is a fit-check: keep the person's body IDENTICAL to image 1 (same height, proportions, shoulder, bust, waist, hip, arm and leg widths and lengths, skin, face, hair, pose, hands, background and framing). Do NOT slim or reshape the body. Change ONLY the clothing item named above, at its true cut and fit. Keep every other garment. Photorealistic. No text, logos or accessories.";
-function klPrompt(build: (keepBody: string) => string) {
-  const conv = (t: string) => t.replace(/\b[Ii]mage ([123])\b/g, "<<<image_$1>>>");
+function klPrompt(build: (keepBody: string) => string, semi = false) {
+  const conv = (t: string) => t.replace(/\b[Ii]mage ([1234])\b/g, "<<<image_$1>>>");
   let t = conv(build(KEEP_BODY));
   if (t.length > KL_PROMPT_MAX) t = conv(build(KEEP_BODY_SHORT));
-  if (t.length > KL_PROMPT_MAX) { t = t.slice(0, KL_PROMPT_MAX); const i = t.lastIndexOf(". "); if (i > 0) t = t.slice(0, i + 1); }
+  if (t.length > KL_PROMPT_MAX) { t = t.slice(0, KL_PROMPT_MAX); const i = semi ? Math.max(t.lastIndexOf(". "), t.lastIndexOf("; ")) : t.lastIndexOf(". "); if (i > 0) t = t.slice(0, i) + "."; } /* semi: 두 벌 입히기는 핏이 ';'로 이어진 한 문장이라 '.'로만 자르면 옷 하나의 핏이 통째로 사라진다 */
   return t;
 }
+/* 상의+하의를 한 번에 입힐 때: 옷별 핏 문장에 어느 옷인지 표시하고, 하의 문장의 상품 사진 번호를 image 3 으로 맞춘다.
+   두 벌이면 문장 상한(2500자)에 걸려 몸 유지 문장이 잘리므로, 옷마다 반복되는 설명은 빼고 끝에 한 번만 쓴다 */
+function outfitFit(fit: unknown, fit2: unknown) {
+  const slim = (t: string) => t.replace(" (the garment's real size relative to her body, show it visibly in the image)", "").replace(" Draw the garment's size honestly, scaled to its true size relative to her unchanged body, never resized to flatter her.", "");
+  /* 원단 문장은 맨 뒤로 보낸다: 상한에 걸려도 상의·하의 핏이 먼저 남는다 */
+  const fabT = fit ? fabricText(fit) : "", fabB = fit2 ? fabricText(fit2) : "";
+  const top = slim(fitText(fit, "top")).replace(fabT, "").replace("FIT OF THE GARMENT", "FIT OF THE TOP");
+  const bot = slim(fitText(fit2, "bottom")).replace(fabB, "").replace("FIT OF THE GARMENT", "FIT OF THE BOTTOMS");
+  const fab = fabB.replace("The garment is made of", "The bottoms are made of") + fabT.replace("The garment is made of", "The top is made of");
+  return top || bot || fab ? " Show each garment's real size honestly on her unchanged body, never resized to flatter her." + bot + top + fab : "";
+}
+function outfitCut(g: unknown, g2: unknown, male: boolean) {
+  const one = (v: unknown, cat: string, label: string) => cutText(v, male, cat) ? " Keep the original " + (v === "female" ? "women's" : "men's") + " cut of the " + label + "; do not re-tailor it." : "";
+  return one(g, "top", "top") + one(g2, "bottom", "bottoms");
+}
+/* 몸 유지 문장은 '옷 하나만 바꿔라'로 되어 있어 두 벌에 맞게 고친다 */
+function outfitKeep(t: string) {
+  return t.replace("the clothing item named above", "the top, bottoms and shoes described above").replace(/ Keep every other garment( as it is)?\./, "").replace("the other clothing, ", "");
+}
+type Second = { bytes: Uint8Array; name: string; fit?: unknown; garmentGender?: unknown };
+/* 보낼 문장 전체(시험에서도 이 함수를 그대로 쓴다) */
+function buildPrompt(male: boolean, cat: string, mine: boolean, fit: unknown, garmentGender: unknown, name: string, shoe: { name: string } | undefined, shoeType: string | null, second?: Omit<Second, "bytes">) {
+  const shoeName = shoe ? shoe.name : null;
+  return klPrompt((kb) => {
+    const keep = mine ? kb : KEEP;
+    const t = cat === "outfit"
+      /* 몸 유지 문장을 핏 문장보다 앞에 둔다: 상한을 넘어 끝이 잘려도 얼굴·몸 유지는 남고, 하의 핏(허리·엉덩이)이 상의 핏보다 먼저 온다 */
+      ? toMale(PROMPTS.outfit + nameText(cat, name, second?.name ?? "") + keepOthersText(cat, male, shoeName, shoeType) + outfitKeep(keep), male) + outfitCut(garmentGender, second?.garmentGender, male) + toMale(outfitFit(fit, second?.fit), male)
+      : toMale(PROMPTS[cat] + nameText(cat, name) + keepOthersText(cat, male, shoeName, shoeType) + fitText(fit, cat) + keep, male) + cutText(garmentGender, male, cat);
+    return t.split("@@NAME2@@").join(second?.name ?? "").split("@@NAME@@").join(name);
+  }, cat === "outfit");
+}
 /* 접수: 사진 두 장(base64)과 문장을 보내고 번호(task_id)를 돌려준다. 오래 붙잡지 않는다 */
-async function submitKling(male: boolean, cat: string, garmentBytes: Uint8Array, myAvatar?: Uint8Array, fit?: unknown, garmentGender?: unknown, name = "", shoe?: { bytes: Uint8Array; name: string }, shoeType: string | null = null) {
+async function submitKling(male: boolean, cat: string, garmentBytes: Uint8Array, myAvatar?: Uint8Array, fit?: unknown, garmentGender?: unknown, name = "", shoe?: { bytes: Uint8Array; name: string }, shoeType: string | null = null, second?: Second) {
   let avBytes = myAvatar;
   if (!avBytes) { // 내 아바타가 없으면 기본 캐릭터
     const av = await fetch(male ? AVATAR_URL_MALE : AVATAR_URL);
     if (!av.ok) throw new Error("avatar");
     avBytes = new Uint8Array(await av.arrayBuffer());
   }
-  const prompt = klPrompt((kb) => (toMale(PROMPTS[cat] + nameText(cat, name) + keepOthersText(cat, male, shoe ? shoe.name : null, shoeType) + fitText(fit, cat) + (myAvatar ? kb : KEEP), male) + cutText(garmentGender, male, cat)).split("@@NAME@@").join(name));
+  const prompt = buildPrompt(male, cat, !!myAvatar, fit, garmentGender, name, shoe, shoeType, second);
   const d = await kl("/v1/images/omni-image", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model_name: KL_MODEL, prompt, image_list: [{ image: bytesToB64(avBytes) }, { image: bytesToB64(garmentBytes) }].concat(shoe ? [{ image: bytesToB64(shoe.bytes) }] : []), resolution: "2k", n: 1, aspect_ratio: "9:16" }),
+    body: JSON.stringify({ model_name: KL_MODEL, prompt, image_list: [{ image: bytesToB64(avBytes) }, { image: bytesToB64(garmentBytes) }].concat(second ? [{ image: bytesToB64(second.bytes) }] : [], shoe ? [{ image: bytesToB64(shoe.bytes) }] : []), resolution: "2k", n: 1, aspect_ratio: "9:16" }),
   });
   if (!d.task_id) throw new Error("kling no task_id " + JSON.stringify(d).slice(0, 200));
   return String(d.task_id);
@@ -296,7 +306,7 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json(req, 405, { error: "POST 만 가능합니다." });
   if (!KL_KEY) return json(req, 500, { error: "서버에 이미지 생성 키가 설정되지 않았습니다." });
 
-  let body: { action?: string; taskId?: string; device?: string; cat?: string; garment?: string; gender?: string; avatar?: string; fit?: unknown; garmentGender?: string; name?: string; shoe?: string; shoeName?: string; shoeType?: string };
+  let body: { action?: string; taskId?: string; device?: string; cat?: string; garment?: string; gender?: string; avatar?: string; fit?: unknown; garmentGender?: string; name?: string; shoe?: string; shoeName?: string; shoeType?: string; garment2?: string; name2?: string; fit2?: unknown; garmentGender2?: string };
   try { body = await req.json(); } catch { return json(req, 400, { error: "요청 형식이 올바르지 않습니다." }); }
   if (body.action === "status") {
     const tid = String(body.taskId ?? "");
@@ -313,6 +323,13 @@ Deno.serve(async (req) => {
   if (!/^[A-Za-z0-9_-]{16,64}$/.test(device)) return json(req, 400, { error: "기기 식별자가 올바르지 않습니다." });
   if (!PROMPTS[cat]) return json(req, 400, { error: "옷 종류가 올바르지 않습니다." });
   if (!garment || garment.length > MAX_B64) return json(req, 400, { error: "상품 사진이 없거나 너무 큽니다." });
+  // 상의+하의 한 번에(cat=outfit): garment 는 상의, garment2 는 하의
+  let garment2 = "";
+  if (cat === "outfit") {
+    const g2 = String(body.garment2 ?? "").match(/^data:image\/(?:jpeg|png);base64,(.*)$/);
+    if (!g2 || !g2[1] || g2[1].length > MAX_B64) return json(req, 400, { error: "하의 사진은 JPG 또는 PNG 이고 5MB 이하여야 합니다." });
+    garment2 = g2[1];
+  }
   let myAv = String(body.avatar ?? "");
   const am = myAv.match(/^data:image\/jpeg;base64,(.*)$/);
   if (am) myAv = am[1];
@@ -336,7 +353,7 @@ Deno.serve(async (req) => {
 
   try {
     const bytes = b64ToBytes(garment);
-    const taskId = await submitKling(body.gender === "male", cat, bytes, myAv ? b64ToBytes(myAv) : undefined, body.fit, body.garmentGender, cleanName(body.name), shoe ? { bytes: b64ToBytes(shoe), name: cleanName(body.shoeName) } : undefined, shoeType);
+    const taskId = await submitKling(body.gender === "male", cat, bytes, myAv ? b64ToBytes(myAv) : undefined, body.fit, body.garmentGender, cleanName(body.name), shoe ? { bytes: b64ToBytes(shoe), name: cleanName(body.shoeName) } : undefined, shoeType, garment2 ? { bytes: b64ToBytes(garment2), name: cleanName(body.name2), fit: body.fit2, garmentGender: body.garmentGender2 } : undefined);
     return json(req, 200, { taskId });
   } catch (e) {
     console.error("submit failed:", (e as Error).message);

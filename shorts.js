@@ -132,7 +132,7 @@
   function loadMedia() {
     if (!user) return Promise.resolve();
     var uid = user.id;
-    var ids = state.closet.map(function (x) { return x.id; });
+    var ids = state.closet.map(function (x) { return x.id; }).concat(Object.keys(state.looks || {}));
     return Promise.all(MEDIA_KEYS.map(blobGet).concat(ids.map(function (id) { return blobGet('tryon:' + id); }))).then(function (r) {
       if (!user || user.id !== uid) return;
       clearUrls();
@@ -443,14 +443,23 @@
 
   /* 고른 옷(상의→하의→신발 순) 중 '입은 모습' 이미지가 연결된 첫 번째 */
   function hasMotionVideo() { return urls.videos.some(Boolean); }
-  /* 다른 옷 위에 겹쳐 입힌 그림은 그 옷도 아직 고른 상태일 때만 보여 준다(벗은 옷이 그림에 남아 보이지 않게) */
+  /* 옷 조합: 상의+하의를 한 번에 입힌 결과는 'tryon:상의id+하의id' 로 저장한다(2026-11-05 사용자 결정: 항상 원본 캐릭터에 고른 옷을 한 번에). 한 벌이면 키는 옷 id 그대로 */
+  function lookItems(key) { return String(key).split('+').map(function (id) { return item(id); }).filter(Boolean); }
+  function lookName(key) { return lookItems(key).map(function (x) { return x.name; }).join(' + '); }
+  function selLook() {
+    var t = state.sel.top, b = state.sel.bottom;
+    return t && b && item(t.id) && item(b.id) ? t.id + '+' + b.id : null;
+  }
+  /* 예전 겹쳐 입기(852c600)로 만들어 둔 그림은 그 옷도 아직 고른 상태일 때만 보여 준다(벗은 옷이 그림에 남아 보이지 않게). 새로 만들지는 않는다 */
   function overOk(id) {
     var w = state.aiOver && state.aiOver[id], wi = w && item(w);
     if (!w) return true;
     return !!(wi && state.sel[wi.cat] && state.sel[wi.cat].id === w);
   }
   function wornImage() {
-    var c = ['top', 'bottom', 'dress', 'shoe'], l = state.wearLast && item(state.wearLast);
+    var c = ['top', 'bottom', 'dress', 'shoe'], l = state.wearLast && item(state.wearLast), k = selLook();
+    /* 고른 상의+하의 조합의 그림이 있으면 그것을 보여 준다. 기록에서 한 벌짜리를 '메인에서 보기'로 고른 경우만 그 그림이 먼저 */
+    if (k && urls.tryon[k] && !(l && state.sel[l.cat] && state.sel[l.cat].id === l.id)) return { id: k, look: true, cat: 'top', name: lookName(k), url: urls.tryon[k] };
     if (l) c = [l.cat].concat(c.filter(function (x) { return x !== l.cat; })); /* 마지막에 입힌 그림이 먼저: 상의 뒤 바지를 입히면 둘 다 입은 그림이 나온다 */
     for (var i = 0; i < c.length; i++) {
       var s = state.sel[c[i]], it = s && item(s.id);
@@ -497,7 +506,7 @@
     var m = state.motion, inner, badge = '', worn = wornImage(), st = curStyle();
     /* 스타일을 보는 중이고 '기본 모델' 화면이면 무료용 기본 AI 모델 착용 이미지, '내 아바타' 화면이면 내가 입혀 본 모습 */
     if (st && st.modelImage && state.view !== 'me') { inner = '<img class="worn model" alt="' + h(st.title) + ' 기본 모델 착용" src="' + h(st.modelImage) + '">'; badge = '기본 모델 착용 · AI 생성 이미지'; }
-    else if (worn) { inner = '<img class="worn" alt="' + h(worn.name) + ' 입은 모습" src="' + worn.url + '">'; badge = CATS[worn.cat] + ' · ' + worn.name + ' 입은 모습' + (hemCutOf(worn.id) ? ' · 기장 약 ' + hemCutOf(worn.id) + 'cm 줄인 수선 예상' : ''); }
+    else if (worn) { inner = '<img class="worn" alt="' + h(worn.name) + ' 입은 모습" src="' + worn.url + '">'; badge = (worn.look ? '상의+하의' : CATS[worn.cat]) + ' · ' + worn.name + ' 입은 모습' + (hemCutOf(worn.id) ? ' · 기장 약 ' + hemCutOf(worn.id) + 'cm 줄인 수선 예상' : ''); }
     else if (st && st.modelImage && user && !urls.videos[m] && !urls.avatar && bodyRatios()) { /* [테스트] 내 아바타 = 기본 모델을 내 신체 사이즈로 부위별 조정 */
       var wu = warpedModel(st.modelImage);
       inner = '<img class="worn model" alt="' + h(st.title) + ' 내 체형" src="' + h(wu || st.modelImage) + '">'; badge = wu ? '기본 모델을 내 신체 사이즈로 조정한 테스트 화면' : '내 체형으로 조정하는 중…';
@@ -736,7 +745,7 @@
       var it = item(el.dataset.id);
       if (!it || !confirm('"' + it.name + '" 을(를) 내 옷장에서 삭제할까요?')) return;
       state.closet = state.closet.filter(function (x) { return x.id !== it.id; });
-      dropTryon(it.id); blobDel('gphoto:' + it.id).catch(function () {});
+      dropItemTryon(it.id); blobDel('gphoto:' + it.id).catch(function () {});
       Object.keys(state.sel).forEach(function (c) { if (state.sel[c] && state.sel[c].id === it.id) delete state.sel[c]; });
       save(); render();
     },
@@ -776,7 +785,7 @@
     },
     resetAll: function () {
       if (!confirm('이 프로필에 입력한 내 정보, 옷장, 연결한 캐릭터와 영상이 모두 지워집니다. 프로필(닉네임·PIN)은 남습니다. 계속할까요?')) return;
-      state.closet.forEach(function (x) { dropTryon(x.id); });
+      state.closet.forEach(function (x) { dropItemTryon(x.id); });
       state = blankState(); save();
       MEDIA_KEYS.forEach(function (k) { blobDel(k).catch(function () {}); });
       clearUrls();
@@ -846,6 +855,12 @@
     blobDel('tryon:' + id).catch(function () {});
     if (state.aiHem) delete state.aiHem[id];
     if (state.aiOver) delete state.aiOver[id];
+    if (state.looks) delete state.looks[id];
+  }
+  /* 옷장에서 옷이 없어질 때: 그 옷이 들어간 조합 결과도 같이 지운다 */
+  function dropItemTryon(id) {
+    dropTryon(id);
+    Object.keys(state.looks || {}).forEach(function (k) { if (k.split('+').indexOf(id) >= 0) dropTryon(k); });
   }
   function handleFile(kind, file) {
     if (kind === 'lgAvatar') {
@@ -986,8 +1001,7 @@
   }
 
   /* ---- 입혀 보기(AI): Supabase Edge Function 이 기본 캐릭터 + 상품 사진으로 입은 모습을 만든다 ---- */
-  var genPending = null;                       /* 만드는 중인 옷 id (한 번에 하나만) */
-  var genOver = null;                          /* 만드는 중인 요청이 겹쳐 입히는 옷 id(그 옷의 입은 그림 위에 입힌다, 없으면 null) */
+  var genPending = null;                       /* 만드는 중인 옷 id 또는 조합 키 (한 번에 하나만) */
   var genHem = 0;                              /* 만드는 중인 요청의 바지 기장 수선 길이(cm, 0=원래 기장) */
   var GEN_KEY = function () { return 'fit-gen-pending:' + (user ? user.id : ''); };
   function deviceId() {
@@ -1005,16 +1019,6 @@
     return fetch(urls.avatar).then(function (r) { return r.blob(); }).then(function (b) { return shrink(b, 1280, 0.88); }).then(function (b) {
       return new Promise(function (res, rej) { var fr = new FileReader(); fr.onload = function () { res(fr.result); }; fr.onerror = rej; fr.readAsDataURL(b); });
     }).then(klingSafe).catch(function () { return null; });
-  }
-  /* 상의를 입은 뒤 바지를 고르면(또는 반대) 그 옷의 입은 그림을 시작 그림으로 보내, 입고 있는 옷은 그대로 두고 이 옷만 입히거나 바꾼다(2026-11-05 사용자 요청).
-     서버 문장이 이미 '다른 옷은 그대로, 같은 종류는 교체'라 서버 수정은 없다. 원피스·신발은 지금처럼 아바타에서 시작한다 */
-  function overItem(it) {
-    var other = it.cat === 'top' ? 'bottom' : it.cat === 'bottom' ? 'top' : null;
-    var s = other && state.sel[other];
-    return s && item(s.id) && urls.tryon[s.id] ? s.id : null;
-  }
-  function overData(id) {
-    return blobGet('tryon:' + id).then(function (b) { return shrink(b, 1280, 0.88); }).then(blobToDataUrl).then(klingSafe).catch(function () { return null; });
   }
   function genCall(body) {
     var c = window.TRYON_CFG;
@@ -1042,17 +1046,34 @@
       n.onclick = function () { try { window.focus(); } catch (e) {} n.close(); };
     } catch (e) {}
   }
-  function genButton(it) {
-    if (!genEnabled() || !it.photo) return '';
-    if (genPending === it.id) return '<button class="btn sm" disabled>만드는 중… 다른 걸 해도 돼요</button>';
-    return '<button class="btn sm p" data-act="genTryon" data-id="' + it.id + '"' + (genPending ? ' disabled' : '') + '>' + (urls.tryon[it.id] ? 'AI로 다시 입히기' : 'AI로 입혀 보기') + '</button>';
+  /* 입을 옷: 원피스 또는 상의·하의(둘 다면 한 번에). 옷 없이 신발만 고르면 신발만 */
+  function wearSet() {
+    function got(c) { var x = state.sel[c]; return x ? item(x.id) : null; }
+    if (got('dress')) return [got('dress')];
+    var set = [got('top'), got('bottom')].filter(Boolean);
+    return set.length ? set : [got('shoe')].filter(Boolean);
+  }
+  /* 같이 신을 신발: '입어볼 때 신발'에서 직접 고른 것이 먼저, 안 골랐으면 옷장에서 고른 신발(사진 있는 것), 둘 다 없으면 없음(서버 기본 구두) */
+  function wearShoe() {
+    var it = tryShoeItem(), x = state.sel.shoe, sel = x && item(x.id);
+    if (it || state.tryShoe) return it;
+    return sel && sel.photo ? sel : null;
+  }
+  function wearBar() {
+    if (!genEnabled()) return '';
+    if (genPending) return '<button class="btn" disabled>만드는 중… 다른 걸 해도 돼요</button>';
+    var set = wearSet();
+    if (!set.length) return '';
+    var names = set.map(function (x) { return x.name; }), sh = set[0].cat !== 'shoe' ? wearShoe() : null;
+    if (set[0].cat !== 'shoe') names.push(sh ? sh.name : (SHOE_TYPES.filter(function (t) { return t[0] === tryShoeTypeId(); })[0] || ['', '구두'])[1].replace(' (기본)', ''));
+    var key = set.map(function (x) { return x.id; }).join('+');
+    return '<div class="note">입을 옷: <b>' + h(names.join(' + ')) + '</b></div><button class="btn p" data-act="wearAll">' + (urls.tryon[key] ? '고른 옷 다시 입어보기' : '고른 옷 한 번에 입어보기') + '</button>';
   }
   function genFinish(id, ok, msg, ms) {
     genPending = null;
     try { localStorage.removeItem(GEN_KEY()); } catch (e) {}
     if (ok) {
-      var it0 = item(id);
-      if (it0) { var cur0 = state.sel[it0.cat]; state.sel[it0.cat] = { id: id, size: cur0 && cur0.id === id ? cur0.size : null }; exclusiveSel(it0.cat); }
+      lookItems(id).forEach(function (it0) { var cur0 = state.sel[it0.cat]; state.sel[it0.cat] = { id: it0.id, size: cur0 && cur0.id === it0.id ? cur0.size : null }; exclusiveSel(it0.cat); });
       state.view = 'me'; save(); /* 완성되면 '내 아바타' 화면으로 */
     }
     waitEnd(ok);
@@ -1075,10 +1096,11 @@
           urls.tryon[id] = URL.createObjectURL(blob);
           state.aiGen = state.aiGen || {}; state.aiGen[id] = true;
           state.aiHem = state.aiHem || {}; if (genHem > 0) state.aiHem[id] = genHem; else delete state.aiHem[id];
-          state.aiOver = state.aiOver || {}; if (genOver) state.aiOver[id] = genOver; else delete state.aiOver[id];
+          if (state.aiOver) delete state.aiOver[id];
+          if (id.indexOf('+') > 0) { state.looks = state.looks || {}; state.looks[id] = 1; }
           state.wearLast = id;
           save();
-          var it = item(id), msg = (it ? it.name : '옷') + ' 입은 모습이 완성됐어요!';
+          var msg = (lookName(id) || '옷') + ' 입은 모습이 완성됐어요!';
           notifyDone('FITON', msg);
           genFinish(id, true, msg);
         });
@@ -1086,7 +1108,7 @@
       if (j.status === 'failed') {
         /* 서버가 준 Kling 실패 사유를 그대로 보여 준다(테스트 중 원인 확인용, 2026-11-05: 하의·원피스 실패 사유를 알 수 없었음). 읽을 시간을 주려고 15초 표시 */
         var why = String(j.error || '').slice(0, 200);
-        console.warn('[tryon failed]', (item(id) || {}).cat, taskId, why);
+        console.warn('[tryon failed]', (lookItems(id)[0] || {}).cat, taskId, why);
         genFinish(id, false, '입은 모습을 만들지 못했어요.' + (why ? ' (사유: ' + why + ')' : ' 잠시 뒤 다시 시도해 주세요.'), why ? 15000 : 0);
         return;
       }
@@ -1134,15 +1156,11 @@
       var ease = {}, len = {};
       r.current.parts.forEach(function (p) {
         if (p.kind === 'circ' && /^(chest|waist|hip|thigh)$/.test(p.key) && isFinite(p.ease)) ease[p.key] = p.ease;
-        /* 길이 정보(cm 차이, 총장은 밑단 높이/키 비율): 소매가 짧다·바지가 끌린다 같은 모습을 AI 그림에 반영 */
-        if (/^(shoulder|sleeve|rise|inseam)$/.test(p.key) && isFinite(p.diff)) len[p.key] = p.diff;
-        if (p.key === 'length' && isFinite(p.ratio)) len.hem = p.ratio;
-        if ((p.key === 'sleeve' || p.key === 'inseam') && isFinite(p.pos)) len[p.key + 'Pos'] = p.pos;
-        if (p.key === 'length' && it.cat === 'bottom' && isFinite(p.diff) && isFinite(p.pos)) { len.length = p.diff; len.lengthPos = p.pos; }
+        /* 길이 정보(cm 차이, 총장은 밑단 높이/키 비율): 소매가 짧다 같은 모습을 AI 그림에 반영. 바지·스커트 기장은 보내지 않는다(상품 사진의 스타일 길이대로 입힘) */
+        if (/^(shoulder|sleeve|rise)$/.test(p.key) && isFinite(p.diff)) len[p.key] = p.diff;
+        if (p.key === 'length' && it.cat !== 'bottom' && isFinite(p.ratio)) len.hem = p.ratio;
+        if (p.key === 'sleeve' && isFinite(p.pos)) len.sleevePos = p.pos;
       });
-      /* 바지 기장 '내 몸에 맞춤': 줄인 뒤 기장으로 보내고, 줄인 길이(hemmed)를 따로 알려 밑단만 바꾸게 한다 */
-      var ip = it.cat === 'bottom' && hemOn(it.id) ? inseamPart(r.current) : null, hf = ip && E.hemFit(ip.diff);
-      if (hf && hf.cut > 0) { len.inseam = hf.after; delete len.inseamPos; len.hemmed = hf.cut; }
       if (!Object.keys(ease).length && !Object.keys(len).length) return null;
       /* 소재 코드: 서버가 신축(늘어나 밀착)·데님(뻣뻣하게 당김·각진 주름) 모습으로 그리게 한다. '일반'은 서버가 무시 */
       return { size: r.chosen, ease: ease, len: len, fabric: it.fabric || null };
@@ -1153,51 +1171,58 @@
     if (el.dataset.v) state.hemFit[el.dataset.id] = true; else delete state.hemFit[el.dataset.id];
     save(); render();
   };
-  ACT.genTryon = function (el) {
-    var it = item(el.dataset.id);
-    if (!it || genPending || !genEnabled()) return;
-    if (!it.photo) { alert('먼저 이 옷의 상품 사진을 올려 주세요. (수정 → 상품 사진)'); return; }
+  /* 고른 옷을 원본 캐릭터에 한 번에 입힌다(2026-11-05 사용자 결정). 상의+하의는 cat='outfit' 으로 보낸다. 이 값을 모르는 예전 서버는 400 으로 거절해서, 한 벌만 입은 그림이 조용히 나오지 않는다 */
+  ACT.wearAll = function () {
+    var set = wearSet();
+    if (genPending || !genEnabled()) return;
+    if (!set.length) { toast('입을 옷을 먼저 골라 주세요.'); return; }
+    var noPhoto = set.filter(function (x) { return !x.photo; })[0];
+    if (noPhoto) { alert('먼저 "' + noPhoto.name + '"의 상품 사진을 올려 주세요. (수정 → 상품 사진)'); return; }
     if (tryLeft() <= 0) { toast('이번 달 입어보기 횟수를 다 썼어요. 플랜을 확인해 주세요.'); openSheet('plan'); return; }
+    var it = set[0], second = set[1] || null, key = set.map(function (x) { return x.id; }).join('+');
     var first = false;
     try { first = !localStorage.getItem('fit-gen-ok'); } catch (e) { first = true; }
-    if (first && !confirm('이 옷의 상품 사진이 AI 이미지 생성 서버(Supabase·Kling)로 전송되어 입은 모습을 만듭니다. 내 얼굴 사진과 몸 정보는 전송되지 않아요. 만들어진 이미지는 AI가 생성한 것이라 실제 상품과 다를 수 있고, 플랜별 월 횟수와 하루 이용 한도가 있습니다. 계속할까요?')) return;
-    if (urls.tryon[it.id] && !confirm('이미 만든 입은 모습이 있습니다. 다시 만들면 입어보기 횟수가 한 번 더 쓰입니다. (남은 ' + tryLeft() + '회) 계속할까요?')) return;
+    if (first && !confirm('고른 옷의 상품 사진이 AI 이미지 생성 서버(Supabase·Kling)로 전송되어 입은 모습을 만듭니다. 내 얼굴 사진과 몸 정보는 전송되지 않아요. 만들어진 이미지는 AI가 생성한 것이라 실제 상품과 다를 수 있고, 플랜별 월 횟수와 하루 이용 한도가 있습니다. 계속할까요?')) return;
+    if (urls.tryon[key] && !confirm('이미 만든 입은 모습이 있습니다. 다시 만들면 입어보기 횟수가 한 번 더 쓰입니다. (남은 ' + tryLeft() + '회) 계속할까요?')) return;
     if (urls.avatar) {
       var avFirst = false;
       try { avFirst = !localStorage.getItem('fit-gen-av-ok'); } catch (e) { avFirst = true; }
-      if (avFirst && !confirm('내 아바타 이미지도 이 옷을 입히는 동안 AI 이미지 생성 서버(Supabase·Kling)로 전송됩니다. 서버에는 저장하지 않고 입히기 요청에만 쓰입니다. 계속할까요?')) return;
+      if (avFirst && !confirm('내 아바타 이미지도 옷을 입히는 동안 AI 이미지 생성 서버(Supabase·Kling)로 전송됩니다. 서버에는 저장하지 않고 입히기 요청에만 쓰입니다. 계속할까요?')) return;
       try { localStorage.setItem('fit-gen-av-ok', '1'); } catch (e) {}
     }
     try { localStorage.setItem('fit-gen-ok', '1'); } catch (e) {}
     ensureNotifyPermission(); /* 생성이 오래 걸려서, 클릭한 김에(사용자 동작 안) 완성 알림 권한을 물어 둔다 */
-    var id = it.id;
-    genPending = id; sheet = null; state.draft = null; render(); waitStart(it.name, wearSize(it));
-    var shoeIt = it.cat !== 'shoe' ? tryShoeItem() : null;
-    genOver = overItem(it);
-    var startImg = genOver ? overData(genOver).then(function (d) { if (d) return d; genOver = null; return avatarData(); }) : avatarData();
-    Promise.all([photoData(it), startImg, shoeIt ? photoData(shoeIt) : null]).then(function (a) {
-      var body = { device: deviceId(), cat: it.cat, garment: a[0], gender: isMale() ? 'male' : 'female' };
+    genPending = key; sheet = null; state.draft = null; render(); waitStart(lookName(key), wearSizes(set));
+    var shoeIt = it.cat !== 'shoe' ? wearShoe() : null;
+    Promise.all([photoData(it), avatarData(), shoeIt ? photoData(shoeIt) : null, second ? photoData(second) : null]).then(function (a) {
+      var body = { device: deviceId(), cat: second ? 'outfit' : it.cat, garment: a[0], gender: isMale() ? 'male' : 'female' };
       if (a[2]) { body.shoe = a[2]; if (shoeIt.name) body.shoeName = String(shoeIt.name).slice(0, 60); } /* 옷장 신발 사진이 있으면 그걸 우선 */
       else if (it.cat !== 'shoe') body.shoeType = tryShoeTypeId(); /* 없으면 고른 신발 종류(기본값 구두) */
       if (it.name) body.name = String(it.name).slice(0, 60); /* 옷 이름: 상품 사진이 코디 사진이어도 서버가 이 옷만 입히게 한다 */
       if (it.cat !== 'shoe') body.garmentGender = garGender(it); /* 여성용/남성용/공용: 내 성별과 다르면 서버가 원래 재단을 유지하라고 AI에 알린다 */
       if (a[1]) body.avatar = a[1];
       var fh = fitHint(it); if (fh) body.fit = fh;
-      genHem = fh && fh.len && fh.len.hemmed > 0 ? fh.len.hemmed : 0;
+      var fb = fh;
+      if (second) {
+        body.garment2 = a[3]; body.garmentGender2 = garGender(second);
+        if (second.name) body.name2 = String(second.name).slice(0, 60);
+        fb = fitHint(second); if (fb) body.fit2 = fb;
+      }
+      genHem = fb && fb.len && fb.len.hemmed > 0 ? fb.len.hemmed : 0;
       return genCall(body);
     }).then(function (res) {
       if (!res.ok || !res.j.taskId) throw new Error((res.j && res.j.error) || '요청을 접수하지 못했습니다.');
       tryUse(); /* 서버가 접수한 뒤에만 이번 달 횟수를 뺀다(거절되면 차감 없음) */
       var t0 = Date.now();
-      try { localStorage.setItem(GEN_KEY(), JSON.stringify({ id: id, taskId: res.j.taskId, t0: t0, hem: genHem, over: genOver })); } catch (e) {}
-      genPoll(id, res.j.taskId, t0);
-    }).catch(function (err) { genFinish(id, false, (err && err.message) || '요청을 접수하지 못했습니다.'); });
+      try { localStorage.setItem(GEN_KEY(), JSON.stringify({ id: key, taskId: res.j.taskId, t0: t0, hem: genHem })); } catch (e) {}
+      genPoll(key, res.j.taskId, t0);
+    }).catch(function (err) { genFinish(key, false, (err && err.message) || '요청을 접수하지 못했습니다.'); });
   };
   function genResume() {
     if (!user || genPending || !genEnabled()) return;
     try {
       var p = JSON.parse(localStorage.getItem(GEN_KEY()) || 'null');
-      if (p && p.id && p.taskId && item(p.id) && Date.now() - p.t0 < 6 * 60 * 1000) { genPending = p.id; genHem = Number(p.hem) || 0; genOver = p.over || null; render(); waitStart(item(p.id).name || '', wearSize(item(p.id)), true); genPoll(p.id, p.taskId, p.t0); }
+      if (p && p.id && p.taskId && lookItems(p.id).length && Date.now() - p.t0 < 6 * 60 * 1000) { genPending = p.id; genHem = Number(p.hem) || 0; render(); waitStart(lookName(p.id), wearSizes(lookItems(p.id)), true); genPoll(p.id, p.taskId, p.t0); }
       else if (p) localStorage.removeItem(GEN_KEY());
     } catch (e) {}
   }
@@ -1213,6 +1238,10 @@
     if (picked) return picked + ' 사이즈';
     var f = fitHint(it);
     return f && f.size ? f.size + ' 사이즈 (추천)' : '';
+  }
+  function wearSizes(set) {
+    if (set.length < 2) return set[0] ? wearSize(set[0]) : '';
+    return set.map(function (x) { var z = wearSize(x); return z ? CATS[x.cat] + ' ' + z : ''; }).filter(Boolean).join(' · ');
   }
   function waitStart(name, size, resume) {
     waitEnd(false, true);
@@ -1258,7 +1287,7 @@
   }
   function tryonRow(it) {
     var has = !!urls.tryon[it.id];
-    return '<div class="tryon">' + genButton(it) + '<button class="btn sm" data-act="edit" data-id="' + it.id + '">' + (it.photo ? '옷·사이즈표 사진 바꾸기' : '옷·사이즈표 사진 올리기') + '</button><label class="btn sm" style="cursor:pointer">' + (has ? '입은 모습 바꾸기' : '입은 모습 올리기') + '<input type="file" accept="image/*" data-file="tryon:' + it.id + '" hidden></label>' +
+    return '<div class="tryon"><button class="btn sm" data-act="edit" data-id="' + it.id + '">' + (it.photo ? '옷·사이즈표 사진 바꾸기' : '옷·사이즈표 사진 올리기') + '</button><label class="btn sm" style="cursor:pointer">' + (has ? '입은 모습 바꾸기' : '입은 모습 올리기') + '<input type="file" accept="image/*" data-file="tryon:' + it.id + '" hidden></label>' +
       (has ? '<button class="btn sm danger" data-act="clearTryon" data-id="' + it.id + '">삭제</button>' : '') + '</div>';
   }
 
@@ -1276,11 +1305,12 @@
       var cur = ev.results.filter(function (r) { return r.cat === cat; })[0], p = cur && cur.current && cur.current.primary;
       var add = '<button class="tile add" data-act="new" data-cat="' + cat + '"><div class="timg"><span>＋</span></div><div class="tname">새 상품 입력</div><div class="sub">실측표를 보고 입력</div></button>';
       return '<h3>내 옷장</h3>' + closetTabs(cat) +
-        '<div class="note">① 옷 종류를 고르고 ② 내 옷을 등록하거나 골라 사이즈를 선택한 뒤 ③ 옷마다 있는 "AI로 입혀 보기"를 누르면 바로 볼 수 있어요.</div>' +
+        '<div class="note">① 옷 종류별로 입을 옷의 사이즈(또는 추천)를 눌러 고르고 ② 맨 아래 "고른 옷 한 번에 입어보기"를 누르면 상의·하의·신발을 원본 캐릭터에 한 번에 입혀요.</div>' +
         '<div class="hs">' + list.map(function (x) { return closetTile(x, cat); }).join('') + add + '</div>' +
         (it ? '<div class="note">입는 중: ' + h(it.name) + ' · ' + (sel.size ? h(sel.size) : '추천 사이즈') + (p ? ' · <b>' + p.grade + ' ' + sgn(p.ease) + p.unit + '</b>' : '') + '</div>' : '<div class="note">고르지 않으면 이 항목은 입히지 않습니다.</div>') +
         (!E.num(state.profile.height) ? '<div class="warn">핏 결과를 보려면 설정에서 키를 입력해 주세요.</div>' : '') +
-        '<div class="acts"><button class="btn" data-act="clearSel" data-cat="' + cat + '">선택 해제</button><button class="btn p" data-act="closeSheet">완료</button></div>';
+        wearBar() +
+        '<div class="acts"><button class="btn" data-act="clearSel" data-cat="' + cat + '">선택 해제</button><button class="btn" data-act="closeSheet">완료</button></div>';
     }
     if (sheet === 'edit' && state.draft) return viewEditor(state.draft.cat);
     if (sheet === 'detail') {
@@ -1387,12 +1417,16 @@
     closeOne();
     if (hs) { closingAt = Date.now(); try { history.back(); } catch (e) {} }
   };
-  ACT.pick = function (el) { state.sel[el.dataset.cat] = { id: el.dataset.id, size: el.dataset.size || null }; exclusiveSel(el.dataset.cat); save(); render(); };
+  ACT.pick = function (el) {
+    state.sel[el.dataset.cat] = { id: el.dataset.id, size: el.dataset.size || null }; exclusiveSel(el.dataset.cat);
+    var k = selLook(); if (k && urls.tryon[k]) state.wearLast = k; /* 이미 입어 본 조합을 다시 고르면 그 그림을 보여 준다 */
+    save(); render();
+  };
   ACT.closetCat = function (el) { closetCat = el.dataset.cat; render(); };
-  ACT.clearTryon = function (el) { dropTryon(el.dataset.id); render(); };
+  ACT.clearTryon = function (el) { dropTryon(el.dataset.id); save(); render(); };
   ACT.sample = function () {
     if ((state.closet.length || state.profile.height) && !confirm('내 정보와 옷장이 기본 모델(여성 ' + MODEL.height + 'cm/' + MODEL.weight + 'kg)과 예시 옷으로 바뀝니다. 계속할까요?')) return;
-    state.closet.forEach(function (x) { dropTryon(x.id); blobDel('gphoto:' + x.id).catch(function () {}); });
+    state.closet.forEach(function (x) { dropItemTryon(x.id); blobDel('gphoto:' + x.id).catch(function () {}); });
     state.profile = { gender: MODEL.gender, height: MODEL.height, weight: MODEL.weight, pref: 'fit', m: {} };
     state.closet = sampleCloset(); state.sel = {}; state.seq = 10; state.feel = {}; state.draft = null;
     save(); render();
@@ -1561,7 +1595,8 @@
       rec.id = 'p' + (state.seq++); rec.name = '캡처 ' + CATS[cat] + ' ' + rec.id.slice(1); rec.photo = a[0];
       state.closet.push(rec);
       state.sel[cat] = { id: rec.id, size: null }; exclusiveSel(cat); save();
-      return blobPut('gphoto:' + rec.id, a[1]).catch(function () {}).then(function () { render(); ACT.genTryon({ dataset: { id: rec.id } }); });
+      if (cat === 'shoe') state.tryShoe = ''; /* 방금 올린 신발이 '입어볼 때 신발' 선택에 가려지지 않게 */
+      return blobPut('gphoto:' + rec.id, a[1]).catch(function () {}).then(function () { render(); ACT.wearAll(); });
     }).catch(function (err) { alert((err && err.message) || '사진을 읽지 못했습니다.'); });
   }
   function fab() { return '<button type="button" class="fab" data-act="open" data-name="avatar" aria-label="아바타 만들기"><span class="fi">' + IC.avatar + '</span><span>아바타 만들기</span></button>'; }
@@ -1583,7 +1618,7 @@
       '<div class="line"><span>몸무게</span>' + val(p.weight, 'kg') + '</div>' +
       '<div class="line" style="align-items:center"><span>아바타 이미지 <b>' + (urls.avatar ? '연결됨' : '기본 캐릭터') + '</b></span><span class="acts"><label class="btn sm" style="cursor:pointer">이미지 선택<input type="file" accept="image/*" data-file="avatar" hidden></label></span></div>' +
       '<button class="btn' + (ok ? ' sm' : ' p') + '" data-act="open" data-name="settings">' + (ok ? '치수 수정 (설정)' : '성별·키·몸무게 입력하기') + '</button></div>' +
-      '<div class="card"><div class="h"><span>입어본 기록</span><span class="tag">' + state.closet.filter(function (x) { return urls.tryon[x.id]; }).length + '개</span></div>' +
+      '<div class="card"><div class="h"><span>입어본 기록</span><span class="tag">' + histList().length + '개</span></div>' +
       '<div class="note">AI로 입혀 본 모습을 모아 보고, 원본 아바타와 나란히 비교할 수 있어요.</div>' +
       '<button class="btn sm" data-act="open" data-name="history">기록 보기·비교</button></div>' +
       subCard() + mediaCard() +
@@ -1592,38 +1627,43 @@
   /* 입어본 기록: 옷별로 저장된 마지막 입은 모습 목록 · 원본 아바타와 나란히 비교 · 크게 보기 */
   var histCmp = null;
   function histOrig() { return urls.avatar || (isMale() ? 'assets/avatar_male.jpg' : 'assets/avatar_default.jpg'); }
+  /* 기록 목록: 상의+하의 조합 결과가 먼저, 그다음 옷별 결과 */
+  function histList() {
+    var looks = Object.keys(state.looks || {}).filter(function (k) { return urls.tryon[k] && lookItems(k).length; }).map(function (k) { return { key: k, name: lookName(k), label: '상의+하의 · ' + lookName(k) }; });
+    return looks.concat(state.closet.filter(function (x) { return urls.tryon[x.id]; }).map(function (x) { return { key: x.id, name: x.name, label: (CATS[x.cat] || '') + ' · ' + x.name }; }));
+  }
   function viewHistory() {
-    var list = state.closet.filter(function (x) { return urls.tryon[x.id]; });
+    var list = histList();
     return '<h3>입어본 기록</h3>' +
-      (list.length ? '<div class="note">옷마다 마지막으로 입힌 모습 한 장이 이 기기에 저장돼요. 같은 옷을 다시 입히면 그 옷의 이전 결과는 바뀌어요.</div>' + list.map(function (it) {
-        var u = urls.tryon[it.id], cmp = histCmp === it.id;
-        return '<div class="card hist"><div class="h"><span>' + h(CATS[it.cat] || '') + ' · ' + h(it.name) + '</span></div>' +
+      (list.length ? '<div class="note">옷이나 옷 조합마다 마지막으로 입힌 모습 한 장이 이 기기에 저장돼요. 같은 옷을 다시 입히면 이전 결과는 바뀌어요.</div>' + list.map(function (e) {
+        var u = urls.tryon[e.key], cmp = histCmp === e.key, id = h(e.key);
+        return '<div class="card hist"><div class="h"><span>' + h(e.label) + '</span></div>' +
           (cmp ? '<div class="cmp"><figure><img alt="원본 아바타" src="' + histOrig() + '"><figcaption>원본 아바타</figcaption></figure><figure><img alt="입은 모습" src="' + u + '"><figcaption>입은 모습</figcaption></figure></div>'
-            : '<img class="hres" alt="' + h(it.name) + ' 입은 모습" src="' + u + '" data-act="histFull" data-id="' + it.id + '">') +
-          '<div class="acts"><button class="btn sm" data-act="histCmp" data-id="' + it.id + '">' + (cmp ? '비교 닫기' : '원본과 비교') + '</button>' +
-          '<button class="btn sm" data-act="histFull" data-id="' + it.id + '">크게 보기</button>' +
-          '<button class="btn sm" data-act="histShow" data-id="' + it.id + '">메인에서 보기</button>' +
-          '<button class="btn sm danger" data-act="clearTryon" data-id="' + it.id + '">삭제</button></div></div>';
-      }).join('') : '<div class="note">아직 입어본 기록이 없어요. 옷 카드의 “AI로 입혀 보기”로 입혀 보면 여기에 쌓여요.</div>') +
+            : '<img class="hres" alt="' + h(e.name) + ' 입은 모습" src="' + u + '" data-act="histFull" data-id="' + id + '">') +
+          '<div class="acts"><button class="btn sm" data-act="histCmp" data-id="' + id + '">' + (cmp ? '비교 닫기' : '원본과 비교') + '</button>' +
+          '<button class="btn sm" data-act="histFull" data-id="' + id + '">크게 보기</button>' +
+          '<button class="btn sm" data-act="histShow" data-id="' + id + '">메인에서 보기</button>' +
+          '<button class="btn sm danger" data-act="clearTryon" data-id="' + id + '">삭제</button></div></div>';
+      }).join('') : '<div class="note">아직 입어본 기록이 없어요. 내 옷장의 “고른 옷 한 번에 입어보기”로 입혀 보면 여기에 쌓여요.</div>') +
       '<button class="btn p" data-act="closeSheet">닫기</button>';
   }
   ACT.histCmp = function (el) { histCmp = histCmp === el.dataset.id ? null : el.dataset.id; render(); };
   ACT.histFull = function (el) {
-    var it = item(el.dataset.id), u = it && urls.tryon[it.id]; if (!u) return;
+    var key = el.dataset.id, u = urls.tryon[key]; if (!u) return;
     closeFull();
     var o = document.createElement('div'); o.id = 'fsview';
-    o.innerHTML = '<div class="rmedia"><img class="worn" alt="' + h(it.name) + ' 입은 모습" src="' + u + '"></div><button type="button" class="fsx" aria-label="닫기">✕</button>';
+    o.innerHTML = '<div class="rmedia"><img class="worn" alt="' + h(lookName(key)) + ' 입은 모습" src="' + u + '"></div><button type="button" class="fsx" aria-label="닫기">✕</button>';
     o.addEventListener('click', closeFull);
     document.body.appendChild(o);
     document.addEventListener('keydown', fullKey);
   };
   ACT.histShow = function (el) {
-    var it = item(el.dataset.id); if (!it) return;
-    state.sel[it.cat] = { id: it.id, size: (state.sel[it.cat] && state.sel[it.cat].id === it.id) ? state.sel[it.cat].size : null };
-    exclusiveSel(it.cat);
-    var ow = state.aiOver && state.aiOver[it.id], oi = ow && item(ow); /* 겹쳐 입힌 그림이면 그때 입고 있던 옷도 같이 고른다 */
-    if (oi) state.sel[oi.cat] = { id: oi.id, size: (state.sel[oi.cat] && state.sel[oi.cat].id === oi.id) ? state.sel[oi.cat].size : null };
-    state.wearLast = it.id;
+    var key = el.dataset.id, its = lookItems(key); if (!its.length) return;
+    function selIt(x) { state.sel[x.cat] = { id: x.id, size: (state.sel[x.cat] && state.sel[x.cat].id === x.id) ? state.sel[x.cat].size : null }; }
+    its.forEach(function (x) { selIt(x); exclusiveSel(x.cat); });
+    var ow = state.aiOver && state.aiOver[key], oi = ow && item(ow); /* 예전에 겹쳐 입힌 그림이면 그때 입고 있던 옷도 같이 고른다 */
+    if (oi) selIt(oi);
+    state.wearLast = key;
     state.view = 'me'; save(); ACT.closeSheet(); if (sheet) { sheet = null; under = null; render(); } /* 기록·아바타 시트를 한 번에 닫고 메인으로 */
   };
   function viewPlanSheet() {
@@ -1667,7 +1707,7 @@
     importStyle(st);
     var main = ['dress', 'top', 'bottom', 'shoe'].map(function (c) { return item(styleItemId(st, c)); }).filter(function (x) { return x && x.photo; })[0];
     if (!main) { toast('이 스타일의 상품 사진을 올리면 내 아바타에 입혀 드려요.'); closetCat = 'top'; openSheet('closet'); return; }
-    ACT.genTryon({ dataset: { id: main.id } });
+    ACT.wearAll();
   };
 
   /* 둘러보기(프로필 없이 메인 화면): 보기·넘기기·구매 링크는 되고, 내 체형·아바타 기능을 누르면 프로필 선택 화면으로 간다 */
