@@ -917,10 +917,13 @@
   root.addEventListener('click', function (e) { if (mdrag || hsDrag) { mdrag = false; hsDrag = false; e.stopPropagation(); e.preventDefault(); } }, true);
 
   /* 옷장 가로 목록(.hs): 모바일은 스와이프로 넘기지만, PC는 마우스 휠에 가로 스크롤이 없고 스크롤바도 숨겨 둬서 옷이 3벌 정도만 보이고 더 못 넘기는 것처럼 보임
-     (2026-11-05 사용자 보고). 휠을 가로 스크롤로 바꾸고, 마우스로 끌어서도 넘길 수 있게 한다 */
+     (2026-11-05 사용자 보고). 휠을 가로 스크롤로 바꾸고, 마우스로 끌어서도 넘길 수 있게 한다.
+     가로 끝에 닿았으면 휠을 막지 않아 시트가 세로로 내려간다(카드가 시트 대부분을 차지해 아래 버튼으로 못 가던 회귀) */
   root.addEventListener('wheel', function (e) {
     var el = e.target.closest('.hs');
     if (!el || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+    var hsMax = el.scrollWidth - el.clientWidth;
+    if (e.deltaY > 0 ? el.scrollLeft >= hsMax - 1 : el.scrollLeft <= 0) return;
     el.scrollLeft += e.deltaY; e.preventDefault();
   }, { passive: false });
   var hsx = null, hsLeft = 0, hsEl = null, hsDrag = false;
@@ -935,7 +938,10 @@
     if (Math.abs(dx) > 4) hsDrag = true;
     hsEl.scrollLeft = hsLeft - dx;
   });
-  document.addEventListener('mouseup', function () { hsx = null; hsEl = null; });
+  /* 끌기가 .hs 밖에서 끝나면 뒤따르는 클릭이 없어 hsDrag 가 남아 다음 클릭을 삼키므로, 이번 클릭이 지나간 뒤 지운다 */
+  document.addEventListener('mouseup', function () { hsx = null; hsEl = null; setTimeout(function () { hsDrag = false; }, 0); });
+  /* 카드 사진을 잡고 끌면 브라우저 기본 이미지 끌기가 시작돼 목록이 안 움직이므로 막는다 */
+  root.addEventListener('dragstart', function (e) { if (e.target.closest && e.target.closest('.hs')) e.preventDefault(); });
 
   document.addEventListener('toggle', function (e) { if (e.target && e.target.id === 'cfgd') openCfg = e.target.open; }, true);
 
@@ -987,10 +993,10 @@
       method: 'POST', headers: { 'Content-Type': 'application/json', apikey: c.anon, Authorization: 'Bearer ' + c.anon }, body: JSON.stringify(body)
     }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); });
   }
-  function toast(msg) {
+  function toast(msg, ms) {
     var el = document.createElement('div');
     el.className = 'toast'; el.textContent = msg; document.body.appendChild(el);
-    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 4500);
+    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, ms || 4500);
   }
   /* ---- 완성 알림: 생성이 최대 6분 걸려서, 화면을 닫거나 다른 일을 해도 다 만들어지면 알려 준다(2026-11-04 사용자 결정).
      권한은 '내 아바타로 입어보기' 클릭 시(사용자 동작 안) 한 번 묻는다. 화면을 보고 있을 땐 토스트로 충분해서 알림은 안 띄운다 ---- */
@@ -1012,7 +1018,7 @@
     if (genPending === it.id) return '<button class="btn sm" disabled>만드는 중… 다른 걸 해도 돼요</button>';
     return '<button class="btn sm p" data-act="genTryon" data-id="' + it.id + '"' + (genPending ? ' disabled' : '') + '>' + (urls.tryon[it.id] ? 'AI로 다시 입히기' : 'AI로 입혀 보기') + '</button>';
   }
-  function genFinish(id, ok, msg) {
+  function genFinish(id, ok, msg, ms) {
     genPending = null;
     try { localStorage.removeItem(GEN_KEY()); } catch (e) {}
     if (ok) {
@@ -1021,7 +1027,7 @@
       state.view = 'me'; save(); /* 완성되면 '내 아바타' 화면으로 */
     }
     waitEnd(ok);
-    if (msg) toast(msg);
+    if (msg) toast(msg, ms);
     render();
   }
   /* 4초마다 결과를 확인한다. 화면을 닫았다 열어도 이어서 확인한다 */
@@ -1046,7 +1052,13 @@
           genFinish(id, true, msg);
         });
       }
-      if (j.status === 'failed') { genFinish(id, false, '입은 모습을 만들지 못했어요. 잠시 뒤 다시 시도해 주세요.'); return; }
+      if (j.status === 'failed') {
+        /* 서버가 준 Kling 실패 사유를 그대로 보여 준다(테스트 중 원인 확인용, 2026-11-05: 하의·원피스 실패 사유를 알 수 없었음). 읽을 시간을 주려고 15초 표시 */
+        var why = String(j.error || '').slice(0, 200);
+        console.warn('[tryon failed]', (item(id) || {}).cat, taskId, why);
+        genFinish(id, false, '입은 모습을 만들지 못했어요.' + (why ? ' (사유: ' + why + ')' : ' 잠시 뒤 다시 시도해 주세요.'), why ? 15000 : 0);
+        return;
+      }
       setTimeout(function () { genPoll(id, taskId, t0); }, 4000);
     }).catch(function () { setTimeout(function () { genPoll(id, taskId, t0); }, 6000); });
   }
