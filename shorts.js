@@ -549,21 +549,8 @@
     return u ? '<a class="' + cls + '" href="' + h(u) + '" target="_blank" rel="noopener noreferrer">구매하러 가기</a>' : '';
   }
 
-  /* ---- 바지 기장: '원래 그대로'(기본) / '내 몸에 맞춤'(밑단을 복숭아뼈~발등 사이로 줄인 수선 예상). 인심이 있는 하의만 ---- */
-  function hemOn(id) { return !!(state.hemFit && state.hemFit[id]); }
+  /* 예전에 만든 그림의 '기장 수선 예상' 표시용. 지금은 바지 길이를 상품 사진 스타일대로 입혀 새로 생기지 않는다 */
   function hemCutOf(id) { var v = state.aiHem && state.aiHem[id]; return v > 0 ? v : 0; }
-  function inseamPart(cur) { return cur && cur.parts.filter(function (x) { return x.key === 'inseam' && isFinite(x.diff); })[0]; }
-  function hemCard(r) {
-    if (r.cat !== 'bottom') return '';
-    var ip = inseamPart(r.current); if (!ip) return '';
-    var on = hemOn(r.garment.id), hf = E.hemFit(ip.diff), id = h(r.garment.id);
-    var line = '';
-    if (on) line = hf && hf.cut > 0 ? '<div class="line"><span>수선 후 기장</span><b>' + h(E.hemText(hf.after, NaN)) + ' (약 ' + hf.cut + 'cm 줄임)</b></div>'
-      : '<div class="note">' + (ip.diff < -12 ? '원래 짧게 만든 바지라 기장을 바꾸지 않아요.' : '이미 발목 쪽에서 끝나서 줄일 필요가 없어요.') + '</div>';
-    return '<div class="line"><span>바지 기장</span><span class="seg" role="group">' +
-      '<button type="button" data-act="hemMode" data-id="' + id + '" data-v="" class="' + (on ? '' : 'on') + '">원래 그대로</button>' +
-      '<button type="button" data-act="hemMode" data-id="' + id + '" data-v="1" class="' + (on ? 'on' : '') + '">내 몸에 맞춤</button></span></div>' + line;
-  }
   function resultCard(r) {
     var cur = r.current, it = r.garment;
     if (!cur) return '<div class="card"><div class="h">' + CATS[r.cat] + ' · ' + h(it.name) + '</div><div class="warn">' + (r.chosen ? '선택한 사이즈 "' + h(r.chosen) + '" 의 실측값이 없습니다.' : '실측값이 입력된 사이즈가 없습니다. 상품의 실측표를 입력해 주세요.') + '</div></div>';
@@ -584,7 +571,6 @@
     if (r.recommended) {
       out += '<div class="rec">' + (r.auto ? '사이즈를 고르지 않아 ' : '') + '선호 핏 <b>' + prefName + '</b> 기준 추천 사이즈는 <b>' + h(r.recommended) + '</b>' + (r.auto || r.recommended === r.chosen ? '입니다.' : '입니다 (선택한 사이즈: ' + h(r.chosen) + ').') + '</div>';
     }
-    out += hemCard(r);
     if (r.refDiff && r.refDiff.length) out += '<div class="line"><span>기준 옷 대비</span><b>' + r.refDiff.map(function (d) { return h(d.label) + ' ' + sgn(d.diff); }).join(' · ') + '</b></div>';
     out += compareTable(r);
     var fk = r.cat + ':' + it.id + ':' + r.chosen, fv = state.feel[fk];
@@ -1002,7 +988,6 @@
 
   /* ---- 입혀 보기(AI): Supabase Edge Function 이 기본 캐릭터 + 상품 사진으로 입은 모습을 만든다 ---- */
   var genPending = null;                       /* 만드는 중인 옷 id 또는 조합 키 (한 번에 하나만) */
-  var genHem = 0;                              /* 만드는 중인 요청의 바지 기장 수선 길이(cm, 0=원래 기장) */
   var GEN_KEY = function () { return 'fit-gen-pending:' + (user ? user.id : ''); };
   function deviceId() {
     try {
@@ -1095,7 +1080,7 @@
           if (urls.tryon[id]) URL.revokeObjectURL(urls.tryon[id]);
           urls.tryon[id] = URL.createObjectURL(blob);
           state.aiGen = state.aiGen || {}; state.aiGen[id] = true;
-          state.aiHem = state.aiHem || {}; if (genHem > 0) state.aiHem[id] = genHem; else delete state.aiHem[id];
+          if (state.aiHem) delete state.aiHem[id];
           if (state.aiOver) delete state.aiOver[id];
           if (id.indexOf('+') > 0) { state.looks = state.looks || {}; state.looks[id] = 1; }
           state.wearLast = id;
@@ -1166,11 +1151,6 @@
       return { size: r.chosen, ease: ease, len: len, fabric: it.fabric || null };
     } catch (e) { return null; }
   }
-  ACT.hemMode = function (el) {
-    state.hemFit = state.hemFit || {};
-    if (el.dataset.v) state.hemFit[el.dataset.id] = true; else delete state.hemFit[el.dataset.id];
-    save(); render();
-  };
   /* 고른 옷을 원본 캐릭터에 한 번에 입힌다(2026-11-05 사용자 결정). 상의+하의는 cat='outfit' 으로 보낸다. 이 값을 모르는 예전 서버는 400 으로 거절해서, 한 벌만 입은 그림이 조용히 나오지 않는다 */
   ACT.wearAll = function () {
     var set = wearSet();
@@ -1202,19 +1182,17 @@
       if (it.cat !== 'shoe') body.garmentGender = garGender(it); /* 여성용/남성용/공용: 내 성별과 다르면 서버가 원래 재단을 유지하라고 AI에 알린다 */
       if (a[1]) body.avatar = a[1];
       var fh = fitHint(it); if (fh) body.fit = fh;
-      var fb = fh;
       if (second) {
         body.garment2 = a[3]; body.garmentGender2 = garGender(second);
         if (second.name) body.name2 = String(second.name).slice(0, 60);
-        fb = fitHint(second); if (fb) body.fit2 = fb;
+        var f2 = fitHint(second); if (f2) body.fit2 = f2;
       }
-      genHem = fb && fb.len && fb.len.hemmed > 0 ? fb.len.hemmed : 0;
       return genCall(body);
     }).then(function (res) {
       if (!res.ok || !res.j.taskId) throw new Error((res.j && res.j.error) || '요청을 접수하지 못했습니다.');
       tryUse(); /* 서버가 접수한 뒤에만 이번 달 횟수를 뺀다(거절되면 차감 없음) */
       var t0 = Date.now();
-      try { localStorage.setItem(GEN_KEY(), JSON.stringify({ id: key, taskId: res.j.taskId, t0: t0, hem: genHem })); } catch (e) {}
+      try { localStorage.setItem(GEN_KEY(), JSON.stringify({ id: key, taskId: res.j.taskId, t0: t0 })); } catch (e) {}
       genPoll(key, res.j.taskId, t0);
     }).catch(function (err) { genFinish(key, false, (err && err.message) || '요청을 접수하지 못했습니다.'); });
   };
@@ -1222,7 +1200,7 @@
     if (!user || genPending || !genEnabled()) return;
     try {
       var p = JSON.parse(localStorage.getItem(GEN_KEY()) || 'null');
-      if (p && p.id && p.taskId && lookItems(p.id).length && Date.now() - p.t0 < 6 * 60 * 1000) { genPending = p.id; genHem = Number(p.hem) || 0; render(); waitStart(lookName(p.id), wearSizes(lookItems(p.id)), true); genPoll(p.id, p.taskId, p.t0); }
+      if (p && p.id && p.taskId && lookItems(p.id).length && Date.now() - p.t0 < 6 * 60 * 1000) { genPending = p.id; render(); waitStart(lookName(p.id), wearSizes(lookItems(p.id)), true); genPoll(p.id, p.taskId, p.t0); }
       else if (p) localStorage.removeItem(GEN_KEY());
     } catch (e) {}
   }
