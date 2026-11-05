@@ -12,7 +12,18 @@
 .rrail button svg{width:42px;height:42px;padding:10px}
 .rrail button.on svg{background:#fff;color:#141414}
 .rrail button.has svg{box-shadow:0 0 0 2px var(--accent)}
-/* 레일 버튼이 7개로 늘어 낮은 화면에서 위쪽 로그인·프로필 버튼을 가리던 문제: 화면 높이에 맞춰 버튼을 줄인다 */
+/* 내 옷장 시트 안의 상의/하의/원피스/신발 탭 */
+.ctabs{display:flex;gap:6px;margin-bottom:2px}
+.ctabs button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;border:1px solid var(--line);border-radius:8px;padding:6px 2px;background:var(--surface);font-size:11px;color:var(--muted)}
+.ctabs button svg{width:22px;height:22px}
+.ctabs button.on{border-color:var(--ink);color:var(--ink);font-weight:700}
+.ctabs button.has svg{box-shadow:0 0 0 2px var(--accent);border-radius:50%}
+/* 코디 카드 속 옷 이름(눌러서 사이즈 고르기) */
+.sitems{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.sitems .sitem{border:1px solid #e6e3de;background:#fff;border-radius:99px;padding:4px 10px;font-size:11px;color:#141414;font-weight:600}
+.sitems .sitem:active{background:#f0ede8}
+.sitems .shint{font-size:10px;color:#6b6862}
+/* 레일 버튼이 늘어난 화면에서 위쪽 로그인·프로필 버튼을 가리던 문제: 화면 높이에 맞춰 버튼을 줄인다 */
 @media (max-height:760px){.rrail{gap:6px}.rrail button svg{width:36px;height:36px;padding:8px}.rrail button{font-size:10px}}
 @media (max-height:640px){.rrail{gap:3px;bottom:140px}.rrail button svg{width:30px;height:30px;padding:6px}.rrail button{font-size:9px;gap:1px}}
 

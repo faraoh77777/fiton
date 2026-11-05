@@ -510,7 +510,8 @@
     gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>',
     back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
     ruler: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="8" width="19" height="8" rx="1.5"/><path d="M6.5 8v3M10 8v4M13.5 8v3M17 8v4"/></svg>',
-    avatar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="4"/><path d="M3 21v-1a7 7 0 0 1 11-5.7"/><path d="M19 15v6M16 18h6"/></svg>'
+    avatar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="4"/><path d="M3 21v-1a7 7 0 0 1 11-5.7"/><path d="M19 15v6M16 18h6"/></svg>',
+    closet: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4" r="1.6"/><path d="M12 5.6v2M3 17l9-7 9 7"/><path d="M3 17h18"/></svg>'
   };
 
   function safeUrl(u) {
@@ -883,8 +884,8 @@
   document.addEventListener('toggle', function (e) { if (e.target && e.target.id === 'cfgd') openCfg = e.target.open; }, true);
 
   /* ====================== 전체 화면형(쇼츠형) 화면 ====================== */
-  var editCat = null, onbShown = false, lastSheet = null;
-  var SHEET_HALF = { top: 1, bottom: 1, dress: 1, shoe: 1 };
+  var editCat = null, onbShown = false, lastSheet = null, closetCat = 'top';
+  var SHEET_HALF = { closet: 1 };
 
   function safeEval() {
     try { if (!E.num(state.profile.height)) throw 0; return evaluateAll(); }
@@ -1114,13 +1115,22 @@
       (has ? '<button class="btn sm danger" data-act="clearTryon" data-id="' + it.id + '">삭제</button>' : '') + '</div>';
   }
 
+  /* 내 옷장 안의 옷 종류 탭(상의/하의/원피스/신발): 한 시트 안에서 종류만 바꿔 끼운다 */
+  function closetTabs(cat) {
+    return '<div class="ctabs" role="tablist" aria-label="옷 종류">' + ['top', 'bottom', 'dress', 'shoe'].map(function (c) {
+      var has = state.sel[c] && item(state.sel[c].id);
+      return '<button type="button" role="tab" data-act="closetCat" data-cat="' + c + '" class="' + (cat === c ? 'on' : '') + (has ? ' has' : '') + '" aria-selected="' + (cat === c ? 'true' : 'false') + '"><svg viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">' + GLYPH[c] + '</svg><span>' + CATS[c] + '</span></button>';
+    }).join('') + '</div>';
+  }
   function sheetInner(ev) {
     if (SHEET_HALF[sheet]) {
-      var cat = sheet, list = state.closet.filter(function (x) { return x.cat === cat; });
+      var cat = closetCat, list = state.closet.filter(function (x) { return x.cat === cat; });
       var sel = state.sel[cat], it = sel && item(sel.id);
       var cur = ev.results.filter(function (r) { return r.cat === cat; })[0], p = cur && cur.current && cur.current.primary;
       var add = '<button class="tile add" data-act="new" data-cat="' + cat + '"><div class="timg"><span>＋</span></div><div class="tname">새 상품 입력</div><div class="sub">실측표를 보고 입력</div></button>';
-      return '<h3>' + CATS[cat] + ' · 내 옷장</h3><div class="hs">' + list.map(function (x) { return closetTile(x, cat); }).join('') + add + '</div>' +
+      return '<h3>내 옷장</h3>' + closetTabs(cat) +
+        '<div class="note">① 옷 종류를 고르고 ② 내 옷을 등록하거나 골라 사이즈를 선택한 뒤 ③ 옷마다 있는 "AI로 입혀 보기"를 누르면 바로 볼 수 있어요.</div>' +
+        '<div class="hs">' + list.map(function (x) { return closetTile(x, cat); }).join('') + add + '</div>' +
         (it ? '<div class="note">입는 중: ' + h(it.name) + ' · ' + (sel.size ? h(sel.size) : '추천 사이즈') + (p ? ' · <b>' + p.grade + ' ' + sgn(p.ease) + p.unit + '</b>' : '') + '</div>' : '<div class="note">고르지 않으면 이 항목은 입히지 않습니다.</div>') +
         (!E.num(state.profile.height) ? '<div class="warn">핏 결과를 보려면 설정에서 키를 입력해 주세요.</div>' : '') +
         '<div class="acts"><button class="btn" data-act="clearSel" data-cat="' + cat + '">선택 해제</button><button class="btn p" data-act="closeSheet">완료</button></div>';
@@ -1155,10 +1165,8 @@
     ensureStyle();
     var ev = safeEval();
     var segs = !hasMotionVideo() ? '' : MOTIONS.map(function (x, i) { return '<button data-act="motion" data-i="' + i + '" class="' + (state.motion === i ? 'on' : '') + '" aria-label="' + x + '"><i></i><span>' + x + '</span></button>'; }).join('');
-    var rail = ['top', 'bottom', 'dress', 'shoe'].map(function (c) {
-      var has = state.sel[c] && item(state.sel[c].id);
-      return '<button data-act="open" data-name="' + c + '" class="' + (sheet === c ? 'on' : '') + (has ? ' has' : '') + '" aria-label="' + CATS[c] + '"><svg viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">' + GLYPH[c] + '</svg><span>' + CATS[c] + '</span></button>';
-    }).join('') +
+    var closetHas = ['top', 'bottom', 'dress', 'shoe'].some(function (c) { return state.sel[c] && item(state.sel[c].id); });
+    var rail = '<button data-act="open" data-name="closet" class="' + (sheet === 'closet' ? 'on' : '') + (closetHas ? ' has' : '') + '" aria-label="내 옷장">' + IC.closet + '<span>내 옷장</span></button>' +
       '<button data-act="open" data-name="detail" class="' + (sheet === 'detail' ? 'on' : '') + '" aria-label="핏 상세">' + IC.list + '<span>상세</span></button>' +
       '<button data-act="bodyInput" class="' + (sheet === 'settings' ? 'on' : '') + '" aria-label="내 치수 입력">' + IC.ruler + '<span>치수</span></button>' +
       '<button data-act="open" data-name="settings" class="' + (sheet === 'settings' ? 'on' : '') + '" aria-label="설정">' + IC.gear + '<span>설정</span></button>';
@@ -1186,7 +1194,7 @@
       return;
     }
     if (!user) sheet = null; /* 둘러보기에서는 시트를 열지 않는다(내 체형·아바타 기능은 로그인 뒤) */
-    if (sheet === 'edit' && !state.draft) sheet = editCat;
+    if (sheet === 'edit' && !state.draft) { sheet = 'closet'; closetCat = editCat; }
     if (user && !E.num(state.profile.height) && !onbShown) {
       onbShown = true; sheet = 'settings';
       try { history.pushState({ sh: 'settings' }, ''); } catch (e) {}
@@ -1233,6 +1241,7 @@
     if (hs) { closingAt = Date.now(); try { history.back(); } catch (e) {} }
   };
   ACT.pick = function (el) { state.sel[el.dataset.cat] = { id: el.dataset.id, size: el.dataset.size || null }; exclusiveSel(el.dataset.cat); save(); render(); };
+  ACT.closetCat = function (el) { closetCat = el.dataset.cat; render(); };
   ACT.clearTryon = function (el) { dropTryon(el.dataset.id); render(); };
   ACT.sample = function () {
     if ((state.closet.length || state.profile.height) && !confirm('내 정보와 옷장이 기본 모델(여성 ' + MODEL.height + 'cm/' + MODEL.weight + 'kg)과 예시 옷으로 바뀝니다. 계속할까요?')) return;
@@ -1325,6 +1334,14 @@
     var pts = st.points || '', k = pts.indexOf('. '), head = k < 0 ? pts : pts.slice(0, k), tail = k < 0 ? '' : pts.slice(k + 2);
     return h(st.worn || head) + (tail ? '<br>' + h(tail) : '');
   }
+  /* 코디에 들어있는 옷들: 누르면 그 옷을 내 옷장에 넣고, 내 옷장(사이즈 선택)으로 바로 이동한다 */
+  function styleItemsRow(st) {
+    var cats = ['dress', 'top', 'bottom', 'shoe'].filter(function (c) { return st.items && st.items[c]; });
+    if (!cats.length) return '';
+    return '<div class="sitems">' + cats.map(function (c) {
+      return '<button type="button" class="sitem" data-act="styleItemPick" data-cat="' + c + '">' + h(st.items[c].name) + '</button>';
+    }).join('') + '<small class="shint">눌러서 내 사이즈 고르기</small></div>';
+  }
   function styleCard() {
     var st = curStyle();
     if (!st) return '<div class="scard"><div class="sp">이 분류에 등록된 스타일이 없습니다.</div></div>';
@@ -1334,6 +1351,7 @@
       '<div class="st"><b>' + h(st.title) + '</b><span>' + h(st.priceText || '') + (n > 1 ? ' · ' + (i + 1) + '/' + n : '') + '</span></div>' +
       '<button type="button" data-act="styleNext" data-d="1" aria-label="다음 스타일"' + (n < 2 ? ' disabled' : '') + '>›</button></div>' +
       '<div class="sp">' + pointsHtml(st) + (user && !myStylesExist() ? '<br><small>' + (isMale() ? '남성' : '여성') + ' 코디는 준비 중이라 지금은 다른 코디를 보여 드려요.</small>' : '') + '</div>' +
+      styleItemsRow(st) +
       '<div class="sview"><button type="button" data-act="view" data-v="model" class="' + (me ? '' : 'on') + '">기본 모델</button>' +
       '<button type="button" data-act="view" data-v="me" class="' + (me ? 'on' : '') + '">내 아바타</button>' +
       (styleApplied(st) ? '<span class="sapplied">코디 적용됨</span>' : '<button type="button" class="sapply" data-act="styleApply">이 코디로 핏 보기</button>') + '</div>' +
@@ -1476,7 +1494,12 @@
     var i = list.indexOf(curStyle()), j = (i + Number(el.dataset.d) + list.length) % list.length;
     state.styleId = list[j].id; state.view = 'model'; save(); render();
   };
-  ACT.styleApply = function () { var st = curStyle(); if (!st) return; importStyle(st); toast('코디를 옷장에 넣었어요. 상의·하의·신발 버튼에서 사이즈를 고를 수 있어요.'); render(); };
+  ACT.styleApply = function () { var st = curStyle(); if (!st) return; importStyle(st); toast('코디를 옷장에 넣었어요. "내 옷장" 버튼에서 사이즈를 고를 수 있어요.'); render(); };
+  /* 코디 속 옷 이름을 누르면: 그 옷을 내 옷장에 넣고, 사이즈를 고를 수 있는 내 옷장 화면으로 바로 이동 */
+  ACT.styleItemPick = function (el) {
+    var st = curStyle(); if (!st) return;
+    importStyle(st); closetCat = el.dataset.cat; openSheet('closet');
+  };
   ACT.view = function (el) {
     state.view = el.dataset.v; save();
     if (state.view === 'me' && !wornImage()) toast('아직 입어 본 모습이 없어요. 아래 버튼으로 내 아바타에 입혀 보세요.');
@@ -1492,7 +1515,7 @@
     if (!genEnabled()) { toast('AI 입혀 보기 서버가 꺼져 있어요.'); return; }
     importStyle(st);
     var main = ['dress', 'top', 'bottom', 'shoe'].map(function (c) { return item(styleItemId(st, c)); }).filter(function (x) { return x && x.photo; })[0];
-    if (!main) { toast('이 스타일의 상품 사진을 올리면 내 아바타에 입혀 드려요.'); openSheet('top'); return; }
+    if (!main) { toast('이 스타일의 상품 사진을 올리면 내 아바타에 입혀 드려요.'); closetCat = 'top'; openSheet('closet'); return; }
     ACT.genTryon({ dataset: { id: main.id } });
   };
 
@@ -1509,12 +1532,13 @@
   };
   ACT.lgClose = function () { if (history.state && history.state.lgo) history.back(); else { lgOpen = false; resetLogin(); render(); } };
   ACT.switchUser = function () { ACT.logout(); showLogin(); };
-  var _open = ACT.open, _styleApply = ACT.styleApply, _view = ACT.view, _styleTryon = ACT.styleTryon, _plan = ACT.plan;
+  var _open = ACT.open, _styleApply = ACT.styleApply, _view = ACT.view, _styleTryon = ACT.styleTryon, _plan = ACT.plan, _styleItemPick = ACT.styleItemPick;
   ACT.open = function (el) { if (!user) return gate(); _open(el); };
   ACT.styleApply = function () { if (!user) return gate('프로필을 만들면 내 체형으로 이 코디의 핏을 볼 수 있어요.'); _styleApply(); };
   ACT.view = function (el) { if (!user && el.dataset.v === 'me') return gate('프로필을 만들고 내 아바타에 입혀 보세요.'); _view(el); };
   ACT.styleTryon = function () { if (!user) return gate('프로필을 만들면 내 아바타로 입어볼 수 있어요.'); _styleTryon(); };
   ACT.plan = function (el) { if (!user) return gate(); _plan(el); };
+  ACT.styleItemPick = function (el) { if (!user) return gate('프로필을 만들면 이 옷을 내 옷장에 넣고 사이즈를 고를 수 있어요.'); _styleItemPick(el); };
 
   /* 이미지 화면을 누르면 전체 화면으로 보기(다시 누르거나 ✕ 로 닫기) */
   function closeFull() { var o = document.getElementById('fsview'); if (o) o.remove(); document.removeEventListener('keydown', fullKey); }
