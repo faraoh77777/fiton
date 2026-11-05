@@ -185,9 +185,13 @@ function cleanName(v: unknown) {
 }
 function nameText(cat: string, name: string) {
   if (!name) return "";
-  return " The item to put on is the product named \"@@NAME@@\". Image 2 may be a photo of a model wearing a full outfit: take ONLY the @@NAME@@ from image 2 and ignore the face, hair and body of the model in image 2 and every other item of clothing and the shoes there" +
-    (cat === "top" ? ", except that if the @@NAME@@ is an outer layer (a coat, jacket, cardigan or similar), she also wears the inner top worn under it in image 2" : "") +
-    ". Completely remove her current " + SLOT[cat] + ": no part of it may remain visible (no sleeve, collar, strap, hem or waistband showing).";
+  var base = " The item to put on is the product named \"@@NAME@@\". Image 2 may be a photo of a model wearing a full outfit: take ONLY the @@NAME@@ from image 2 and ignore the face, hair and body of the model in image 2 and every other item of clothing and the shoes there" +
+    (cat === "top" ? ", except that if the @@NAME@@ is an outer layer (a coat, jacket, cardigan or similar), she also wears the inner top worn under it in image 2" : "");
+  /* 하의·원피스: '제거하라'는 동작 지시 대신 '새 옷만 보이는 결과'로 서술(2026-11-05: 하체를 완전히 벗기라는 표현이 Kling 콘텐츠 검열에 걸려 하의·원피스만 계속 실패하던 문제 대응) */
+  if (cat === "bottom" || cat === "dress") {
+    return base + ". In the finished image she is fully and modestly dressed, wearing only the new " + SLOT[cat] + " described above; none of her previous " + SLOT[cat] + " remains visible (no old waistband, hem or fabric peeking out).";
+  }
+  return base + ". Completely remove her current " + SLOT[cat] + ": no part of it may remain visible (no sleeve, collar, strap, hem or waistband showing).";
 }
 /* 코디 사진의 다른 옷이 같이 들어오지 않게: 상의면 원래 하의, 하의면 원래 상의, 신발이 아니면 원래 발(신발 또는 맨발)을 그대로 둔다
    (2026-11-03 Kling 서버 시험: 트렌치만 보냈는데 기본 캐릭터 반바지가 코디의 검정 슬랙스로 바뀜). 대문자 She/Her 는 toMale 이 못 바꾸므로 쓰지 않는다
