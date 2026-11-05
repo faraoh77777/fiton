@@ -681,6 +681,7 @@
     var sizes = cat === 'shoe' ? ['250', '260', '270'] : ['S', 'M', 'L'];
     return { id: null, cat: cat, gender: state.profile && state.profile.gender === 'male' ? 'male' : 'female', name: '', measureType: 'flat', fabric: 'normal', photo: '', price: '', url: '', isRef: false, refSize: '', sizes: sizes.map(function (l) { return { label: l }; }) };
   }
+  var draftBig = null; /* 옷장 등록 화면에서 올린 입히기용 큰 사진 { d: 그 초안, b: blob } */
   function saveDraft() {
     var d = state.draft;
     d.sizes = d.sizes.filter(function (s) { return String(s.label || '').trim() !== ''; });
@@ -692,8 +693,12 @@
       state.closet.forEach(function (x) { if (x.cat === d.cat && x.id !== d.id) x.isRef = false; });
     }
     var rec = JSON.parse(JSON.stringify(d));
+    var oldRec = rec.id ? item(rec.id) : null, big = draftBig && draftBig.d === d ? draftBig.b : null;
+    draftBig = null;
     if (rec.id) { state.closet = state.closet.map(function (x) { return x.id === rec.id ? rec : x; }); }
     else { rec.id = 'p' + (state.seq++); state.closet.push(rec); }
+    if (big) blobPut('gphoto:' + rec.id, big).catch(function () {});
+    else if (oldRec && oldRec.photo !== rec.photo) blobDel('gphoto:' + rec.id).catch(function () {}); /* 사진이 바뀌었으면 옛 큰 사진이 입히기에 쓰이지 않게 지운다 */
     state.draft = null;
     var cur = state.sel[rec.cat];
     if (!cur || cur.id === rec.id) { state.sel[rec.cat] = { id: rec.id, size: cur && rec.sizes.some(function (s) { return s.label === cur.size; }) ? cur.size : null }; exclusiveSel(rec.cat); }
@@ -868,7 +873,11 @@
       quickAsk(file);
     } else if (kind === 'draftPhoto') {
       var d1 = state.draft;
-      shrink(file, 240, 0.8).then(blobToDataUrl).then(function (u) { state.draft.photo = u; save(); render(); }).catch(function (err) { alert(err.message); });
+      /* 옷장용 작은 사진 + 입히기용 큰 사진: 240px 사진만 보내면 Kling 최소 크기(300px)에 걸려 'Image pixel is invalid'로 실패한다(2026-11-05) */
+      Promise.all([shrink(file, 240, 0.8).then(blobToDataUrl), shrink(file, 1280, 0.88)]).then(function (a) {
+        if (state.draft !== d1) return;
+        d1.photo = a[0]; draftBig = { d: d1, b: a[1] }; save(); render();
+      }).catch(function (err) { alert(err.message); });
       if (d1 && window.SizeOcr && (!d1.name || !d1.price)) {
         pocr = { busy: true, msg: '상품 이름·가격을 읽는 중입니다. 처음에는 인식 데이터를 내려받느라 1분 가까이 걸릴 수 있어요.', ok: false }; render();
         SizeOcr.recognize(file, function (stt, p) {
@@ -1063,7 +1072,28 @@
     }).catch(function () { setTimeout(function () { genPoll(id, taskId, t0); }, 6000); });
   }
   /* 상품 사진은 서버가 data URL(base64)만 받는다. 스타일 데이터의 사진은 파일 경로라 먼저 읽어서 바꾼다 */
+  /* Kling 입력 규격에 맞춘다: 짧은 변 300px 이상, 비율 1:2.5~2.5:1. 이미 맞으면 그대로 두고, 작은 사진은 키우고(흐려질 수 있음) 너무 길쭉하면 흰 여백을 붙인다 */
+  function klingSafe(u) {
+    return new Promise(function (res) {
+      var img = new Image();
+      img.onload = function () {
+        var w = img.width, h = img.height, k = Math.max(1, 320 / Math.min(w, h));
+        var dw = Math.round(w * k), dh = Math.round(h * k);
+        var cw = Math.max(dw, Math.ceil(dh / 2.4)), ch = Math.max(dh, Math.ceil(dw / 2.4));
+        if (Math.min(w, h) >= 300 && Math.max(w, h) / Math.min(w, h) <= 2.5) { res(u); return; }
+        var c = document.createElement('canvas'); c.width = cw; c.height = ch;
+        var g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, cw, ch); g.imageSmoothingQuality = 'high';
+        g.drawImage(img, Math.round((cw - dw) / 2), Math.round((ch - dh) / 2), dw, dh);
+        res(c.toDataURL('image/jpeg', 0.9));
+      };
+      img.onerror = function () { res(u); };
+      img.src = u;
+    });
+  }
   function photoData(it) {
+    return photoRaw(it).then(klingSafe);
+  }
+  function photoRaw(it) {
     return blobGet('gphoto:' + it.id).catch(function () { return null; }).then(function (b) {
       if (b) return blobToDataUrl(b); /* 옷 사진으로 입어보기에서 저장한 큰 사진 */
       var p = String(it.photo || '');
