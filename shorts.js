@@ -914,7 +914,28 @@
     mdrag = true;
     state.motion = (state.motion + (dx < 0 ? 1 : MOTIONS.length - 1)) % MOTIONS.length; save(); render();
   });
-  root.addEventListener('click', function (e) { if (mdrag) { mdrag = false; e.stopPropagation(); e.preventDefault(); } }, true);
+  root.addEventListener('click', function (e) { if (mdrag || hsDrag) { mdrag = false; hsDrag = false; e.stopPropagation(); e.preventDefault(); } }, true);
+
+  /* 옷장 가로 목록(.hs): 모바일은 스와이프로 넘기지만, PC는 마우스 휠에 가로 스크롤이 없고 스크롤바도 숨겨 둬서 옷이 3벌 정도만 보이고 더 못 넘기는 것처럼 보임
+     (2026-11-05 사용자 보고). 휠을 가로 스크롤로 바꾸고, 마우스로 끌어서도 넘길 수 있게 한다 */
+  root.addEventListener('wheel', function (e) {
+    var el = e.target.closest('.hs');
+    if (!el || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+    el.scrollLeft += e.deltaY; e.preventDefault();
+  }, { passive: false });
+  var hsx = null, hsLeft = 0, hsEl = null, hsDrag = false;
+  root.addEventListener('mousedown', function (e) {
+    var el = e.target.closest('.hs');
+    if (!el || e.button !== 0) return;
+    hsx = e.clientX; hsLeft = el.scrollLeft; hsEl = el; hsDrag = false;
+  });
+  document.addEventListener('mousemove', function (e) {
+    if (hsx === null || !hsEl) return;
+    var dx = e.clientX - hsx;
+    if (Math.abs(dx) > 4) hsDrag = true;
+    hsEl.scrollLeft = hsLeft - dx;
+  });
+  document.addEventListener('mouseup', function () { hsx = null; hsEl = null; });
 
   document.addEventListener('toggle', function (e) { if (e.target && e.target.id === 'cfgd') openCfg = e.target.open; }, true);
 
