@@ -96,6 +96,24 @@ body:has(#app.lgfull){padding:0;background:#000}
 #fwait .fbtn{margin-top:6px;border:1px solid rgba(255,255,255,.5);background:rgba(0,0,0,.25);color:#fff;border-radius:99px;padding:10px 20px;font:inherit;font-size:14px;font-weight:600;cursor:pointer}
 @keyframes fdot{0%,100%{opacity:.25}50%{opacity:1}}
 @media (prefers-reduced-motion:reduce){#fwait .fcl,#fwait .fcr{transition:none}}
+/* 입기 완료 공개 화면: 피팅룸 문(#fwait) 바로 아래에 깔려 문이 열리면 나타난다 */
+#freveal{position:fixed;inset:0;z-index:14000;overflow:hidden;background:#fff6ea;cursor:zoom-out}
+#freveal .frbg{position:absolute;left:-8%;top:-8%;width:116%;height:116%;object-fit:cover;filter:blur(30px) brightness(1.18) saturate(1.15);opacity:.75}
+#freveal .frpic{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;animation:frpic 1.5s cubic-bezier(.2,.8,.2,1) both}
+#freveal .frglow{position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 42%,#fff 0,#fff 30%,rgba(255,232,184,.9) 55%,rgba(255,214,140,0) 85%);animation:frglow 1.9s ease-out both}
+#freveal .frs{position:absolute;pointer-events:none;background:#ffc861;clip-path:polygon(50% 0,60% 40%,100% 50%,60% 60%,50% 100%,40% 60%,0 50%,40% 40%);animation:frstar 1.2s ease-out 2 both}
+#freveal .frtitle{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top) + 24px);width:max-content;max-width:calc(100% - 120px);margin:0 auto;padding:10px 22px;border-radius:99px;background:rgba(255,255,255,.92);color:#7a1f2b;font-size:22px;font-weight:800;box-shadow:0 6px 24px rgba(255,190,110,.55);animation:frtitle 3.8s .9s both}
+#freveal .frnote{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 22px);width:max-content;max-width:calc(100% - 32px);margin:0 auto;padding:10px 18px;border-radius:16px;background:rgba(255,255,255,.88);color:#3a2a20;text-align:center;display:flex;flex-direction:column;gap:2px;box-shadow:0 4px 18px rgba(0,0,0,.14);animation:frfade 7s 1.2s both}
+#freveal .frnote b{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#freveal .frnote span{font-size:13px;font-weight:700;color:#7a1f2b}
+#freveal .frnote small{font-size:12px;opacity:.7}
+#freveal .fsx{position:absolute;top:calc(env(safe-area-inset-top) + 14px);right:14px;z-index:3;width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.8);color:#3a2a20;font-size:18px;cursor:pointer}
+@keyframes frpic{0%{transform:scale(.93);filter:brightness(1.5)}100%{transform:none;filter:none}}
+@keyframes frglow{0%{opacity:1;transform:scale(.7)}35%{opacity:1;transform:scale(1.25)}100%{opacity:0;transform:scale(1.7)}}
+@keyframes frstar{0%{opacity:0;transform:scale(.2) rotate(0)}40%{opacity:1;transform:scale(1.15) rotate(30deg)}100%{opacity:0;transform:scale(.4) rotate(70deg)}}
+@keyframes frtitle{0%{opacity:0;transform:scale(.6)}10%{opacity:1;transform:scale(1.08)}16%{transform:none}85%{opacity:1;transform:none}100%{opacity:0;transform:none}}
+@keyframes frfade{0%{opacity:0}8%{opacity:1}90%{opacity:1}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){#freveal .frglow,#freveal .frs{display:none}#freveal .frpic{animation:none}#freveal .frtitle{animation-name:frfade}}
 
 /* FITON: 계절 안내 한 줄(분류 탭 대신, 2026-11-04) · 스타일 카드 · 아바타 만들기 플로팅 버튼 (메인 화면 하단 rcap 안, 오른쪽 72px 는 rrail 자리) */
 .hv-cap small{display:block;font-size:13px;font-weight:500;opacity:.92;margin-top:2px}

@@ -1061,9 +1061,46 @@
       lookItems(id).forEach(function (it0) { var cur0 = state.sel[it0.cat]; state.sel[it0.cat] = { id: it0.id, size: cur0 && cur0.id === it0.id ? cur0.size : null }; exclusiveSel(it0.cat); });
       state.view = 'me'; save(); /* 완성되면 '내 아바타' 화면으로 */
     }
+    /* 성공: 문이 열리는 순간 그 뒤에서 결과가 전체 화면으로 나타난다. 다른 앱을 보는 중이면 돌아왔을 때 연출을 시작한다 */
+    if (ok && urls.tryon[id]) {
+      whenVisible(function () { waitEnd(true, false, function () { revealShow(id, msg); }); });
+      render();
+      return;
+    }
     waitEnd(ok);
     if (msg) toast(msg, ms);
     render();
+  }
+  function whenVisible(fn) {
+    if (document.visibilityState !== 'hidden') { fn(); return; }
+    document.addEventListener('visibilitychange', function f() {
+      if (document.visibilityState === 'hidden') return;
+      document.removeEventListener('visibilitychange', f);
+      fn();
+    });
+  }
+  /* ---- 입기 완료 공개 연출(2026-11-06 사용자 요청): 결과를 전체 화면으로 바로 보여 주고, 빛이 퍼지며 화사하게 나타난다. 누르거나 ✕·Esc·뒤로가기로 닫는다 ---- */
+  var REVEAL_STARS = [[12, 18, 32, 0], [84, 14, 38, .15], [22, 38, 22, .3], [78, 36, 28, .1], [8, 58, 34, .4], [90, 56, 26, .25], [18, 78, 26, .2], [82, 80, 34, .35], [34, 10, 22, .45], [66, 8, 26, .05], [40, 90, 22, .3], [62, 92, 28, .5]];
+  function revealKey(e) { if (e.key === 'Escape') revealClose(); }
+  function revealClose(fromBack) {
+    var o = document.getElementById('freveal'); if (!o) return;
+    o.remove();
+    document.removeEventListener('keydown', revealKey);
+    if (!fromBack && history.state && history.state.rv) { closingAt = Date.now(); try { history.back(); } catch (e) {} }
+  }
+  function revealShow(id, msg) {
+    revealClose();
+    var u = urls.tryon[id], name = lookName(id), size = wearSizes(lookItems(id));
+    var o = document.createElement('div'); o.id = 'freveal'; o.setAttribute('role', 'dialog'); o.setAttribute('aria-label', '입은 모습 완성');
+    o.innerHTML = '<img class="frbg" alt="" src="' + u + '"><img class="frpic" alt="' + h(name) + ' 입은 모습" src="' + u + '"><div class="frglow"></div>' +
+      REVEAL_STARS.map(function (s) { return '<i class="frs" style="left:' + s[0] + '%;top:' + s[1] + '%;width:' + s[2] + 'px;height:' + s[2] + 'px;animation-delay:' + (.8 + s[3]) + 's"></i>'; }).join('') +
+      '<div class="frtitle">짠! 다 입었어요</div><div class="frnote"><b>' + h(name) + '</b>' + (size ? '<span>' + h(size) + '</span>' : '') + '<small>화면을 누르면 닫혀요</small></div>' +
+      '<button type="button" class="fsx" aria-label="닫기">✕</button>';
+    o.querySelector('.frpic').addEventListener('error', function () { revealClose(); if (msg) toast(msg); });
+    o.addEventListener('click', function () { revealClose(); });
+    document.body.appendChild(o);
+    document.addEventListener('keydown', revealKey);
+    try { history.pushState({ rv: 1 }, ''); } catch (e) {}
   }
   /* 4초마다 결과를 확인한다. 화면을 닫았다 열어도 이어서 확인한다 */
   function genPoll(id, taskId, t0) {
@@ -1254,14 +1291,14 @@
       var bar = document.getElementById('fbar'); if (bar) bar.style.width = p.toFixed(1) + '%';
     }, 500);
   }
-  function waitEnd(ok, quick) {
+  function waitEnd(ok, quick, onOpen) {
     if (waitT) { clearInterval(waitT); waitT = null; }
     waitQ.forEach(clearTimeout); waitQ = [];
-    var o = document.getElementById('fwait'); if (!o) return;
+    var o = document.getElementById('fwait'); if (!o) { if (onOpen) onOpen(); return; }
     if (quick) { o.remove(); return; }
     var bar = document.getElementById('fbar'); if (bar && ok) bar.style.width = '100%';
     o.classList.remove('hide');
-    setTimeout(function () { o.classList.remove('shut', 'room'); o.classList.add('opening'); setTimeout(function () { o.remove(); }, 1300); }, ok ? 500 : 0);
+    setTimeout(function () { if (onOpen) onOpen(); o.classList.remove('shut', 'room'); o.classList.add('opening'); setTimeout(function () { o.remove(); }, 1300); }, ok ? 500 : 0);
   }
   function tryonRow(it) {
     var has = !!urls.tryon[it.id];
@@ -1383,6 +1420,7 @@
     render();
   }
   window.addEventListener('popstate', function (e) {
+    if (document.getElementById('freveal')) { revealClose(true); return; } /* 폰의 뒤로가기 버튼: 공개 화면 닫기 */
     if (!user) { lgOpen = !!(e.state && (e.state.lgo || e.state.lg)); resetLogin(); render(); return; }
     if (Date.now() - closingAt < 1500) { closingAt = 0; return; } /* closeSheet 가 되돌린 기록: 화면은 이미 바꿨다 */
     if (sheet) closeOne(); /* 폰의 뒤로가기 버튼: 시트 한 겹 닫기 */
