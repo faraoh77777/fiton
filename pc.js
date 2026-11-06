@@ -130,6 +130,8 @@
   }
   function selectItem(it) { var c = state.sel[it.cat]; state.sel[it.cat] = { id: it.id, size: c && c.id === it.id ? c.size : null }; exclusiveSel(it.cat); }
   function defaultSizes(cat) { return (cat === 'shoe' ? ['250', '260', '270'] : ['S', 'M', 'L']).map(function (l) { return { label: l }; }); }
+  /* 새 옷 등록 칸이 비어 있으면 지금 보고 있는 옷 종류 탭을 따라간다(탭은 하의인데 종류가 겉옷으로 저장되던 문제) */
+  function formFollow(cat) { var f = ui.cf; if (!f || f.id || f.photo || f.name || f.cat === cat) return; ui.cf = blankForm(cat); }
   function blankForm(cat) { return { id: null, cat: cat, name: '', price: '', url: '', measureType: cat === 'shoe' ? '' : 'flat', sizes: defaultSizes(cat), photo: '', big: null, sizeDone: false, sizeMsg: '', photoMsg: '', saved: false, err: '' }; }
   function blankAcc() { return { id: null, type: '모자', name: '', price: '', url: '', photo: '', big: null, saved: false, err: '' }; }
   function posOf(it) { if (String(it.id).indexOf('s_') !== 0) return ''; return { outer: 'p-top', top: 'p-top', bottom: 'p-low', dress: 'p-mid', shoe: 'p-foot' }[it.cat] || ''; }
@@ -892,7 +894,7 @@
     fitTab: function (el) { ui.fitTab = el.dataset.cat; render(); },
     unsel: function (el) { delete state.sel[el.dataset.cat]; save(); render(); },
     size: function (el) { var s = state.sel[el.dataset.cat]; if (s) { s.size = el.dataset.v; save(); render(); } },
-    toCloset: function (el) { ui.closetCat = el.dataset.cat; go('closet'); },
+    toCloset: function (el) { ui.closetCat = el.dataset.cat; formFollow(ui.closetCat); go('closet'); },
     wear: wearAll,
     zoomStage: function () { openFull(stageUrl(), '입은 모습'); },
     open3d: open3d,
@@ -901,7 +903,7 @@
       var a = document.createElement('a'); a.href = w.url; a.download = 'FITON_' + String(w.name).replace(/[\\/:*?"<>|]/g, '_').slice(0, 40) + '.png'; document.body.appendChild(a); a.click(); a.remove();
     },
     closetKind: function (el) { ui.closetKind = el.dataset.v; render(); },
-    closetCat: function (el) { ui.closetCat = el.dataset.cat; ui.closetKind = 'all'; ui.linkEdit = null; render(); },
+    closetCat: function (el) { ui.closetCat = el.dataset.cat; formFollow(ui.closetCat); ui.closetKind = 'all'; ui.linkEdit = null; render(); },
     pickItem: function (el) { var it = item(el.dataset.id); if (!it) return; if (it.kind === 'under') { toast('언더웨어는 사이즈 확인용으로만 저장돼요. 입어보기에는 쓰지 않아요.', 4000); return; } var c = state.sel[it.cat]; if (c && c.id === it.id) delete state.sel[it.cat]; else { state.sel[it.cat] = { id: it.id, size: null }; exclusiveSel(it.cat); } save(); render(); },
     linkOpen: function (el) { ui.linkEdit = { id: el.dataset.id, err: false }; render(); var i = document.getElementById('lkin'); if (i) i.focus(); },
     linkCancel: function () { ui.linkEdit = null; render(); },
