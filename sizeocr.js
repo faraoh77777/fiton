@@ -4,13 +4,21 @@
 (function (root) {
   'use strict';
 
-  var SIZE_WORDS = /^(XXS|XS|S|M|L|XL|XXL|XXXL|2XL|3XL|4XL|F|FREE|FR|프리|프리사이즈)$/i;
+  /* 사이즈 이름으로 인정하는 글자: 영문(XXXS~6XL), 일본식(LL·2L~6L), 프리·원사이즈 */
+  var SIZE_WORDS = /^(XXXS|XXS|XS|S|M|L|XL|XXL|XXXL|XXXXL|[2-6]XL|LL|[2-6]L|F|FREE|FR|프리|프리사이즈|ONE|ONESIZE|원사이즈)$/i;
+  /* 괄호 안 설명(예: S (25~26) 의 25~26)은 사이즈 이름을 찾을 때 뺀다 */
+  function noParen(l) { return String(l).normalize('NFKC').replace(/\([^)]*\)/g, ' '); }
   /* 항목별 키워드(공백 제거 후 포함 여부). 위에서부터 먼저 맞는 항목에 줄을 배정한다 */
   var KEYS = {
-    top: [['chest', ['가슴', '흉']], ['shoulder', ['어깨']], ['sleeve', ['소매길이', '소매', '팔길이', '팔']], ['length', ['총장', '총기장', '기장', '길이']]],
+    /* 상의: 소매통·소매단면은 '소매'보다 먼저 두어 소매길이로 잘못 들어가지 않게 한다 (구체적인 항목이 앞) */
+    top: [['chest', ['가슴단면', '가슴둘레', '가슴너비', '가슴폭', '가슴', '흉위', '흉', '바스트']], ['shoulder', ['어깨너비', '어깨단면', '어깨', '견폭']], ['armhole', ['암홀', '진동']],
+      ['sleeve_width', ['소매통', '소매단면', '소매너비', '소매폭', '팔통', '팔단면']], ['sleeve', ['소매길이', '소매기장', '팔길이', '소매장', '소매', '팔']], ['hem', ['밑단', '하단', '도련']],
+      ['length', ['총장', '총기장', '옷길이', '상의길이', '총길이', '전체길이', '기장', '길이']]],
     /* 하의: 인심(가랑이~밑단)과 총장(허리~밑단, 스커트·총장만 적힌 바지)을 따로 읽는다. '밑위길이·안쪽길이'의 '길이'가 총장으로 잡히지 않게 긴 말을 먼저 둔다 */
-    bottom: [['waist', ['허리']], ['hip', ['엉덩이', '힙']], ['thigh', ['허벅지']], ['rise', ['밑위길이', '밑위']], ['inseam', ['인심길이', '안쪽길이', '인심', '안쪽']], ['length', ['총장', '총기장', '기장', '길이']]],
-    dress: [['chest', ['가슴', '흉']], ['shoulder', ['어깨']], ['waist', ['허리']], ['hip', ['엉덩이', '힙']], ['sleeve', ['소매길이', '소매', '팔길이', '팔']], ['length', ['총장', '총기장', '기장', '길이']]],
+    bottom: [['waist', ['허리단면', '허리둘레', '허리', '웨이스트']], ['hip', ['엉덩이', '힙']], ['thigh', ['허벅지']], ['knee', ['무릎']], ['backrise', ['뒷밑위', '뒤밑위']], ['rise', ['밑위길이', '앞밑위', '밑위']],
+      ['inseam', ['인심길이', '안쪽기장', '안쪽길이', '안기장', '인심', '안쪽']], ['hem', ['밑단', '발목단면', '발목둘레']], ['length', ['바지기장', '바지길이', '치마기장', '스커트길이', '치마길이', '총장', '총기장', '총길이', '기장', '길이']]],
+    dress: [['chest', ['가슴단면', '가슴둘레', '가슴', '흉위', '흉', '바스트']], ['shoulder', ['어깨너비', '어깨단면', '어깨', '견폭']], ['waist', ['허리단면', '허리둘레', '허리', '웨이스트']], ['hip', ['엉덩이', '힙']], ['armhole', ['암홀', '진동']],
+      ['sleeve_width', ['소매통', '소매단면', '소매너비', '소매폭', '팔통', '팔단면']], ['sleeve', ['소매길이', '소매기장', '팔길이', '소매장', '소매', '팔']], ['hem', ['밑단', '하단', '도련']], ['length', ['총장', '총기장', '총길이', '기장', '길이']]],
     shoe: [['inner', ['안쪽', '안길이', '발길이', '내부']]]
   };
   var NUM = /\d+(?:\.\d+)?/g;
@@ -40,7 +48,7 @@
     if (hi < 0) return null;
     var out = [];
     for (var j = hi + 1; j < lines.length; j++) {
-      var m = fixNum(lines[j]).normalize('NFKC').match(/^\W*((?:[2-4]?XL|XXL|XXXL|XXS|XS|S|M|L|F|FREE))\b(.*)$/i);
+      var m = fixNum(lines[j]).normalize('NFKC').match(/^[\s|:\[\(]*((?:[2-6]?XL|XXXXL|XXXL|XXL|XXXS|XXS|XS|[2-6]L|LL|S|M|L|F|FREE|프리사이즈|프리|44|55|66|77|88|99|8[05]|9[05]|1[0-2][05]))(?=\s|$)(.*)$/i);
       if (!m) continue;
       var n = nums(m[2].replace(/\d+\s*[-~]\s*\d+/g, ' ')).filter(function (x) { return x > 0 && x < 300; });
       if (n.length < order.length) continue;
@@ -67,6 +75,7 @@
   /* OCR 로 읽은 글자 → { sizes:[{label, 필드...}], found:n, circ:bool } (못 읽으면 sizes 빈 배열) */
   function parse(text, cat) {
     var lines = String(text || '').split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean);
+    lines = lines.map(function (l) { return l.replace(/(^|[\s|])품(?=[\s|\d]|$)/g, '$1가슴'); });  /* 단독 '품'(가슴 폭)만 가슴으로. 제품·상품의 품은 그대로 */
     if (cat !== 'shoe') {
       /* OCR이 사이즈 이름 'S'를 숫자 '5'로 잘못 읽는 경우가 많아, 줄 맨 앞에 홀로 있는 5만 S로 보정한다
          (5.5처럼 소수점으로 이어지거나 50처럼 다른 숫자와 붙어 있으면 손대지 않는다) */
@@ -105,21 +114,21 @@
     /* 사이즈 이름 줄: 문자 사이즈(S M L …)가 2개 이상 있는 줄 */
     var labels = null;
     for (var i = 0; i < lines.length && !labels; i++) {
-      var toks = lines[i].normalize('NFKC').split(/[\s|,/]+/).filter(Boolean);
+      var toks = noParen(lines[i]).split(/[\s|,/]+/).filter(Boolean);
       var hit = toks.filter(function (t) { return SIZE_WORDS.test(t); });
       if (hit.length >= 2 && hit.length >= toks.length - 3) labels = hit.map(function (t) { return t.toUpperCase(); });
     }
     for (var j = 0; j < lines.length && !labels; j++) {
       var sq2 = squeeze(lines[j]);
       if (sq2.indexOf('사이즈') < 0 && sq2.indexOf('size') < 0) continue;
-      var nn = nums(lines[j]);
+      var nn = nums(noParen(lines[j]));
       if (nn.length >= 2) labels = nn.map(String);
     }
     var count = Math.max.apply(null, found.map(function (f) { return rows[f].length; }));
     if (labels && labels.length < count) labels = null;
     /* 개수가 다르면 가장 많이 읽힌 줄 기준으로 맞춘다 */
     var n = labels ? labels.length : count;
-    if (!labels) labels = ['S', 'M', 'L', 'XL', 'XXL', 'XXXL'].slice(0, n).concat(new Array(Math.max(0, n - 6)).fill(''));
+    if (!labels) { var DEF = ['S', 'M', 'L', 'XL', 'XXL', 'XXXL', '4XL', '5XL']; labels = DEF.slice(0, n).concat(new Array(Math.max(0, n - DEF.length)).fill('')); }
     var out = [];
     for (var c = 0; c < n; c++) {
       var rec = { label: labels[c] };
