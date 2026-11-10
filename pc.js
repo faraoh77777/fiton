@@ -245,7 +245,8 @@
       r.current.parts.forEach(function (p) {
         if (p.kind === 'circ' && /^(chest|waist|hip|thigh)$/.test(p.key) && isFinite(p.ease)) ease[p.key] = p.ease;
         if (/^(shoulder|sleeve|rise)$/.test(p.key) && isFinite(p.diff)) len[p.key] = p.diff;
-        if (p.key === 'length' && it.cat !== 'bottom' && isFinite(p.ratio)) len.hem = p.ratio;
+        /* 원피스: 밑단이 무릎 바로 아래(0.25~0.30)면 서버가 '종아리 미디'로 읽어 Kling 이 너무 길게 그리므로 '무릎'(0.30)으로 보낸다 */
+        if (p.key === 'length' && it.cat !== 'bottom' && isFinite(p.ratio)) len.hem = (it.cat === 'dress' && p.ratio >= 0.25 && p.ratio < 0.30) ? 0.30 : p.ratio;
         if (p.key === 'sleeve' && isFinite(p.pos)) len.sleevePos = p.pos;
       });
       if (!Object.keys(ease).length && !Object.keys(len).length) return null;
@@ -266,8 +267,9 @@
   /* ---------- 입히기 (폰 앱과 같은 서버 요청) ---------- */
   var GEN_KEY = function () { return 'fit-gen-pending:' + (user ? user.id : ''); };
   function avatarData() {
-    if (!urls.avatar) return Promise.resolve(null);
-    return fetch(urls.avatar).then(function (r) { return r.blob(); }).then(function (b) { return Core.shrink(b, 1280, 0.88); }).then(Core.blobToDataUrl).then(Core.klingSafe).catch(function () { return null; });
+    /* 내 아바타가 없으면 기본 캐릭터 파일을 직접 보낸다(서버가 가져오던 기본 캐릭터 주소가 404 라 입히기가 실패했음) */
+    var src = urls.avatar || (isMale() ? 'assets/avatar_male.jpg' : 'assets/avatar_default.jpg');
+    return fetch(src).then(function (r) { if (!r.ok) throw new Error('avatar'); return r; }).then(function (r) { return r.blob(); }).then(function (b) { return Core.shrink(b, 1280, 0.88); }).then(Core.blobToDataUrl).then(Core.klingSafe).catch(function () { return null; });
   }
   function photoData(it) {
     return blobGet('gphoto:' + it.id).catch(function () { return null; }).then(function (b) {
