@@ -60,7 +60,7 @@
   var app = document.getElementById('app');
   var user = (function () { try { return Core.userById(localStorage.getItem(CUR_KEY)); } catch (e) { return null; } })();
   var state = null, urls = { avatar: null, tryon: {} }, genPending = null;
-  var ui = { page: pageFromHash(), view: 'me', left: 'clothes', fitTab: null, closetCat: 'outer', closetKind: 'all', homeKind: '', accTab: 'all', cmp: null, pend: null, homeCat: null, linkEdit: null, accFull: false,
+  var ui = { page: pageFromHash(), view: 'me', angle: 'front', zoom: 1, rpOff: false, genErr: null, genSizes: {}, left: 'clothes', fitTab: null, closetCat: 'outer', closetKind: 'all', homeKind: '', accTab: 'all', cmp: null, pend: null, homeCat: null, linkEdit: null, accFull: false,
     cf: null, af: null, lg: { mode: 'list', id: null, err: '', fails: 0, until: 0 } };
 
   /* ---------- 저장 (폰 앱과 같은 형식) ---------- */
@@ -301,6 +301,7 @@
     }
     try { localStorage.setItem('fit-gen-ok', '1'); } catch (e) {}
     ensureNotifyPermission();
+    ui.genErr = null; ui.genSizes[key] = {}; set.forEach(function (x) { ui.genSizes[key][x.id] = curSize(x); });
     genPending = key; render(); waitStart(lookName(key), wearSizes(set), false, notesFor(set));
     var shoeIt = it.cat !== 'shoe' ? wearShoe() : null;
     Promise.all([photoData(it), avatarData(), shoeIt ? photoData(shoeIt) : null, second ? photoData(second) : null]).then(function (a) {
@@ -321,7 +322,7 @@
       if (!res.ok || !res.j.taskId) throw new Error((res.j && res.j.error) || '요청을 접수하지 못했습니다.');
       subNow().used++; save(); /* 서버가 접수한 뒤에만 횟수를 뺀다 */
       var t0 = Date.now();
-      try { localStorage.setItem(GEN_KEY(), JSON.stringify({ id: key, taskId: res.j.taskId, t0: t0 })); } catch (e) {}
+      try { localStorage.setItem(GEN_KEY(), JSON.stringify({ id: key, taskId: res.j.taskId, t0: t0, sz: ui.genSizes[key] || null })); } catch (e) {}
       genPoll(key, res.j.taskId, t0);
     }).catch(function (err) { genFinish(key, false, (err && err.message) || '요청을 접수하지 못했습니다.'); });
   }
@@ -340,6 +341,7 @@
           if (state.aiHem) delete state.aiHem[id];
           if (state.aiOver) delete state.aiOver[id];
           if (id.indexOf('+') > 0) { state.looks = state.looks || {}; state.looks[id] = 1; }
+          state.lookSize = state.lookSize || {}; if (ui.genSizes[id]) state.lookSize[id] = ui.genSizes[id]; else delete state.lookSize[id];
           state.wearLast = id; save();
           var msg = (lookName(id) || '옷') + ' 입은 모습이 완성됐어요!';
           notifyDone('FITON', msg);
@@ -358,6 +360,7 @@
     genPending = null;
     try { localStorage.removeItem(GEN_KEY()); } catch (e) {}
     waitEnd();
+    ui.genErr = ok ? null : (msg || '알 수 없는 이유로 실패했어요. 잠시 뒤 다시 시도해 주세요.');
     if (ok) {
       lookItems(id).forEach(selectItem); save(); ui.view = 'me';
       if (ui.page !== 'fitting') go('fitting'); else render();
@@ -370,7 +373,7 @@
     if (!user || genPending || !Core.genEnabled()) return;
     try {
       var p = JSON.parse(localStorage.getItem(GEN_KEY()) || 'null');
-      if (p && p.id && p.taskId && lookItems(p.id).length && Date.now() - p.t0 < 6 * 60 * 1000) { genPending = p.id; render(); waitStart(lookName(p.id), wearSizes(lookItems(p.id)), true, notesFor(lookItems(p.id))); genPoll(p.id, p.taskId, p.t0); }
+      if (p && p.id && p.taskId && lookItems(p.id).length && Date.now() - p.t0 < 6 * 60 * 1000) { if (p.sz) ui.genSizes[p.id] = p.sz; genPending = p.id; render(); waitStart(lookName(p.id), wearSizes(lookItems(p.id)), true, notesFor(lookItems(p.id))); genPoll(p.id, p.taskId, p.t0); }
       else if (p) localStorage.removeItem(GEN_KEY());
     } catch (e) {}
   }
@@ -528,7 +531,7 @@
     return '<main class="main"><section class="hero"><div class="strip" aria-hidden="true">' + imgs.map(function (u) { return '<img src="' + h(u) + '" alt="">'; }).join('') + '</div><div class="veil" aria-hidden="true"></div><div class="hin">' +
       '<div class="season">올 ' + seasonName() + ' 유행할 패션</div><h1 class="herotitle">쇼츠에서 본 스타일,<br><em>바로 입어보기</em></h1><p class="herosub">마음에 드는 옷 사진을 넣으면 내 몸에 입혀서 보여 드려요.</p>' +
       '<div class="cwrap"><div class="halo" aria-hidden="true"></div><div class="glow"><div class="comp" data-dz="home"><div class="drop">' + drop + '</div><div class="krow" role="group" aria-label="용도 (선택)"><small>용도 (선택)</small>' + kpills + '</div><div class="crow' + (p ? ' ask' : '') + '">' + pills +
-      '<label class="go" style="display:inline-flex;align-items:center;flex-direction:row;color:#1b0b0b;cursor:pointer">파일 선택<input type="file" accept="image/*" data-file="quick" hidden></label></div></div></div></div>' +
+      '<label class="go" style="display:inline-flex;align-items:center;flex-direction:row;color:#fff;cursor:pointer">파일 선택<input type="file" accept="image/*" data-file="quick" hidden></label></div></div></div></div>' +
       '<div class="steps"><span><b>1</b>옷 사진 넣기</span><span><b>2</b>옷 종류 누르기</span><span><b>3</b>내 아바타로 확인</span></div></div></section>' +
       '<section class="sec"><div class="sh"><h2 class="sectitle">이번 ' + seasonName() + ' 코디</h2><span>눌러서 바로 입어 보세요</span></div><div class="grid5">' +
       list.map(function (st) { return '<button type="button" class="stylelk" data-act="styleTry" data-id="' + h(st.id) + '" style="padding:0;text-align:left"><img src="' + h(st.modelImage) + '" alt="' + h(st.title) + '" loading="lazy"><div class="cap"><b>' + h(st.title) + '</b><span>입어보기</span></div></button>'; }).join('') +
@@ -554,6 +557,53 @@
   }
   function clothesCount() { return ['outer', 'top', 'bottom', 'dress', 'shoe'].filter(got).length; }
   function selAccs() { return state.accSel.map(accItem).filter(Boolean); }
+  /* 2026-11-10 FITON_PC_Style_Guide 반영: 가운데 뷰어·실측 핏 분석·사이즈 비교, 오른쪽 설정 패널(캐릭터·입어볼 것·핏 스타일·실행).
+     핏 스타일은 저장된 선호 핏(profile.pref)과 같은 값이라 추천 사이즈·판정에 실제로 쓰인다. 입은 그림은 바뀌지 않는다. */
+  var FSTYLE = [['tight', 'Slim', '타이트'], ['fit', 'Regular', '정핏'], ['loose', 'Loose', '여유'], ['over', 'Oversized', '오버핏']];
+  var CMP_COLS = { outer: ['shoulder', 'chest', 'sleeve', 'length'], top: ['shoulder', 'chest', 'sleeve', 'length'], bottom: ['waist', 'hip', 'thigh', 'inseam', 'length'], dress: ['shoulder', 'chest', 'waist', 'sleeve', 'length'], shoe: ['inner'] };
+  var ZOOMS = [0.5, 0.75, 1, 1.25, 1.5, 2];
+  function fieldLabel(it, k) {
+    var f = (FIELDS[it.cat] || []).filter(function (x) { return x[0] === k; })[0], t = f ? f[1] : k;
+    return it.measureType === 'circ' ? t.replace('단면', '둘레') : t;
+  }
+  /* 사이즈 하나의 판정 → [표시 클래스, 문구]. 근거(내 몸 치수·옷 실측)가 없으면 확정하지 않는다 */
+  function sizeState(e) {
+    if (!E.num(state.profile.height) || !e || !e.parts || !e.parts.length) return ['s-none', '측정 정보 부족'];
+    var tight = e.parts.some(isTight), loose = e.parts.some(isLoose);
+    return tight ? ['s-tight', '타이트할 수 있음'] : loose ? ['s-loose', '여유 있음'] : e.labelEst ? ['s-check', '확인 필요'] : ['s-ok', '적합'];
+  }
+  function isTight(p) { return p.kind === 'circ' ? p.gradeIdx === 0 : p.gradeKey === 'tightBad'; }
+  function isLoose(p) { return p.kind === 'circ' ? p.gradeIdx === 4 : p.gradeKey === 'over'; }
+  function curSize(it) { var s = state.sel[it.cat], f; return (s && s.id === it.id && s.size) || (((f = fitHint(it)) && f.size) || ''); }
+  /* 입은 그림을 만들 때 쓴 사이즈(2026-11-10부터 기록). 예전 그림은 기록이 없다 */
+  function madeSizes(key) { return (state.lookSize && state.lookSize[key]) || null; }
+  function stageStatus(set, worn) {
+    var cls = 'wait', t = '피팅을 시작해 주세요', sub = set.length ? '오른쪽 패널의 「가상 피팅 시작」을 누르면 AI가 옷을 입혀요.' : '오른쪽 패널에서 입어볼 옷을 골라 주세요.', btn = '';
+    if (genPending) { cls = 'run'; t = 'AI가 의류를 착용하고 있습니다'; sub = lookName(genPending) + ' · 보통 1~2분 걸려요. 다른 화면을 봐도 됩니다.'; btn = '<button type="button" data-act="waitShow">진행 화면 보기</button>'; }
+    else if (ui.genErr) { cls = 'fail'; t = '피팅을 완료하지 못했습니다'; sub = ui.genErr; btn = set.length ? '<button type="button" data-act="wear">다시 시도</button>' : ''; }
+    else if (worn) {
+      cls = 'done'; t = '피팅 결과가 준비되었습니다';
+      var ms = madeSizes(worn.key), its = lookItems(worn.key), multi = its.length > 1;
+      if (!ms) sub = worn.name + ' · 만들 때 사이즈 기록 없음';
+      else {
+        sub = worn.name + ' · 만들 때 사이즈 ' + its.map(function (x) { return (multi ? CATS[x.cat] + ' ' : '') + (ms[x.id] || '?'); }).join(', ');
+        if (its.some(function (x) { return ms[x.id] && curSize(x) && ms[x.id] !== curSize(x); })) sub += ' — 지금 고른 사이즈와 달라요. 다시 입혀야 그림에 반영돼요.';
+      }
+    }
+    return '<div class="vstatus ' + cls + '" role="status"><i aria-hidden="true"></i><div class="st"><b>' + h(t) + '</b><span>' + h(sub) + '</span></div>' + btn + '</div>';
+  }
+  function fitVerdict(fr) {
+    var res = fr.results, out = { cls: 's-none', st: '측정 정보 부족', b: '옷을 골라 주세요', why: '오른쪽 패널에서 입어볼 옷을 담으면 결과가 나옵니다.' };
+    if (!res.length) return out;
+    var cur = res.filter(function (r) { return r.current; }), tight = [], loose = [];
+    cur.forEach(function (r) { r.current.parts.forEach(function (p) { if (isTight(p)) tight.push(r.garment.name + ' ' + p.label); else if (isLoose(p)) loose.push(r.garment.name + ' ' + p.label); }); });
+    if (!E.num(state.profile.height)) return { cls: 's-none', st: '측정 정보 부족', b: '내 몸 정보가 필요해요', why: '키와 몸무게를 넣으면 핏을 계산해 드려요.' };
+    if (!cur.length || !cur.some(function (r) { return r.current.parts && r.current.parts.length; })) return { cls: 's-none', st: '측정 정보 부족', b: '실측값이 필요해요', why: '내 옷장에서 사이즈표를 넣어 주세요.' };
+    if (tight.length) return { cls: 's-tight', st: '타이트할 수 있음', b: '조금 작아요', why: tight.join(', ') + ' 부분이 작아요.' };
+    if (loose.length) return { cls: 's-loose', st: '여유 있음', b: '조금 커요', why: loose.join(', ') + ' 부분이 많이 남아요.' };
+    if (cur.some(function (r) { return r.current.labelEst; })) return { cls: 's-check', st: '확인 필요', b: '맞을 것 같아요', why: '실측표가 없는 옷은 표준 치수로 추정했어요. 실측표를 넣으면 정확해져요.' };
+    return { cls: 's-ok', st: '적합', b: '잘 맞아요', why: fr.note || '고른 옷 모두 몸에 맞아요.' };
+  }
   function viewFitting() {
     var fr = fitResults(), res = fr.results, accs = selAccs(), set = wearSet(), hasOuter = !!got('outer'), left = ui.left, cc = clothesCount();
     var slots = slotHtml('outer', '겉옷 · 맨 바깥') + (got('dress') ? slotHtml('dress', '원피스') : slotHtml('top', hasOuter ? '상의 · 겉옷 안쪽' : '상의') + slotHtml('bottom', '하의')) + slotHtml('shoe', '신발');
@@ -566,9 +616,10 @@
         var on = state.accSel.indexOf(o.id) >= 0;
         return '<button type="button" class="aitem' + (on ? ' on' : '') + '" aria-pressed="' + on + '" data-act="accToggle" data-id="' + h(o.id) + '"><span><small>' + h(o.type) + '</small>' + h(o.name) + '</span>' + (on ? '<em>착용</em>' : '') + '</button>';
       }).join('') : '<p class="rule">저장한 액세서리가 없어요.</p>') + '</div>';
-    var parts = [], label = [], wearN = set.length + (set[0] && set[0].cat !== 'shoe' && got('shoe') ? 1 : 0);
+    var label = [], wearN = set.length + (set[0] && set[0].cat !== 'shoe' && got('shoe') ? 1 : 0);
     if (wearN) label.push('옷 ' + wearN + '벌');
-    var worn = wornNow(), v = ui.view, url = v === 'model' ? modelShow() : worn ? worn.url : avatarShow();
+    var worn = wornNow(), v = ui.view, url = v === 'model' ? modelShow() : worn ? worn.url : avatarShow(), front = ui.angle === 'front', z = ui.zoom;
+    /* ----- 뷰어 ----- */
     var tags = '', seen = {};
     if (v === 'me') res.forEach(function (r) {
       if (!r.current) return;
@@ -578,21 +629,21 @@
       });
     });
     var pins = v === 'cmp' ? '' : accs.map(function (a) { var t = ACC_TYPES[a.type] || {}; return '<div class="pin" style="top:' + t.top + ';left:' + t.left + '"><i></i>' + h(a.type) + '</div>'; }).join('');
-    var fig = v === 'cmp' ? '<div class="fig cmpv"><figure><img src="' + h(avatarShow()) + '" alt="원본 아바타"><figcaption>원본</figcaption></figure><figure><img src="' + h(worn ? worn.url : avatarShow()) + '" alt="입은 모습"><figcaption>' + (worn ? '입은 모습' : '아직 입은 모습이 없어요') + '</figcaption></figure></div>'
-      : '<div class="fig"><img src="' + h(url) + '" alt="' + h(worn ? worn.name + ' 입은 모습' : '캐릭터') + '"><div class="tape" aria-hidden="true"></div>' + tags + pins + '</div>';
-    /* 오른쪽: 판정 */
-    var active = res.filter(function (r) { return r.cat === ui.fitTab; })[0] || res[0] || null, verdict = '옷을 골라 주세요', reason = '옷장에서 입어볼 옷을 담으면 결과가 나옵니다.';
-    if (res.length) {
-      var cur = res.filter(function (r) { return r.current; });
-      var tight = [], loose = [];
-      cur.forEach(function (r) { r.current.parts.forEach(function (p) { if (p.kind !== 'circ') return; if (p.gradeIdx === 0) tight.push(r.garment.name + ' ' + p.label); else if (p.gradeIdx === 4) loose.push(r.garment.name + ' ' + p.label); }); });
-      if (!E.num(state.profile.height)) { verdict = '내 몸 정보가 필요해요'; reason = '키와 몸무게를 넣으면 핏을 계산해 드려요.'; }
-      else if (!cur.length) { verdict = '실측값이 필요해요'; reason = '내 옷장에서 사이즈표를 넣어 주세요.'; }
-      else if (tight.length) { verdict = '조금 작아요'; reason = tight.join(', ') + '이(가) 쪼여요.'; }
-      else if (loose.length) { verdict = '조금 커요'; reason = loose.join(', ') + '이(가) 많이 남아요.'; }
-      else { verdict = '잘 맞아요'; reason = fr.note || '고른 옷 모두 몸에 맞아요.'; }
-    }
-    if (active && active.current) parts = active.current.parts;
+    var angleName = { side: '측면', back: '후면' }[ui.angle];
+    var fig = !front ? '<div class="vph"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M4 17l5-5 4 4 3-3 4 4M9 3v0"></path><path d="M3 3l18 18"></path></svg><b>' + angleName + ' 지원 이미지 없음</b><p>FITON은 정면 착용 이미지만 만들어요. ' + angleName + ' 결과는 만들지 않으며, 정면 이미지를 돌려 보여 주지도 않습니다.</p></div>'
+      : v === 'cmp' ? '<div class="fig cmpv"><figure><img src="' + h(avatarShow()) + '" alt="원본 아바타"><figcaption>원본</figcaption></figure><figure><img src="' + h(worn ? worn.url : avatarShow()) + '" alt="입은 모습"><figcaption>' + (worn ? '입은 모습' : '아직 입은 모습이 없어요') + '</figcaption></figure></div>'
+      : '<div class="fig"><img src="' + h(url) + '" alt="' + h(v === 'model' ? '기본 모델 코디 예시' : worn ? worn.name + ' 입은 모습' : '캐릭터') + '"><div class="tape" aria-hidden="true"></div>' + tags + pins + '</div>';
+    var zoomOk = front && v !== 'cmp', zi = ZOOMS.indexOf(z);
+    var who = v === 'model' ? '기본 모델 · 코디 예시 사진(샘플)' : (urls.avatar ? '내 아바타' : '기본 캐릭터 (샘플)') + (v === 'cmp' ? ' · 원본과 비교' : '');
+    var what = v !== 'model' && worn ? worn.name : set.length ? set.map(function (x) { return x.name; }).join(' + ') : '고른 옷 없음';
+    var viewer = '<section class="card2 viewer" aria-label="입은 모습"><div class="vhead"><div class="vname"><small>' + h(who) + '</small><b>' + h(what) + '</b></div><div class="vtabs" role="tablist" aria-label="보기 선택">' +
+      [['model', '기본 모델'], ['me', '내 아바타'], ['cmp', '원본과 비교']].map(function (t) { return '<button type="button" role="tab" aria-selected="' + (v === t[0]) + '" class="' + (v === t[0] ? 'on' : '') + '" data-act="view" data-v="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div></div>' +
+      '<div class="vbar"><div class="angles" role="group" aria-label="보는 방향">' + [['front', 'Front'], ['side', 'Side'], ['back', 'Back']].map(function (a) { var o = ui.angle === a[0]; return '<button type="button" class="' + (o ? 'on' : '') + '" aria-pressed="' + o + '" data-act="angle" data-v="' + a[0] + '">' + a[1] + '</button>'; }).join('') + '</div>' +
+      '<div class="zoomctl" role="group" aria-label="이미지 확대·축소"><button type="button" data-act="zoom" data-v="-" aria-label="축소"' + (zoomOk && zi > 0 ? '' : ' disabled') + '>−</button><output aria-live="polite">' + Math.round(z * 100) + '%</output><button type="button" data-act="zoom" data-v="+" aria-label="확대"' + (zoomOk && zi < ZOOMS.length - 1 ? '' : ' disabled') + '>+</button><button type="button" data-act="zoom" data-v="1"' + (zoomOk && z !== 1 ? '' : ' disabled') + '>맞춤</button></div></div>' +
+      '<div class="vbox' + (v === 'cmp' && front ? ' cmpbox' : '') + '" style="--z:' + z + '">' + fig + '</div>' + stageStatus(set, v === 'model' ? null : worn) +
+      '<div class="tools"><button type="button" class="tl" data-act="zoomStage">크게 보기</button><button type="button" class="tl" data-act="open3d">3D로 보기</button><button type="button" class="tl" data-act="savePic">결과 저장</button></div></section>';
+    /* ----- 실측 핏 분석 (AI 이미지와 분리) ----- */
+    var vd = fitVerdict(fr), active = res.filter(function (r) { return r.cat === ui.fitTab; })[0] || res[0] || null, parts = active && active.current ? active.current.parts : [];
     var names = BASE_CFG.gradeNames[active && active.cat === 'shoe' ? 'shoe' : 'body'];
     var partHtml = parts.map(function (p) {
       var idx = p.kind === 'circ' ? p.gradeIdx : GIDX[p.gradeKey], val2 = p.kind === 'circ' ? p.grade + ' ' + sgn(p.ease) + (p.unit || (active.cat === 'shoe' ? 'mm' : 'cm')) : p.text;
@@ -601,20 +652,43 @@
     }).join('');
     var ag = active && active.garment, buy = '';
     if (ag) buy = ag.gone ? '<p class="gone">이 상품은 현재 없는 것으로 보입니다</p>' : safeUrl(ag.url) ? '<a class="buy1" data-buyid="' + h(ag.id) + '" href="' + h(safeUrl(ag.url)) + '" target="_blank" rel="noopener noreferrer">' + CATS[active.cat] + ' 구매하기' + ARROW + '</a>' : '<p class="gone">이 옷은 구매 링크가 없어요. <button type="button" data-act="toCloset" data-cat="' + active.cat + '" style="color:inherit;font-weight:700;text-decoration:underline">옷장에서 넣기</button></p>';
-    return '<main class="main mflex"><section class="pan" style="flex:1 1 270px" aria-label="고른 옷"><h2>입어볼 것</h2><div class="ftabs" role="tablist" aria-label="입어볼 것 종류">' +
+    var fitcard = '<section class="card2 fitcard" aria-label="핏 결과"><div class="ch"><h2>실측 기반 핏 분석</h2><small>AI 이미지와 별개 계산</small></div><div class="verdict"><small>내 몸 치수와 옷 실측으로 계산한 결과</small><span class="chip ' + vd.cls + '">' + h(vd.st) + '</span><b>' + h(vd.b) + '</b><span class="muted">' + h(vd.why) + '</span></div>' +
+      (res.length ? '<div class="ftabs" role="tablist" aria-label="옷별 핏 보기">' + res.map(function (r) { var o = r === active; return '<button type="button" role="tab" aria-selected="' + o + '" class="' + (o ? 'on' : '') + '" data-act="fitTab" data-cat="' + r.cat + '">' + CATS[r.cat] + '</button>'; }).join('') + '</div>' : '') +
+      (active ? '<div class="ph"><b>' + h(ag.name) + '</b><span class="muted">' + h(active.chosen || '') + '</span></div><div class="scale" aria-hidden="true">' + names.map(function (n) { return '<span>' + h(n) + '</span>'; }).join('') + '</div>' +
+        (active.current && active.current.labelEst ? '<p class="note">실측표가 없어 표준 치수로 추정했어요. 실측표를 넣으면 정확해져요.</p>' : '') + partHtml + (active.recommended ? '<p class="note">추천 사이즈: <b>' + h(active.recommended) + '</b> (핏 스타일 ' + h((FSTYLE.filter(function (f) { return f[0] === (state.profile.pref || 'fit'); })[0] || FSTYLE[1])[1]) + ' 기준)</p>' : '') : '') +
+      '<div class="buyline">' + buy + '</div><p class="note">추정 결과이며 실제 착용감을 보장하지 않습니다. 액세서리는 핏을 계산하지 않고 착용한 모습만 보여 줍니다.</p></section>';
+    /* ----- 사이즈 비교 ----- */
+    var sizecmp;
+    if (!active) sizecmp = '<section class="card2 sizecmp" aria-label="사이즈 비교"><div class="ch"><h2>사이즈 비교</h2></div><p class="note">옷을 고르면 사이즈별 실측과 핏 판정을 나란히 보여 드려요.</p></section>';
+    else {
+      var ms = worn ? madeSizes(worn.key) : null, wornHas = worn && worn.key.split('+').indexOf(ag.id) >= 0, unit = active.cat === 'shoe' ? 'mm' : 'cm';
+      sizecmp = '<section class="card2 sizecmp" aria-label="사이즈 비교"><div class="ch"><h2>사이즈 비교 · ' + h(CATS[active.cat]) + ' ' + h(ag.name) + '</h2><small>누르면 그 사이즈로 바뀌어요 · 착용 이미지는 그 사이즈로 만든 경우에만 보여요</small></div><div class="szrow">' +
+        (ag.sizes || []).map(function (row) {
+          var e = (active.all || []).filter(function (x) { return x.size === row.label; })[0], st = sizeState(e), on = row.label === active.chosen, rec = row.label === active.recommended;
+          var th = wornHas && ms && ms[ag.id] === row.label ? '<img class="szth" src="' + h(worn.url) + '" alt="' + h(row.label) + ' 사이즈 입은 모습">' : '<span class="szno">착용 이미지 없음</span>';
+          return '<button type="button" class="szc' + (on ? ' on' : '') + '" aria-pressed="' + on + '" data-act="size" data-cat="' + active.cat + '" data-v="' + h(row.label) + '"><div class="szh"><b>' + h(row.label) + '</b>' + (on ? '<em>선택됨</em>' : rec ? '<em>추천</em>' : '') + '</div>' + th +
+            '<dl>' + (active.cat === 'shoe' && !E.num(row.inner) ? '<dt>표기 사이즈</dt><dd>' + h(row.label) + '</dd><dt>안쪽 길이 실측</dt><dd class="na">정보 없음</dd>' : (CMP_COLS[active.cat] || []).map(function (k) { var n = E.num(row[k]); return '<dt>' + h(fieldLabel(ag, k)) + '</dt>' + (n ? '<dd>' + n + unit + '</dd>' : '<dd class="na">정보 없음</dd>'); }).join('')) + '</dl>' +
+            '<span class="chip ' + st[0] + '">' + h(st[1]) + '</span></button>';
+        }).join('') + '</div></section>';
+    }
+    /* ----- 오른쪽 설정 패널 ----- */
+    var pref = state.profile.pref || 'fit';
+    var rpanel = '<aside class="rpanel" id="rpanel" aria-label="피팅 설정">' +
+      '<section class="card2" aria-label="캐릭터"><div class="ch"><h2>캐릭터</h2></div><div class="chr"><img src="' + h(avatarShow()) + '" alt=""><div class="sname"><small>' + (urls.avatar ? '직접 올린 이미지' : '샘플 캐릭터') + '</small><b>' + (urls.avatar ? '내 아바타' : '기본 캐릭터') + '</b></div><button type="button" class="chbtn" data-act="go" data-page="body">캐릭터 변경</button></div></section>' +
+      '<section class="card2" aria-label="고른 옷"><div class="ch"><h2>입어볼 것</h2></div><div class="ftabs" role="tablist" aria-label="입어볼 것 종류">' +
       '<button type="button" role="tab" aria-selected="' + (left === 'clothes') + '" class="' + (left === 'clothes' ? 'on' : '') + '" data-act="left" data-v="clothes">옷 ' + cc + '벌</button><button type="button" role="tab" aria-selected="' + (left === 'acc') + '" class="' + (left === 'acc' ? 'on' : '') + '" data-act="left" data-v="acc">액세서리 ' + accs.length + '개</button></div>' +
       '<div class="picks">' + (left === 'clothes' ? slots + '<p class="rule">종류마다 한 벌씩 입혀요. 원피스를 고르면 상의와 하의 칸이 원피스 한 칸으로 바뀝니다.</p>' : accPane) + '</div>' +
       (left === 'clothes' ? '<button type="button" class="add" data-act="go" data-page="closet">옷장에서 다른 옷 고르기</button>' : '<button type="button" class="add" data-act="go" data-page="accessory">새 액세서리 저장</button>') +
-      (hasOuter || accs.length ? '<p class="amsg">' + NOT_YET + '</p>' : '') +
-      '<button type="button" class="wear" data-act="wear"' + (set.length && !genPending ? '' : ' disabled') + '>' + (genPending ? '만드는 중… 다른 걸 해도 돼요' : (label.join(' · ') || '고른 옷') + ' 한 번에 입어보기<small>남은 횟수 1회 사용</small>') + '</button></section>' +
-      '<section class="stage" style="flex:3 1 520px" aria-label="입은 모습"><div class="cur l" aria-hidden="true"></div><div class="cur r" aria-hidden="true"></div><div class="vtabs" role="tablist" aria-label="보기 선택">' +
-      [['model', '기본 모델'], ['me', '내 아바타'], ['cmp', '원본과 비교']].map(function (t) { return '<button type="button" role="tab" aria-selected="' + (v === t[0]) + '" class="' + (v === t[0] ? 'on' : '') + '" data-act="view" data-v="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div>' + fig +
-      '<div class="tools"><button type="button" class="tl" data-act="zoomStage">크게 보기</button><button type="button" class="tl" data-act="open3d">3D로 보기</button><button type="button" class="tl" data-act="savePic">사진 저장</button></div></section>' +
-      '<section class="pan" style="flex:1 1 300px" aria-label="핏 결과"><h2>내 몸에 맞나요?</h2><div class="verdict"><small>내 치수로 계산한 결과</small><b>' + h(verdict) + '</b><span class="muted">' + h(reason) + '</span></div>' +
-      (res.length ? '<div class="ftabs" role="tablist" aria-label="옷별 핏 보기">' + res.map(function (r) { var o = r === active; return '<button type="button" role="tab" aria-selected="' + o + '" class="' + (o ? 'on' : '') + '" data-act="fitTab" data-cat="' + r.cat + '">' + CATS[r.cat] + '</button>'; }).join('') + '</div>' : '') +
-      (active ? '<div class="ph"><b>' + h(ag.name) + '</b><span class="muted">' + h(active.chosen || '') + '</span></div><div class="scale" aria-hidden="true">' + names.map(function (n) { return '<span>' + h(n) + '</span>'; }).join('') + '</div>' +
-        (active.current && active.current.labelEst ? '<p class="note">실측표가 없어 표준 치수로 추정했어요. 실측표를 넣으면 정확해져요.</p>' : '') + partHtml + (active.recommended ? '<p class="note">추천 사이즈: <b>' + h(active.recommended) + '</b></p>' : '') : '') +
-      '<div class="buyline">' + buy + '</div><p class="note">추정 결과이며 실제 착용감을 보장하지 않습니다. 액세서리는 핏을 계산하지 않고 착용한 모습만 보여 줍니다.</p></section></main>';
+      (hasOuter || accs.length ? '<p class="amsg">' + NOT_YET + '</p>' : '') + '</section>' +
+      '<section class="card2" aria-label="핏 스타일"><div class="ch"><h2>핏 스타일</h2><small>참고 옵션</small></div><div class="fstyle" role="group" aria-label="핏 스타일">' +
+      FSTYLE.map(function (f) { var o = pref === f[0]; return '<button type="button" class="' + (o ? 'on' : '') + '" aria-pressed="' + o + '" data-act="fitStyle" data-v="' + f[0] + '">' + f[1] + '<small>' + f[2] + '</small></button>'; }).join('') +
+      '</div><p class="rule">추천 사이즈와 핏 판정 기준이 바뀌어요. 입은 그림은 상품 사진의 핏대로 만들어져 이 선택으로 바뀌지 않아요.</p></section>' +
+      '<section class="card2 runcard" aria-label="실행">' + (Core.genEnabled() ? '' : '<p class="demo" role="note">AI 입히기 서버가 연결되지 않은 데모 상태예요. 가상 피팅 시작을 눌러도 실제 결과는 만들어지지 않습니다.</p>') +
+      '<button type="button" class="wear" data-act="wear"' + (set.length && !genPending && Core.genEnabled() ? '' : ' disabled') + '>' + (genPending ? '진행 중… 다른 걸 해도 돼요' : '가상 피팅 시작<small>' + h((label.join(' · ') || '고른 옷') + ' · 남은 횟수 1회 사용') + '</small>') + '</button>' +
+      '<button type="button" class="reset" data-act="resetSel"' + (genPending ? ' disabled' : '') + '>초기화</button></section></aside>';
+    return '<main class="main fitmain"><header class="phead"><div><h1>피팅룸</h1><p class="sub">선택한 캐릭터와 옷의 가상 착용 결과를 확인합니다.</p></div><div class="hacts"><span class="savest">✓ 고른 내용은 자동 저장돼요</span>' +
+      '<button type="button" class="tl" data-act="rpToggle" aria-controls="rpanel" aria-expanded="' + !ui.rpOff + '">' + (ui.rpOff ? '설정 패널 펼치기' : '설정 패널 접기') + '</button></div></header>' +
+      '<div class="fitgrid' + (ui.rpOff ? ' rpoff' : '') + '">' + viewer + fitcard + sizecmp + rpanel + '</div></main>';
   }
 
   /* ---------- 내 옷장 ---------- */
@@ -629,7 +703,7 @@
       (f.cat === 'shoe' ? '' : '<label for="pkindk">용도 (선택)<select id="pkindk" data-chg="cfKind"><option value="">자동으로 정하기</option>' + KINDS.map(function (k) { return '<option value="' + k[0] + '"' + (f.kind === k[0] ? ' selected' : '') + '>' + h(k[1]) + '</option>'; }).join('') + '</select></label>') +
       '<label for="pname">옷 이름<input id="pname" type="text" data-cf="name" value="' + h(f.name) + '" maxlength="60"></label><label for="pprice">가격<input id="pprice" type="text" data-cf="price" value="' + h(f.price) + '"></label><label for="purl">상품 링크 (선택)<input id="purl" type="url" data-cf="url" placeholder="https://..." value="' + h(f.url) + '"></label>' +
       '<p class="hint">상품 주소를 넣으면 옷 카드에 구매하기가 생겨요.</p>' + (f.err ? '<p class="gone" role="alert">' + h(f.err) + '</p>' : '') + (f.saved ? '<p class="ok" role="status">저장했어요.</p>' : '') +
-      '<button type="button" class="save" data-act="cfSave">' + (f.id ? '수정 저장' : '옷장에 저장') + '</button>' + (f.id ? '<div class="lkacts"><button type="button" class="lk" data-act="cfCancel">취소</button><button type="button" class="lk" data-act="delItem" data-id="' + h(f.id) + '" style="color:#ff9d90">옷 삭제</button></div>' : '') + '</aside>';
+      '<button type="button" class="save" data-act="cfSave">' + (f.id ? '수정 저장' : '옷장에 저장') + '</button>' + (f.id ? '<div class="lkacts"><button type="button" class="lk" data-act="cfCancel">취소</button><button type="button" class="lk" data-act="delItem" data-id="' + h(f.id) + '" style="color:var(--errText)">옷 삭제</button></div>' : '') + '</aside>';
   }
   function viewCloset() {
     var cat = ui.closetCat, all = state.closet.filter(function (x) { return x.cat === cat; });
@@ -699,7 +773,7 @@
     var p = ui.page, inner = p === 'fitting' ? viewFitting() : p === 'closet' ? viewCloset() : p === 'accessory' ? viewAccessory() : p === 'history' ? viewHistory() : p === 'body' ? viewBody() : viewHome();
     var ae = document.activeElement, keep = ae && ae.id, sel = null, scr = {};
     try { sel = keep && ae.selectionStart; } catch (e) {}
-    ['.grid4', '.picks', 'aside.pan', '.pan[aria-label="핏 결과"]'].forEach(function (q) { var e = app.querySelector(q); if (e) scr[q] = e.scrollTop; });
+    ['.grid4', '.picks', 'aside.pan', '.rpanel', '.vbox'].forEach(function (q) { var e = app.querySelector(q); if (e) scr[q] = e.scrollTop; });
     app.className = 'pg-' + p;
     app.innerHTML = '<div class="app">' + side() + inner + '</div>';
     Object.keys(scr).forEach(function (q) { var e = app.querySelector(q); if (e) e.scrollTop = scr[q]; });
@@ -784,6 +858,13 @@
     Promise.all([Core.shrink(file, 240, 0.8).then(Core.blobToDataUrl), Core.shrink(file, 1280, 0.88)]).then(function (a) { ui.af.photo = a[0]; ui.af.big = a[1]; ui.af.err = ''; ui.af.saved = false; render(); }).catch(function (err) { ui.af.err = (err && err.message) || '사진을 읽지 못했어요.'; render(); });
   }
   function ocrMsg(k, t) { var el = app.querySelector('[data-ocr="' + k + '"]'); if (el) el.textContent = t; }
+  /* AI 읽기 경고의 개발용 표현('length', variants)을 사용자 말로 바꾼다. 같은 치수가 숏/롱처럼 여러 버전이면 앱은 한 값만 저장한다. */
+  var WARN_KEYS = { length: '총장', chest: '가슴', shoulder: '어깨', sleeve: '소매길이', armhole: '암홀', sleeve_width: '소매통', hem: '밑단', waist: '허리', hip: '엉덩이', thigh: '허벅지', knee: '무릎', rise: '밑위', inseam: '기장(인심)' };
+  function friendlyWarn(w) {
+    var m = /^'([^']+)' 치수가 여러 버전입니다\(([^)]*)\)\. 기본값은 '([^']*)'/.exec(String(w));
+    if (!m) return w;
+    return (WARN_KEYS[m[1]] || m[1]) + ' 항목이 여러 버전(' + m[2] + ')으로 있어요. ' + m[3] + ' 값만 넣었어요. 나머지는 필요하면 직접 입력해 주세요.';
+  }
   function sizeCap(file) {
     var f = ui.cf;
     /* 서버(AI)로 읽기를 켜 둔 경우(TRYON_CFG.sizeRead) 먼저 시도하고, 안 되면 아래 브라우저 글자 읽기로 넘어간다 */
@@ -792,7 +873,7 @@
       FitNotes.readCapture(file, f.cat, state.profile.gender, Core.shrink, Core.blobToDataUrl, Core.deviceId()).then(function (r) {
         if (ui.cf !== f) return;
         f.sizes = r.sizes; f.measureType = r.measureType; f.sizeDone = true;
-        f.sizeMsg = 'AI가 읽었어요(둘레 cm 기준). 값이 맞는지 확인해 주세요.' + (r.warnings && r.warnings.length ? ' 참고: ' + r.warnings[0] : ''); render();
+        f.sizeMsg = 'AI가 읽었어요(둘레 cm 기준). 값이 맞는지 확인해 주세요.' + (r.warnings && r.warnings.length ? ' 참고: ' + friendlyWarn(r.warnings[0]) : ''); render();
       }).catch(function (err) { if (ui.cf !== f) return; f.sizeMsg = ''; sizeOcrFallback(file, f); });
       return;
     }
@@ -852,6 +933,7 @@
     if (state.aiHem) delete state.aiHem[id];
     if (state.aiOver) delete state.aiOver[id];
     if (state.looks) delete state.looks[id];
+    if (state.lookSize) delete state.lookSize[id];
     if (state.wearLast === id) delete state.wearLast;
   }
   function openFull(u, alt) {
@@ -867,7 +949,7 @@
     logout: function () {
       if (genPending && !confirm('입은 모습을 만드는 중이에요. 프로필을 바꾸면 이 화면에서는 결과를 받지 못해요. 계속할까요?')) return;
       try { localStorage.removeItem(CUR_KEY); } catch (e) {}
-      genPending = null; waitEnd(); clearUrls(); user = null; state = null; render();
+      genPending = null; ui.genErr = null; waitEnd(); clearUrls(); user = null; state = null; render();
     },
     lgNew: function () { ui.lg.mode = 'new'; ui.lg.err = ''; render(); },
     lgPick: function (el) { ui.lg.mode = 'pin'; ui.lg.id = el.dataset.id; ui.lg.err = ''; render(); },
@@ -891,6 +973,16 @@
     styleTry: function (el) { var st = FD.styles.filter(function (s) { return s.id === el.dataset.id; })[0]; if (!st) return; importStyle(st); ui.left = 'clothes'; ui.view = 'model'; ui.fitTab = null; go('fitting'); },
     left: function (el) { ui.left = el.dataset.v; ui.accFull = false; render(); },
     view: function (el) { ui.view = el.dataset.v; render(); },
+    angle: function (el) { ui.angle = el.dataset.v; render(); },
+    zoom: function (el) { var i = ZOOMS.indexOf(ui.zoom), d = el.dataset.v; ui.zoom = d === '1' ? 1 : ZOOMS[Math.max(0, Math.min(ZOOMS.length - 1, i + (d === '+' ? 1 : -1)))]; render(); },
+    rpToggle: function () { ui.rpOff = !ui.rpOff; render(); },
+    fitStyle: function (el) { state.profile.pref = el.dataset.v; save(); render(); },
+    resetSel: function () {
+      if (genPending) return;
+      state.sel = {}; state.accSel = []; delete state.wearLast; ui.genErr = null; ui.zoom = 1; ui.angle = 'front'; ui.fitTab = null; ui.accFull = false; save(); render();
+      toast('고른 옷과 액세서리를 모두 뺐어요. 내 옷장과 입어본 기록은 그대로 남아 있어요.', 4000);
+    },
+    waitShow: function () { var o = document.getElementById('wait'); if (o) o.style.display = ''; },
     fitTab: function (el) { ui.fitTab = el.dataset.cat; render(); },
     unsel: function (el) { delete state.sel[el.dataset.cat]; save(); render(); },
     size: function (el) { var s = state.sel[el.dataset.cat]; if (s) { s.size = el.dataset.v; save(); render(); } },
