@@ -4,11 +4,13 @@
    .seg(내몸정보 성별버튼)→.segtoggle, .hint(내몸정보 안내상자)→.callout, .grid(5/4/3열)→.grid5/.grid4/.grid3.
    로그인·설정·요금제 화면은 설계에서 "시안이 정해지면 그린다"며 미뤄둔 화면이라 같은 색·폰트만 맞추고 자유롭게 구성했다. */
 /* 2026-11-10 밝은 테마(FITON_PC_Style_Guide.md 2장): 흰색 기본 + 연보라 강조. 예전 이름(--coral·--amber·--pink)은 강조색 하나로 묶었다 */
-:root{--ink:#F7F7FB;--panel:#FFFFFF;--panel2:#F4F3F8;--line:#E9E8F0;--fg:#242333;--muted:#77768A;
-  --pri:#7564D8;--priDark:#5D4CC4;--priSoft:#F0EDFF;--ok:#269B75;--okText:#1E7D5E;--warn:#D99A35;--warnText:#8F5D0C;--warnSoft:#FDF5E8;--err:#D85B68;--errText:#B23A48;
+/* 2026-11-10 B 스튜디오(fiton-pc-설계\v12_B스튜디오_9화면_로그인_요금제_설정): 검정 바탕 + 라임 강조 + 왼쪽 아이콘 메뉴.
+   색 기준값만 여기서 바꾸고, 모양이 달라지는 규칙은 파일 맨 아래 "B 스튜디오" 구역에 모았다. --priDark 는 강조색 위에 올렸을 때(hover) 색 */
+:root{--ink:#0E0F11;--panel:#17191D;--panel2:#22252B;--line:#3A3E46;--fg:#F2F2EE;--muted:#A7ABB3;
+  --pri:#C6F432;--priDark:#D6FA63;--priSoft:rgba(198,244,50,.12);--onPri:#0E0F11;--ok:#5CC08A;--okText:#7FD6A6;--warn:#FFB454;--warnText:#FFB454;--warnSoft:rgba(255,180,84,.12);--err:#FF7A85;--errText:#FF9D90;
   --coral:var(--pri);--amber:var(--pri);--pink:var(--pri);
-  --fit:#269B75;--tightBad:#D85B68;--tight:#D99A35;--loose:#4F8FD8;--over:#9B87E8;
-  --kr:'Pretendard Variable',Pretendard,-apple-system,BlinkMacSystemFont,'Malgun Gothic',sans-serif;--lat:var(--kr);color-scheme:light}
+  --fit:#5CC08A;--tightBad:#FF7A85;--tight:#FFB454;--loose:#6AA5E6;--over:#B39DFF;
+  --kr:'IBM Plex Sans KR','Malgun Gothic',sans-serif;--lat:'Space Grotesk','IBM Plex Sans KR','Malgun Gothic',sans-serif;color-scheme:dark}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
 body{background:var(--ink);color:var(--fg);font-family:var(--kr);font-size:16px;line-height:1.5;word-break:keep-all}
@@ -440,3 +442,111 @@ td:first-child input{text-align:left;font-weight:800}
 #buyask .ba{display:flex;flex-direction:column;gap:8px;margin-top:6px}
 #buyask .btn{min-height:48px;border-radius:12px;font-weight:800;font-size:16px;background:var(--panel2);border:1px solid var(--line);color:var(--fg)}
 #buyask .btn.warnb{border-color:var(--err);color:var(--errText)}
+
+/* ==================== B 스튜디오 (2026-11-10) ====================
+   위 규칙의 모양을 덮어쓴다. 기능·클래스 이름은 그대로이고 색·모서리·메뉴 모양·피팅룸 칸 순서만 바뀐다. */
+h1{font-size:24px;font-weight:700}
+h2{font-size:18px;font-weight:700}
+.sectitle{font-size:20px;font-weight:700}
+.left b,.szh b,.zoomctl output,td,.szc dd,.verdict b,.in input{font-family:var(--lat)}
+
+/* 왼쪽 아이콘 메뉴(88px) */
+.side{flex:0 0 88px;align-items:center;gap:6px;padding:20px 0;border-right:0}
+.side .logo{font-family:var(--lat);font-weight:700;font-size:15px;letter-spacing:.08em;padding:0;margin-bottom:12px;text-align:center}
+.side .new,.side .nv,.side .left{width:72px;min-height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border-radius:12px;padding:2px;font-size:11px;font-weight:400;line-height:1.25;text-align:center}
+.side .new{margin-bottom:8px;font-weight:700}
+.side .new svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round}
+.side .nv svg{width:20px;height:20px}
+.side .nv.on{background:var(--pri);color:var(--onPri);font-weight:700;box-shadow:none}
+.side .foot{padding-top:12px;gap:6px;align-items:center}
+.side .left{background:var(--ink);color:var(--muted);gap:2px}
+.side .left:hover{color:var(--fg)}
+.side .left b{font-size:17px;font-weight:700;color:var(--fg);line-height:1.1}
+.side .me img,.side .me .avdot{width:26px;height:26px}
+.me .avdot{background:var(--panel2);color:var(--pri)}
+@media (min-width:1280px){.pg-closet .side,.pg-accessory .side{flex:0 0 88px}}
+@media (max-width:860px){.side{flex:1 1 100%;flex-direction:row;flex-wrap:wrap;justify-content:center;height:auto;padding:10px}.side .logo{margin:0 8px 0 0}.side .new{display:flex;margin:0}.side .foot{display:flex;flex-direction:row;margin:0;padding:0}}
+
+/* 강조색 위 글씨는 어두운 색 */
+.new,.go,.bar .go2,.wear,.buyline a.buy1,.chk,.cap span{color:var(--onPri)}
+.new:hover,.go:hover,.bar .go2:hover,.wear:hover,.buyline a.buy1:hover{color:var(--onPri);background:var(--priDark)}
+.new{border-radius:16px;font-weight:700}
+.go,.bar .go2,.wear,.buyline a.buy1{border-radius:14px;font-weight:700}
+.cap span{background:var(--pri)}
+.save{background:var(--fg);border-color:var(--fg);color:var(--ink);border-radius:14px;font-weight:700}
+.wear:disabled{background:var(--panel2);color:var(--muted);box-shadow:none}
+.toast{color:var(--ink)}
+
+/* 카드: 테두리 없이 면으로 구분 */
+.pan,.card2,.cmp,.bar{border-color:transparent;border-radius:20px}
+.tile,.card{border:2px solid transparent;border-radius:16px}
+.tile:hover,.card:hover{border-color:var(--line)}
+.tile.on,.card.on{border-color:var(--pri);background:var(--panel)}
+.buy{background:transparent;border-radius:12px}
+.lk,.btn,.b,.tl,.rm,.reset,.chbtn{border-radius:12px}
+input,select{border-radius:12px}
+.dz{background:var(--ink)}
+.tabs button{background:var(--panel);border-color:transparent}
+.tabs button.on{background:var(--fg);color:var(--ink);border-color:var(--fg)}
+.tile .kb{background:rgba(14,15,17,.85);border-color:transparent}
+
+/* 홈 */
+.veil{background:radial-gradient(ellipse 56% 70% at 50% 48%,rgba(14,15,17,.96) 34%,rgba(14,15,17,.82) 68%,rgba(14,15,17,.5) 100%),linear-gradient(to bottom,transparent 70%,var(--ink))}
+.season{background:transparent}
+.herotitle{font-size:56px;font-weight:700}
+.herotitle em{background:none;-webkit-background-clip:border-box;background-clip:border-box;color:var(--pri)}
+.halo,.glow::before{display:none}
+.glow{padding:0;border-radius:20px}
+.comp{border:2px dashed var(--line);border-radius:20px}
+.pill{background:transparent}
+.stylelk{border-radius:16px}
+.cap{background:linear-gradient(to top,rgba(14,15,17,.92) 45%,transparent)}
+
+/* 피팅룸: 왼쪽 입어볼 것 · 가운데 입은 모습 · 오른쪽 핏 분석 */
+.fitgrid{grid-template-columns:300px minmax(0,1.5fr) minmax(280px,1fr);grid-template-areas:"panel viewer fit" "panel size size"}
+.fitgrid.rpoff{grid-template-columns:minmax(0,1.5fr) minmax(280px,1fr);grid-template-areas:"viewer fit" "size size"}
+@media (max-width:1399px){
+.fitgrid{grid-template-columns:300px minmax(0,1fr);grid-template-areas:"panel viewer" "panel fit" "panel size"}
+.fitgrid.rpoff{grid-template-columns:minmax(0,1fr);grid-template-areas:"viewer" "fit" "size"}
+}
+@media (max-width:1179px){.fitgrid,.fitgrid.rpoff{grid-template-columns:minmax(0,1fr);grid-template-areas:"viewer" "panel" "fit" "size"}}
+.vtabs{background:var(--ink);border-color:transparent;border-radius:999px}
+.vtabs button{border-radius:999px}
+.vtabs button.on,.segtoggle button.on{background:var(--fg);color:var(--ink);box-shadow:none}
+.segtoggle{background:var(--ink)}
+.angles,.zoomctl{background:var(--ink);border-color:transparent}
+.angles button.on{background:var(--panel2);color:var(--fg);box-shadow:none}
+.vbox{background:var(--ink);border-color:transparent;border-radius:20px}
+.fig img{border-radius:20px}
+.tag,.pin{background:rgba(14,15,17,.92)}
+.verdict{background:var(--ink)}
+.sz.on{background:var(--pri);color:var(--onPri)}
+.szc{background:var(--ink);border-color:transparent}
+.szc.on{background:var(--ink)}
+.szh em{background:transparent}
+.vstatus{border-color:transparent}
+.vstatus button{background:transparent}
+.vstatus.run{background:var(--priSoft);border-color:transparent;color:var(--pri)}
+.vstatus.done{background:rgba(92,192,138,.12);border-color:transparent}
+.vstatus.fail{background:rgba(255,122,133,.12);border-color:transparent}
+.demo{border-color:transparent}
+.chip.s-ok{background:rgba(92,192,138,.12);border-color:transparent}
+.chip.s-tight{background:rgba(255,122,133,.12);border-color:transparent}
+.chip.s-loose{color:#8FBDF0;background:rgba(106,165,230,.14);border-color:transparent}
+.chip.s-check,.chip.s-none{border-color:transparent}
+@media (min-width:1180px){.rpanel .runcard{box-shadow:0 -8px 18px rgba(0,0,0,.45)}}
+
+/* 내 몸 정보 */
+.callout{background:transparent;border-color:var(--pri);color:var(--fg);border-radius:12px}
+
+/* 로그인 · 요금제/설정 창 · 대기 화면 */
+.login{background:var(--ink)}
+.lbox{width:min(460px,100%);background:var(--panel);border-radius:24px;padding:28px;gap:16px}
+.lbox .logo{font-family:var(--lat);font-weight:700;font-size:20px;letter-spacing:.08em;text-align:left}
+.ubtn{background:var(--ink);border-color:var(--line)}
+.dot{background:var(--panel2);color:var(--pri)}
+.sheet{background:rgba(0,0,0,.55)}
+.sheet .box{border-left:0;width:min(380px,90vw)}
+#wait{background:rgba(14,15,17,.97)}
+#buyask{background:rgba(0,0,0,.6)}
+#buyask .bk{border-color:transparent;border-radius:20px}

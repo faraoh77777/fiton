@@ -477,11 +477,13 @@
 
   /* ---------- 공통 틀 ---------- */
   function side() {
-    var left = unlimited() ? '제한 없음(시험 중)' : tryLeft() + ' / ' + planNow().limit + '회';
-    return '<nav class="side" aria-label="주 메뉴"><button type="button" class="logo" data-act="go" data-page="home" style="text-align:left">FITON</button><button type="button" class="new" data-act="go" data-page="fitting">＋ 새로 입어보기</button>' +
+    /* 2026-11-10 B 스튜디오: 88px 아이콘 메뉴. 남은 횟수 칸=요금제 보기, 맨 아래=설정 */
+    var left = unlimited() ? '∞' : tryLeft() + '/' + planNow().limit;
+    var leftSay = unlimited() ? '이번 달 남은 횟수 제한 없음(시험 중)' : '이번 달 남은 횟수 ' + planNow().limit + '회 중 ' + tryLeft() + '회';
+    return '<nav class="side" aria-label="주 메뉴"><button type="button" class="logo" data-act="go" data-page="home">FITON</button><button type="button" class="new" data-act="go" data-page="fitting"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>새로 입어보기</button>' +
       PAGES.map(function (p) { var on = ui.page === p[0]; return '<button type="button" class="nv' + (on ? ' on' : '') + '" data-act="go" data-page="' + p[0] + '"' + (on ? ' aria-current="page"' : '') + '><svg viewBox="0 0 24 24" aria-hidden="true">' + p[2] + '</svg>' + p[1] + '</button>'; }).join('') +
-      '<div class="foot"><div class="left">이번 달 남은 횟수<b>' + left + '</b><button type="button" data-act="sheet" data-name="plan">요금제 보기</button></div>' +
-      '<button type="button" class="me" data-act="sheet" data-name="set"><img src="' + h(avatarShow()) + '" alt="">' + h(user.nick) + ' 님<span>설정</span></button></div></nav>';
+      '<div class="foot"><button type="button" class="left" data-act="sheet" data-name="plan" title="' + leftSay + ' · 요금제 보기" aria-label="' + leftSay + ', 요금제 보기"><b>' + left + '</b>남은 횟수</button>' +
+      '<button type="button" class="nv me" data-act="sheet" data-name="set" title="' + h(user.nick) + ' 님 설정" aria-label="' + h(user.nick) + ' 님 설정"><img src="' + h(avatarShow()) + '" alt="">설정</button></div></nav>';
   }
   function buyHtml(it, cls) { var u = safeUrl(it.url); return '<a class="' + cls + '" data-buyid="' + h(it.id) + '" href="' + h(u) + '" target="_blank" rel="noopener noreferrer" aria-label="' + h(it.name) + ' 구매하기">구매하기' + ARROW + '</a>'; }
   /* 구매하기로 링크를 연 뒤 FITON 화면으로 돌아오면 "상품 페이지가 열렸나요?" 확인 팝업을 띄운다.
@@ -533,7 +535,7 @@
     return '<main class="main"><section class="hero"><div class="strip" aria-hidden="true">' + imgs.map(function (u) { return '<img src="' + h(u) + '" alt="">'; }).join('') + '</div><div class="veil" aria-hidden="true"></div><div class="hin">' +
       '<div class="season">올 ' + seasonName() + ' 유행할 패션</div><h1 class="herotitle">쇼츠에서 본 스타일,<br><em>바로 입어보기</em></h1><p class="herosub">마음에 드는 옷 사진을 넣으면 내 몸에 입혀서 보여 드려요.</p>' +
       '<div class="cwrap"><div class="halo" aria-hidden="true"></div><div class="glow"><div class="comp" data-dz="home"><div class="drop">' + drop + '</div><div class="krow" role="group" aria-label="용도 (선택)"><small>용도 (선택)</small>' + kpills + '</div><div class="crow' + (p ? ' ask' : '') + '">' + pills +
-      '<label class="go" style="display:inline-flex;align-items:center;flex-direction:row;color:#fff;cursor:pointer">파일 선택<input type="file" accept="image/*" data-file="quick" hidden></label></div></div></div></div>' +
+      '<label class="go" style="display:inline-flex;align-items:center;flex-direction:row;color:var(--onPri);cursor:pointer">파일 선택<input type="file" accept="image/*" data-file="quick" hidden></label></div></div></div></div>' +
       '<div class="steps"><span><b>1</b>옷 사진 넣기</span><span><b>2</b>옷 종류 누르기</span><span><b>3</b>내 아바타로 확인</span></div></div></section>' +
       '<section class="sec"><div class="sh"><h2 class="sectitle">이번 ' + seasonName() + ' 코디</h2><span>눌러서 바로 입어 보세요</span></div><div class="grid5">' +
       list.map(function (st) { return '<button type="button" class="stylelk" data-act="styleTry" data-id="' + h(st.id) + '" style="padding:0;text-align:left"><img src="' + h(st.modelImage) + '" alt="' + h(st.title) + '" loading="lazy"><div class="cap"><b>' + h(st.title) + '</b><span>입어보기</span></div></button>'; }).join('') +
