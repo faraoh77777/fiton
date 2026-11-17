@@ -56,8 +56,7 @@
         var k = Math.min(1, max / Math.max(img.width, img.height));
         var c = document.createElement('canvas');
         c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
-        var cx = c.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, c.width, c.height); /* 투명 PNG 가 JPEG 로 바뀔 때 검게 되지 않게 흰 바탕 */
-        cx.drawImage(img, 0, 0, c.width, c.height);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
         URL.revokeObjectURL(u);
         c.toBlob(function (b) { b ? res(b) : rej(new Error('변환 실패')); }, 'image/jpeg', quality);
       };

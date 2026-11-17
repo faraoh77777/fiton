@@ -5,22 +5,20 @@
   'use strict';
 
   /* 사이즈 이름으로 인정하는 글자: 영문(XXXS~6XL), 일본식(LL·2L~6L), 프리·원사이즈 */
-  var SIZE_WORDS = /^(XXXS|XXS|XS|S|M|L|XL|XXL|XXXL|XXXXL|[2-6]XL|LL|[2-6]L|F|FREE|FR|프리|프리사이즈|ONE|ONESIZE|원사이즈|フリー|フリーサイズ|ワンサイズ|均码|均碼)$/i;
+  var SIZE_WORDS = /^(XXXS|XXS|XS|S|M|L|XL|XXL|XXXL|XXXXL|[2-6]XL|LL|[2-6]L|F|FREE|FR|프리|프리사이즈|ONE|ONESIZE|원사이즈)$/i;
   /* 괄호 안 설명(예: S (25~26) 의 25~26)은 사이즈 이름을 찾을 때 뺀다 */
   function noParen(l) { return String(l).normalize('NFKC').replace(/\([^)]*\)/g, ' '); }
   /* 항목별 키워드(공백 제거 후 포함 여부). 위에서부터 먼저 맞는 항목에 줄을 배정한다 */
   var KEYS = {
     /* 상의: 소매통·소매단면은 '소매'보다 먼저 두어 소매길이로 잘못 들어가지 않게 한다 (구체적인 항목이 앞) */
-    top: [['chest', ['가슴단면', '가슴둘레', '가슴너비', '가슴폭', '가슴', '흉위', '흉', '바스트', '身幅', '胸囲', '胸围', '胸圍', '胸宽', '胸寬', 'バスト', '胸周り', 'pittopit', 'chest', 'bust']], ['shoulder', ['어깨너비', '어깨단면', '어깨', '견폭', '肩幅', '肩宽', '肩寬', 'shoulder']], ['armhole', ['암홀', '진동', 'アームホール', '袖窿', '袖ぐり', 'armhole']],
-      ['sleeve_width', ['소매통', '소매단면', '소매너비', '소매폭', '팔통', '팔단면', '팔뚝', '袖幅', '袖肥', '上臂围', '上臂圍', 'bicep']], ['cuff', ['袖口', 'カフス']], ['sleeve', ['소매길이', '소매기장', '팔길이', '소매장', '소매', '팔', '袖丈', '袖长', '袖長', 'sleeve']], ['hem', ['밑단', '하단', '도련', '裾幅', '裾回り', '下摆', '下擺']],
-      ['length', ['총장', '총기장', '옷길이', '상의길이', '총길이', '전체길이', '기장', '길이', '着丈', '身丈', '衣长', '衣長', '总长', '總長', '全长', '全長', 'length']],
-      /* 2026-11-12 상의 표의 「허리」 열: 앱 칸은 없지만 이름을 알아야 열 순서가 밀리지 않는다(예전엔 허리 값이 다음 칸에 들어감) */
-      ['waist', ['허리단면', '허리둘레', '허리', '웨이스트', 'ウエスト', '腰围', '腰圍', '腰宽', '腰寬', 'waist']]],
+    top: [['chest', ['가슴단면', '가슴둘레', '가슴너비', '가슴폭', '가슴', '흉위', '흉', '바스트']], ['shoulder', ['어깨너비', '어깨단면', '어깨', '견폭']], ['armhole', ['암홀', '진동']],
+      ['sleeve_width', ['소매통', '소매단면', '소매너비', '소매폭', '팔통', '팔단면']], ['sleeve', ['소매길이', '소매기장', '팔길이', '소매장', '소매', '팔']], ['hem', ['밑단', '하단', '도련']],
+      ['length', ['총장', '총기장', '옷길이', '상의길이', '총길이', '전체길이', '기장', '길이']]],
     /* 하의: 인심(가랑이~밑단)과 총장(허리~밑단, 스커트·총장만 적힌 바지)을 따로 읽는다. '밑위길이·안쪽길이'의 '길이'가 총장으로 잡히지 않게 긴 말을 먼저 둔다 */
-    bottom: [['waist', ['허리단면', '허리둘레', '허리', '웨이스트', 'ウエスト', '腰围', '腰圍', '腰宽', '腰寬', 'waist']], ['hip', ['엉덩이', '힙', 'ヒップ', '臀围', '臀圍', '臀宽', '臀寬']], ['thigh', ['허벅지', '渡り幅', 'わたり', '大腿围', '大腿圍', '大腿宽', '大腿寬', '腿围', '腿圍', 'thigh']], ['knee', ['무릎', '膝幅', 'ひざ幅', '膝围', '膝圍', 'knee']], ['backrise', ['뒷밑위', '뒤밑위', '後股上', '后股上', '后裆', '後襠', 'backrise']], ['rise', ['밑위길이', '앞밑위', '밑위', '股上', '前裆', '前襠', '立裆', '立襠', '裆深']],
-      ['inseam', ['인심길이', '안쪽기장', '안쪽길이', '안기장', '인심', '안쪽', '股下', '内长', '內長', '内侧长', '內側長', '内缝', '內縫', 'inseam']], ['hem', ['밑단', '발목단면', '발목둘레', '裾幅', '裾周り', '裤脚', '褲腳', '脚口', '腳口', '裤口', '褲口', 'legopening']], ['length', ['바지기장', '바지길이', '치마기장', '스커트길이', '치마길이', '총장', '총기장', '총길이', '기장', '길이', '総丈', '全丈', 'パンツ丈', 'スカート丈', '裤长', '褲長', '裙长', '裙長', '全长', '全長', '总长', '總長', 'length']]],
-    dress: [['chest', ['가슴단면', '가슴둘레', '가슴', '흉위', '흉', '바스트', '身幅', '胸囲', '胸围', '胸圍', '胸宽', '胸寬', 'バスト', 'chest', 'bust']], ['shoulder', ['어깨너비', '어깨단면', '어깨', '견폭', '肩幅', '肩宽', '肩寬', 'shoulder']], ['waist', ['허리단면', '허리둘레', '허리', '웨이스트', 'ウエスト', '腰围', '腰圍', '腰宽', '腰寬', 'waist']], ['hip', ['엉덩이', '힙', 'ヒップ', '臀围', '臀圍', '臀宽', '臀寬']], ['armhole', ['암홀', '진동', 'アームホール', '袖窿', '袖ぐり', 'armhole']],
-      ['sleeve_width', ['소매통', '소매단면', '소매너비', '소매폭', '팔통', '팔단면', '팔뚝', '袖幅', '袖肥', 'bicep']], ['cuff', ['袖口', 'カフス']], ['sleeve', ['소매길이', '소매기장', '팔길이', '소매장', '소매', '팔', '袖丈', '袖长', '袖長', 'sleeve']], ['hem', ['밑단', '하단', '도련', '裾幅', '裾回り', '下摆', '下擺']], ['length', ['총장', '총기장', '총길이', '기장', '길이', '着丈', '身丈', '衣长', '衣長', '裙长', '裙長', '总长', '總長', '全长', '全長', 'length']]],
+    bottom: [['waist', ['허리단면', '허리둘레', '허리', '웨이스트']], ['hip', ['엉덩이', '힙']], ['thigh', ['허벅지']], ['knee', ['무릎']], ['backrise', ['뒷밑위', '뒤밑위']], ['rise', ['밑위길이', '앞밑위', '밑위']],
+      ['inseam', ['인심길이', '안쪽기장', '안쪽길이', '안기장', '인심', '안쪽']], ['hem', ['밑단', '발목단면', '발목둘레']], ['length', ['바지기장', '바지길이', '치마기장', '스커트길이', '치마길이', '총장', '총기장', '총길이', '기장', '길이']]],
+    dress: [['chest', ['가슴단면', '가슴둘레', '가슴', '흉위', '흉', '바스트']], ['shoulder', ['어깨너비', '어깨단면', '어깨', '견폭']], ['waist', ['허리단면', '허리둘레', '허리', '웨이스트']], ['hip', ['엉덩이', '힙']], ['armhole', ['암홀', '진동']],
+      ['sleeve_width', ['소매통', '소매단면', '소매너비', '소매폭', '팔통', '팔단면']], ['sleeve', ['소매길이', '소매기장', '팔길이', '소매장', '소매', '팔']], ['hem', ['밑단', '하단', '도련']], ['length', ['총장', '총기장', '총길이', '기장', '길이']]],
     shoe: [['inner', ['안쪽', '안길이', '발길이', '내부']]]
   };
   var NUM = /\d+(?:\.\d+)?/g;
@@ -48,50 +46,17 @@
       if (hits.length >= 2) { hi = i; order = hits.sort(function (a, b) { return a.p - b.p; }).map(function (x) { return x.f; }); }
     }
     if (hi < 0) return null;
-    var out = [], extra = 0;
+    var out = [];
     for (var j = hi + 1; j < lines.length; j++) {
       var m = fixNum(lines[j]).normalize('NFKC').match(/^[\s|:\[\(]*((?:[2-6]?XL|XXXXL|XXXL|XXL|XXXS|XXS|XS|[2-6]L|LL|S|M|L|F|FREE|프리사이즈|프리|44|55|66|77|88|99|8[05]|9[05]|1[0-2][05]))(?=\s|$)(.*)$/i);
       if (!m) continue;
       var n = nums(m[2].replace(/\d+\s*[-~]\s*\d+/g, ' ')).filter(function (x) { return x > 0 && x < 300; });
       if (n.length < order.length) continue;
-      if (n.length > order.length) extra = Math.max(extra, n.length - order.length);
       var rec = { label: m[1].toUpperCase() };
       order.forEach(function (f, c) { rec[f] = String(n[c]); });
       out.push(rec);
     }
-    return out.length ? { sizes: out, found: order.length, extra: extra } : null;
-  }
-
-  /* 2026-11-12 사이즈 1개짜리 한 줄 표(예: FREE 총장41 허리(밴딩)30~ 힙44 밑단56): 항목 이름 바로 뒤 숫자 하나씩을 읽는다.
-     항목 사이마다 숫자가 정확히 1개일 때만 이 형식으로 본다(가슴 50 52 54 같은 여러 사이즈 줄은 건드리지 않음) */
-  function parseInline(lines, cat) {
-    var keys = KEYS[cat] || [];
-    for (var i = 0; i < lines.length; i++) {
-      var raw = fixNum(lines[i]).normalize('NFKC'), sq = raw.replace(/\s+/g, ''), low = sq.toLowerCase(), hits = [];
-      keys.forEach(function (k) {
-        k[1].slice().sort(function (a, b) { return b.length - a.length; }).some(function (w) {
-          var p = low.indexOf(w);
-          if (p < 0) return false;
-          hits.push({ f: k[0], p: p, e: p + w.length });
-          low = low.slice(0, p) + new Array(w.length + 1).join('_') + low.slice(p + w.length);
-          return true;
-        });
-      });
-      if (hits.length < 2) continue;
-      hits.sort(function (a, b) { return a.p - b.p; });
-      var rec = {}, ok = true;
-      hits.forEach(function (x, j) {
-        var seg = sq.slice(x.e, j + 1 < hits.length ? hits[j + 1].p : sq.length).replace(/\([^)]*\)/g, ' ');
-        var n = nums(seg.replace(/(\d)[-~](\d)/g, '$1 $2')).filter(function (v) { return v > 0 && v < 300; });
-        if (n.length !== 1 && !(n.length === 2 && /\d[-~]\d/.test(seg))) { ok = false; return; }
-        rec[x.f] = String(n[0]);
-      });
-      if (!ok) continue;
-      var lab = noParen(raw.slice(0, raw.search(/[가-힣]/) < 0 ? raw.length : raw.search(/[가-힣]/))).split(/[\s|,/:]+/).filter(function (t) { return SIZE_WORDS.test(t); })[0];
-      rec.label = lab ? lab.toUpperCase() : 'FREE';
-      return { sizes: [rec], found: hits.length };
-    }
-    return null;
+    return out.length ? { sizes: out, found: order.length } : null;
   }
 
   /* 사이즈가 커지면 값도 커져야 한다: 이웃과 어긋난 칸을 찾아 알려 준다 */
@@ -118,12 +83,8 @@
       var col = parseColumns(lines, cat), all = lines.join('').replace(/\s+/g, '');
       if (col) {
         var big = col.sizes.some(function (r) { return Number(r.chest || r.waist || r.hip || 0) > 70; });
-        return { sizes: col.sizes, found: col.found, circ: (big || /둘레|周り|回り|[围圍]/.test(all)) && !/단면|幅|[宽寬]/.test(all), bad: suspect(col.sizes).concat(col.extra ? ['항목 이름을 다 읽지 못해 열이 밀렸을 수 있음'] : []) };
+        return { sizes: col.sizes, found: col.found, circ: (big || /둘레/.test(all)) && !/단면/.test(all), bad: suspect(col.sizes) };
       }
-    }
-    if (cat !== 'shoe') {
-      var one = parseInline(lines, cat), all1 = lines.join('');
-      if (one) return { sizes: one.sizes, found: one.found, circ: /둘레|周り|回り|[围圍]/.test(all1) && !/단면|幅|[宽寬]/.test(all1), bad: [] };
     }
     var keys = KEYS[cat] || [], used = {}, rows = {}, circ = false, flat = false;
 
@@ -142,21 +103,11 @@
         var n = nums(lines[i].replace(/\(.*?\)/g, ' ')).filter(function (x) { return x > 0 && x < 300; });
         if (n.length < 2) continue;
         used[i] = true; rows[k[0]] = n;
-        if (/둘레|周り|回り|[围圍]/.test(sq)) circ = true;
-        if (/단면|幅|[宽寬]/.test(sq)) flat = true;
+        if (sq.indexOf('둘레') >= 0) circ = true;
+        if (sq.indexOf('단면') >= 0) flat = true;
         break;
       }
     });
-    /* 2026-11-13 세로 표(사이즈가 가로, 항목이 세로)에서 「C 팔 길이」의 '팔'이 글자 인식에서 빠져 「길이」만 남은 줄: 총장을 이미 찾았고 소매가 없으면 소매로 본다 */
-    if (cat === 'top' && !rows.sleeve && Object.keys(rows).length) {
-      for (var li = 0; li < lines.length; li++) {
-        if (used[li]) continue;
-        var sl = squeeze(lines[li]);
-        if (sl.indexOf('길이') < 0) continue;
-        var ns = nums(lines[li].replace(/\(.*?\)/g, ' ')).filter(function (x) { return x > 0 && x < 300; });
-        if (ns.length >= 2) { used[li] = true; rows.sleeve = ns; break; }
-      }
-    }
     var found = Object.keys(rows);
     if (!found.length) return { sizes: [], found: 0, circ: false };
 
@@ -167,17 +118,9 @@
       var hit = toks.filter(function (t) { return SIZE_WORDS.test(t); });
       if (hit.length >= 2 && hit.length >= toks.length - 3) labels = hit.map(function (t) { return t.toUpperCase(); });
     }
-    /* 한국 사이즈 표기(44-55 55-66)처럼 범위가 사이즈 이름인 표: 항목 이름이 없는 줄에서 범위가 둘 이상이면 그대로 사이즈 이름으로 쓴다 */
-    for (var rj = 0; rj < lines.length && !labels; rj++) {
-      var rg = lines[rj].normalize('NFKC').match(/\d{2,3}\s*[-~]\s*\d{2,3}/g);
-      if (!rg || rg.length < 2) continue;
-      var sr = squeeze(lines[rj]);
-      if (keys.some(function (k) { return k[1].some(function (w) { return sr.indexOf(w) >= 0; }); })) continue;
-      labels = rg.map(function (t) { return t.replace(/\s+/g, '').replace('~', '-'); });
-    }
     for (var j = 0; j < lines.length && !labels; j++) {
       var sq2 = squeeze(lines[j]);
-      if (sq2.indexOf('사이즈') < 0 && sq2.indexOf('size') < 0 && sq2.indexOf('サイズ') < 0 && sq2.indexOf('尺码') < 0 && sq2.indexOf('尺碼') < 0) continue;
+      if (sq2.indexOf('사이즈') < 0 && sq2.indexOf('size') < 0) continue;
       var nn = nums(noParen(lines[j]));
       if (nn.length >= 2) labels = nn.map(String);
     }
@@ -284,10 +227,10 @@
       img.src = u;
     });
   }
-  function recognize(file, onProgress, langs) {
+  function recognize(file, onProgress) {
     var worker = null;
     return loadEngine().then(function () {
-      return Promise.all([prep(file), root.Tesseract.createWorker(langs || 'kor+eng', 1, { logger: function (m) { if (onProgress && m && m.progress != null) onProgress(m.status, m.progress); } })]);
+      return Promise.all([prep(file), root.Tesseract.createWorker('kor+eng', 1, { logger: function (m) { if (onProgress && m && m.progress != null) onProgress(m.status, m.progress); } })]);
     }).then(function (r) {
       worker = r[1];
       return worker.setParameters({ tessedit_pageseg_mode: '6', preserve_interword_spaces: '1' }).then(function () { return worker.recognize(r[0]); });
@@ -295,7 +238,6 @@
       function (e) { if (worker) worker.terminate(); throw e; });
   }
 
-  var LANGS_ALT = 'eng+jpn+chi_sim+chi_tra'; /* 2026-11-13 다국어: 한글로 못 읽은 표는 일본어·중국어(간체·번체)로 한 번 더 */
-  root.SizeOcr = { parse: parse, parseProduct: parseProduct, recognize: recognize, LANGS_ALT: LANGS_ALT };
+  root.SizeOcr = { parse: parse, parseProduct: parseProduct, recognize: recognize };
   if (typeof module !== 'undefined') module.exports = root.SizeOcr;
 })(typeof window !== 'undefined' ? window : globalThis);
