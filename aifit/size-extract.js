@@ -109,25 +109,32 @@
 
     function cleanTable(rows, cat) {
       const kept = [], dropped = [], notes = [], model = [];
+      /* view: 화면에 「이미지 그대로」 보여 줄 표. 사이즈가 첫 줄인 표에서 이름을 모르는 치수 줄(숫자가 있는 줄)도 남긴다.
+         viewMap[i] = 그 줄이 계산용 표(kept)의 몇 번째 줄인지(-1 = 계산에 안 씀). 계산용 표는 예전과 똑같다(2026-11-12) */
+      const view = [], viewMap = [];
       // 가로 표(사이즈가 첫 행)인지 세로 표인지 먼저 판단
       const sizeInHead = rows[0].slice(1).filter((c) => N.isSizeLabel(c, cat)).length >= 2;
       rows.forEach((r, i) => {
         const row = r.map((c) => String(c == null ? '' : c).replace(/\s+/g, ' ').trim());
-        if (i === 0) { kept.push(row); return; }
+        if (i === 0) { kept.push(row); view.push(row); viewMap.push(0); return; }
         const k = rowKind(row, cat);
         if (k === 'empty') return;
         if (k === 'model') { model.push(row.join(' ')); dropped.push({ row, reason: '모델 정보' }); return; }
         if (k === 'note') { notes.push(row.filter(Boolean).join(' ')); dropped.push({ row, reason: '안내 문구' }); return; }
         if (k === 'noise') { dropped.push({ row, reason: '가격·버튼 등 화면 요소' }); return; }
-        if (sizeInHead && k !== 'measure') { dropped.push({ row, reason: k === 'measureNoValue' ? '수치 없음' : '사이즈 항목 아님' }); return; }
+        if (sizeInHead && k !== 'measure') {
+          dropped.push({ row, reason: k === 'measureNoValue' ? '수치 없음' : '사이즈 항목 아님' });
+          if (k === 'unknown' && row[0] && row.slice(1).some(isNum)) { view.push(row); viewMap.push(-1); }
+          return;
+        }
         if (!sizeInHead && k === 'unknown' && !row.slice(1).some(isNum)) { dropped.push({ row, reason: '수치 없음' }); return; }
-        kept.push(row);
+        kept.push(row); view.push(row); viewMap.push(kept.length - 1);
       });
       // 열 정리: 헤더가 비어 있고 값도 거의 없는 열 제거
       const width = kept[0].length;
       const keepCol = [...Array(width).keys()].filter((ci) => ci === 0 || kept[0][ci] || kept.slice(1).some((r) => isNum(r[ci] || '')));
       const table = kept.map((r) => keepCol.map((ci) => r[ci] == null ? '' : r[ci]));
-      return { table, dropped, notes, model };
+      return { table, dropped, notes, model, view: view.map((r) => keepCol.map((ci) => r[ci] == null ? '' : r[ci])), viewMap };
     }
 
     // ---------- 4) 전체 처리 ----------
@@ -152,7 +159,7 @@
         const unit = /inch|인치/i.test((best.t.unit || '') + (best.t.title || '')) ? 'inch' : undefined;
         const title = [best.t.title, best.t.unit, best.t.measureNote].filter(Boolean).join(' ');
         const r = N.normalizeTable(c.table, { category: cat, gender, unit, title });
-        Object.assign(report, { found: r.sizes.length > 0, source: 'table', title: best.t.title, table: c.table, result: r });
+        Object.assign(report, { found: r.sizes.length > 0, source: 'table', title: best.t.title, table: c.table, view: c.view, viewMap: c.viewMap, result: r });
         if (best.t.partial) report.warnings.push('표가 잘려 일부만 보입니다. 나머지 부분도 캡처해 주세요');
       } else if ((data.texts || []).length) {
         const r = N.parseSizeText(data.texts.join('\n'), { category: cat, gender });

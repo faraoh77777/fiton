@@ -790,6 +790,7 @@
     if (state.aiHem) delete state.aiHem[id];
     if (state.aiOver) delete state.aiOver[id];
     if (state.looks) delete state.looks[id];
+    keepClear(id);
   }
   /* 옷장에서 옷이 없어질 때: 그 옷이 들어간 조합 결과도 같이 지운다 */
   function dropItemTryon(id) {
@@ -805,7 +806,7 @@
       if (!item(tid)) return;
       if (state.aiHem) delete state.aiHem[tid]; /* 직접 올린 사진은 수선 예상 표시 없음 */
       if (state.aiOver) delete state.aiOver[tid];
-      shrink(file, 1400, 0.9).then(function (b) { return blobPut(kind, b).then(function () { if (urls.tryon[tid]) URL.revokeObjectURL(urls.tryon[tid]); urls.tryon[tid] = URL.createObjectURL(b); render(); }); })
+      shrink(file, 1400, 0.9).then(function (b) { return blobPut(kind, b).then(function () { if (urls.tryon[tid]) URL.revokeObjectURL(urls.tryon[tid]); urls.tryon[tid] = URL.createObjectURL(b); keepClear(tid); save(); render(); }); }) /* 직접 올린 사진은 옷 유지의 바탕으로 쓰지 않는다 */
         .catch(function () { alert('입은 모습 이미지를 저장하지 못했습니다. 브라우저 저장 공간을 확인해 주세요.'); });
     } else if (kind === 'sizeCap') {
       var d0 = state.draft;
@@ -945,6 +946,65 @@
       return new Promise(function (res, rej) { var fr = new FileReader(); fr.onload = function () { res(fr.result); }; fr.onerror = rej; fr.readAsDataURL(b); });
     }).then(klingSafe).catch(function () { return null; });
   }
+  /* 2026-11-13 옷 유지(PC 앱 pc.js 와 같은 방식): 상의는 그대로 두고 하의만 바꿀 때, 두 벌을 처음부터 다시 그리지 않고 「그 상의를 입은 그림」을 바탕으로 보내 하의만 바꾼다.
+     폰 앱에는 PC 의 캐릭터·사이즈 기록(aiBase·lookSize)이 없어서, 그림마다 폰 전용 기록 state.keepRec[그림] 하나를 둔다:
+       base 만든 캐릭터(성별 + 아바타 사진 표시) · top 상의 id · size 그때 사이즈 · sig 상의 사진 표시 · stack 덧입힌 그림이면 1 · fp 저장된 결과 그림 표시
+     기록이 있는(= 이 기능이 들어간 뒤 폰에서 만든) 그림만 바탕이 된다. 덧입힌 그림은 바탕이 못 된다(한 단계까지만).
+     저장된 그림이 fp 와 다르면(PC 에서 다시 만들었거나 「입은 모습 올리기」로 바꾼 그림) 바탕으로 쓰지 않는다 */
+  var genKeep = {};
+  function fpBuf(buf) {
+    var u = new Uint8Array(buf), n = 0, step = Math.max(1, Math.floor(u.length / 8192)), i;
+    for (i = 0; i < u.length; i += step) n = (n * 31 + u[i]) | 0;
+    return u.length + ':' + n;
+  }
+  function fpBlob(b) {
+    return new Promise(function (res, rej) { var fr = new FileReader(); fr.onload = function () { res(fpBuf(fr.result)); }; fr.onerror = rej; fr.readAsArrayBuffer(b); });
+  }
+  function fpStr(t) {
+    t = String(t || ''); var n = 0, step = Math.max(1, Math.floor(t.length / 8192)), i;
+    for (i = 0; i < t.length; i += step) n = (n * 31 + t.charCodeAt(i)) | 0;
+    return t.length + ':' + n;
+  }
+  function keepBaseId() {
+    var g = isMale() ? 'male' : 'female';
+    if (!urls.avatar) return Promise.resolve(g);
+    return fetch(urls.avatar).then(function (r) { return r.blob(); }).then(fpBlob).then(function (f) { return g + '|' + f; });
+  }
+  function keepCand(top, key, rec) {
+    var c = [top.id].concat(Object.keys(state.looks || {})).filter(function (k) {
+      if (k === key || k.split('+').indexOf(top.id) < 0 || !urls.tryon[k]) return false;
+      var r = state.keepRec && state.keepRec[k];
+      if (!r || r.stack || !r.fp || r.base !== rec.base || r.top !== top.id || r.size !== rec.size || r.sig !== rec.sig) return false;
+      var its = lookItems(k);
+      return its.length === k.split('+').length && !its.some(function (x) { return x.cat !== 'top' && x.cat !== 'bottom'; });
+    });
+    if (!c.length) return null;
+    return c.indexOf(top.id) >= 0 ? top.id : (c.indexOf(state.wearLast) >= 0 ? state.wearLast : c[c.length - 1]);
+  }
+  function keepData(k) {
+    var fp0 = state.keepRec[k].fp;
+    return blobGet('tryon:' + k).then(function (b) {
+      if (!b) throw new Error('base');
+      return fpBlob(b).then(function (f) { if (f !== fp0) throw new Error('changed'); return shrink(b, 2048, 0.9); });
+    }).then(blobToDataUrl).then(klingSafe)
+      .then(function (u) { return /^data:image\/jpeg;base64,/.test(u) && u.length < 3900000 ? u : null; }).catch(function () { return null; });
+  }
+  /* 돌려주는 값: rec = 이번에 만들 그림의 기록(상의가 낀 상의·하의 그림만, 아니면 null), bd = 바탕 그림(없으면 null → 예전처럼 처음부터), from = 바탕 그림 이름 */
+  function keepPrep(set, key) {
+    var top = set[0], none = { rec: null, bd: null, from: null };
+    if (!top || top.cat !== 'top' || set.length > 2 || (set[1] && set[1].cat !== 'bottom')) return Promise.resolve(none);
+    var size = wearSize(top);
+    return Promise.all([keepBaseId(), photoRaw(top).then(fpStr)]).then(function (a) {
+      var rec = { base: a[0], top: top.id, size: size, sig: a[1], stack: 0 };
+      var k = set.length === 2 ? keepCand(top, key, rec) : null;
+      return (k ? keepData(k) : Promise.resolve(null)).then(function (bd) { return { rec: rec, bd: bd, from: bd ? k : null }; });
+    }).catch(function () { return none; });
+  }
+  function keepClear(id) {
+    if (state.keepRec) delete state.keepRec[id];
+    /* PC 앱의 기록도 지운다: 폰에서 새로 만들거나 바꾼 그림을 PC 가 예전 기록만 보고 바탕으로 쓰지 않게 */
+    ['aiBase', 'lookSize', 'aiStack', 'lookSig'].forEach(function (f) { if (state[f]) delete state[f][id]; });
+  }
   function toast(msg, ms) {
     var el = document.createElement('div');
     el.className = 'toast'; el.textContent = msg; document.body.appendChild(el);
@@ -1047,9 +1107,12 @@
         var bin = atob(j.image), u = new Uint8Array(bin.length);
         for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
         var blob = new Blob([u], { type: j.mime || 'image/png' });
-        return blobPut('tryon:' + id, blob).then(function () {
+        return blobPut('tryon:' + id, blob).then(function () { return fpBlob(blob).catch(function () { return null; }); }).then(function (fp) {
           if (urls.tryon[id]) URL.revokeObjectURL(urls.tryon[id]);
           urls.tryon[id] = URL.createObjectURL(blob);
+          /* 옷 유지 기록: 항상 새로 쓰거나 지운다(다시 만든 그림이 옛 기록을 물려받지 않게) */
+          var kp = genKeep[id]; delete genKeep[id]; keepClear(id);
+          if (kp && fp) { kp.fp = fp; state.keepRec = state.keepRec || {}; state.keepRec[id] = kp; }
           state.aiGen = state.aiGen || {}; state.aiGen[id] = true;
           if (state.aiHem) delete state.aiHem[id];
           if (state.aiOver) delete state.aiOver[id];
@@ -1128,7 +1191,13 @@
     ensureNotifyPermission(); /* 생성이 오래 걸려서, 클릭한 김에(사용자 동작 안) 완성 알림 권한을 물어 둔다 */
     genPending = key; sheet = null; state.draft = null; render(); waitStart(lookName(key), wearSizes(set));
     var shoeIt = it.cat !== 'shoe' ? wearShoe() : null;
-    Promise.all([photoData(it), avatarData(), shoeIt ? photoData(shoeIt) : null, second ? photoData(second) : null]).then(function (a) {
+    genKeep[key] = null;
+    keepPrep(set, key).then(function (kp) {
+      /* 옷 유지: 바탕 그림을 읽었으면 하의 하나만 보낸다(서버는 cat=bottom 문장 = 지금 상의 그대로). 없거나 못 읽으면 예전처럼 두 벌을 한 번에 */
+      genKeep[key] = kp.rec;
+      if (kp.bd) { kp.rec.stack = 1; it = set[1]; second = null; toast('"' + set[0].name + '"은(는) 입은 그대로 두고 하의만 바꿔 입혀요.', 5000); }
+      return Promise.all([photoData(it), kp.bd || avatarData(), shoeIt ? photoData(shoeIt) : null, second ? photoData(second) : null]);
+    }).then(function (a) {
       var body = { device: deviceId(), cat: second ? 'outfit' : it.cat, garment: a[0], gender: isMale() ? 'male' : 'female' };
       if (a[2]) { body.shoe = a[2]; if (shoeIt.name) body.shoeName = String(shoeIt.name).slice(0, 60); } /* 옷장 신발 사진이 있으면 그걸 우선 */
       else if (it.cat !== 'shoe') body.shoeType = tryShoeTypeId(); /* 없으면 고른 신발 종류(기본값 구두) */
@@ -1146,7 +1215,7 @@
       if (!res.ok || !res.j.taskId) throw new Error((res.j && res.j.error) || '요청을 접수하지 못했습니다.');
       tryUse(); /* 서버가 접수한 뒤에만 이번 달 횟수를 뺀다(거절되면 차감 없음) */
       var t0 = Date.now();
-      try { localStorage.setItem(GEN_KEY(), JSON.stringify({ id: key, taskId: res.j.taskId, t0: t0 })); } catch (e) {}
+      try { localStorage.setItem(GEN_KEY(), JSON.stringify({ id: key, taskId: res.j.taskId, t0: t0, keep: genKeep[key] || null })); } catch (e) {}
       genPoll(key, res.j.taskId, t0);
     }).catch(function (err) { genFinish(key, false, (err && err.message) || '요청을 접수하지 못했습니다.'); });
   };
@@ -1154,7 +1223,7 @@
     if (!user || genPending || !genEnabled()) return;
     try {
       var p = JSON.parse(localStorage.getItem(GEN_KEY()) || 'null');
-      if (p && p.id && p.taskId && lookItems(p.id).length && Date.now() - p.t0 < 6 * 60 * 1000) { genPending = p.id; render(); waitStart(lookName(p.id), wearSizes(lookItems(p.id)), true); genPoll(p.id, p.taskId, p.t0); }
+      if (p && p.id && p.taskId && lookItems(p.id).length && Date.now() - p.t0 < 6 * 60 * 1000) { genPending = p.id; genKeep[p.id] = p.keep || null; render(); waitStart(lookName(p.id), wearSizes(lookItems(p.id)), true); genPoll(p.id, p.taskId, p.t0); }
       else if (p) localStorage.removeItem(GEN_KEY());
     } catch (e) {}
   }

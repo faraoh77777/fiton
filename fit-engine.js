@@ -68,7 +68,12 @@
     if (r >= 0.52) return '허리선 부근까지';
     if (r >= 0.47) return '엉덩이 윗부분까지';
     if (r >= 0.42) return '엉덩이 아래까지 덮음';
-    return '허벅지 중간 아래까지 내려옴';
+    /* 2026-11-11: 긴 코트가 전부 '허벅지 중간'으로 나오던 문제 → 무릎·종아리·발목 구간 추가(서버 tryon lenText 와 같은 경계) */
+    if (r >= 0.36) return '허벅지 중간까지';
+    if (r >= 0.30) return '무릎 위까지';
+    if (r >= 0.25) return '무릎 부근까지';
+    if (r >= 0.10) return '종아리까지';
+    return '발목 근처까지';
   }
 
   function evalTop(body, g, row, cfg) {
