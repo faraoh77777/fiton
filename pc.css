@@ -999,3 +999,36 @@ button{font-size:14px}
 .hslide .hs img{position:absolute;inset:0;width:100%;height:100%;border-radius:0}
 .hslide .hs .hsbg{object-fit:cover;object-position:50% 30%;filter:blur(22px) brightness(.85);transform:scale(1.15)}
 .hslide .hs .hsfg{object-fit:contain;object-position:50% 50%;background:transparent}
+/* 2026-11-18 양옆을 사진 양끝 배경색으로 칠한 슬라이드(.bgc): 흐린 사진은 숨기고, 사진은 실제 크기 칸으로 가운데 두어 좌우 끝을 배경색과 부드럽게 섞는다 */
+.hslide .hs.bgc .hsbg{display:none}
+.hslide .hs.bgc .hsfg{left:50%;right:auto;width:auto;min-width:0;max-width:100%;transform:translateX(-50%);-webkit-mask-image:linear-gradient(to right,transparent,#000 6%,#000 94%,transparent);mask-image:linear-gradient(to right,transparent,#000 6%,#000 94%,transparent)}
+
+/* 2026-11-18 홈 B안(v14, 목업 fiton-pc-설계/v14_B안_이전다음_날짜_삭제): 위 = 세로 9:16 입은 모습 + 옆 글, 아래 = 「최근 입어본 옷」 옷 부분 확대 카드. 색은 토큰만 써서 검정·밝은·C1 모두 자동 */
+.hpics.b1{flex:2 1 520px;gap:20px;align-items:center}
+.b1 .stage{flex:none;height:540px;min-height:0;aspect-ratio:9/16;border-radius:24px;overflow:hidden;background:var(--panel2)}
+.b1 .stage .dots{position:absolute;left:0;right:0;bottom:12px;display:flex;justify-content:center;gap:6px;pointer-events:none}
+.b1 .stage .dots i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.6);box-shadow:0 0 0 1px rgba(0,0,0,.12);transition:width .3s}
+.b1 .stage .dots i.cur{background:#fff;width:18px;border-radius:4px}
+.b1 .info{flex:1 1 0;min-width:200px;display:flex;flex-direction:column;justify-content:center;gap:14px}
+.b1 .info small{color:var(--muted);font-size:13px;font-weight:600}
+.b1 .info h3{margin:0;font-size:22px;line-height:1.3;font-weight:700;color:var(--fg);word-break:keep-all}
+.b1 .szbox{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:14px}
+.b1 .szbox[hidden]{display:none}
+.b1 .szbox b{font-family:var(--lat);font-size:40px;line-height:1;color:var(--pri);flex:none}
+.b1 .szbox b.mul{font-size:26px}
+.b1 .szbox span{font-size:14px;color:var(--muted)}.b1 .szbox span strong{display:block;color:var(--fg);font-size:16px}
+.b1 .btn{align-self:flex-start;min-height:0;border:0;background:var(--pri);color:var(--onPri);border-radius:999px;padding:12px 22px;font-weight:700;font-size:15px;cursor:pointer}
+.b1 .btn:hover{filter:brightness(1.08)}
+.g6{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:14px}
+.ck{display:block;background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden;text-align:left;padding:0;font:inherit;color:var(--fg);cursor:pointer;transition:transform .25s}
+.ck:hover{transform:translateY(-4px)}
+.ck .ph{position:relative;height:170px;overflow:hidden;background:var(--panel2)}
+.ck .ph img.z{position:absolute;left:50%;top:0;width:190%;max-width:none;transform:translate(-50%,-26%)}
+.ck .ph img.z.lo{transform:translate(-50%,-47%)}
+.ck .ph img.z.sh{transform:translate(-50%,-74%)}
+.ck .ph img.z.wide{width:130%;transform:translate(-50%,-22%)}
+.ck .ph img.mini{position:absolute;right:8px;bottom:8px;width:34px;height:48px;object-fit:cover;object-position:50% 10%;border-radius:8px;border:2px solid var(--panel);box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.ck .m{padding:10px 12px 12px}.ck .m b{display:block;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ck .m small{color:var(--muted);font-size:12px}
+@media (max-width:1100px){.b1 .stage{height:460px}.g6{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:640px){.hpics.b1{flex-direction:column;align-items:stretch}.b1 .stage{height:auto;width:min(100%,340px);align-self:center}.b1 .info{min-width:0}.g6{grid-template-columns:repeat(2,minmax(0,1fr))}}

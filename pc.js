@@ -1448,8 +1448,40 @@
       var n = +box.getAttribute('data-n') || 0; if (n < 2) return;
       var i = ((+box.getAttribute('data-ri') || 0) + 1) % n; box.setAttribute('data-ri', i);
       box.querySelector('.htrack').style.transform = 'translateX(-' + (i * 100) + '%)';
+      homeSlideSync(i);
     } catch (e) { }
   }, 4000);
+  /* 2026-11-18 홈 B안(v14): 슬라이드가 넘어가면 옆 글(옷 이름·추천 사이즈·피팅룸 버튼)과 점 표시도 같이 바꾼다 */
+  var homeInfo = [];
+  function homeSlideSync(i) {
+    var d = homeInfo[i], inf = document.querySelector('.b1 .info'); if (!d || !inf) return;
+    inf.querySelector('h3').textContent = d.name;
+    var sz = inf.querySelector('.szbox'); if (sz) { sz.innerHTML = d.szIn; sz.hidden = !d.szIn; }
+    inf.querySelector('.btn').setAttribute('data-id', d.key);
+    var lb = inf.querySelector('small'); if (lb) lb.textContent = i ? '최근 입어본 옷' : '방금 입어본 옷';
+    Array.prototype.forEach.call(document.querySelectorAll('.b1 .dots i'), function (el, k) { el.className = k === i ? 'cur' : ''; });
+  }
+  /* 추천 사이즈: 핏 계산(evalOne)의 recommended 값만 씀. 키가 없거나 계산이 안 되면 빈 목록(→ 화면에서 숨김, 가짜 값 금지). 신발은 핏 내용에서 빼기로 함(2026-11-13) */
+  function homeRec(items) {
+    try { if (!E.num(prof().height)) return []; } catch (e) { return []; }
+    return items.filter(function (it) { return it.cat !== 'shoe'; }).map(function (it) {
+      var r = evalOne(it, null); if (!r || !r.recommended) return null;
+      var e = (r.all || []).filter(function (x) { return x.size === r.recommended; })[0];
+      return { cat: it.cat, size: String(r.recommended), st: sizeState(e)[1] };
+    }).filter(Boolean);
+  }
+  function homeRecBox(rs) {
+    if (!rs.length) return '';
+    var who0 = who() === 'base' ? '기본 모델 치수로 계산한 추천 사이즈' : '내 치수로 계산한 추천 사이즈';
+    return rs.length === 1 ? '<b>' + h(rs[0].size) + '</b><span><strong>' + h(rs[0].st) + '</strong>' + who0 + '</span>'
+      : '<b class="mul">' + h(rs.map(function (r) { return r.size; }).join(' · ')) + '</b><span><strong>' + h(rs.map(function (r) { return CATS[r.cat] + ' ' + r.size; }).join(' · ')) + '</strong>' + who0 + '</span>';
+  }
+  /* 아래 카드의 옷 부분 확대 위치: 상의만 = 몸통, 하의만 = 허리~무릎, 신발만 = 발, 원피스·여러 벌 = 덜 확대해 넓게 */
+  function homeZoom(items) {
+    var c = items.map(function (x) { return x.cat; }), up = c.some(function (k) { return /^(top|outer|inner)$/.test(k); }), lo = c.indexOf('bottom') >= 0, dr = c.indexOf('dress') >= 0, sh = c.indexOf('shoe') >= 0;
+    if (dr || (up && lo) || (up && sh) || (lo && sh)) return 'z wide';
+    if (lo) return 'z lo'; if (sh) return 'z sh'; return 'z';
+  }
   function viewHome() {
     /* 2026-11-10 목업(Main.dc.html): 왼쪽 글+입력 상자, 오른쪽 사진 2장(원본·입은 모습) */
     var hl = histList().reverse() /* 2026-11-14 홈 그림은 입어본 기록에서(최근 것부터). 기록이 없으면 예전 샘플 코디 */, list = stylesIn(), p = ui.pend, hc = ui.homeCat, st0 = list[0] || FD.styles[0] || null, base = isMale() ? 'assets/avatar_male_home.jpg?v=b' : 'assets/avatar_default.jpg?v=t';
@@ -1463,11 +1495,28 @@
       '<div class="comp" data-dz="home"><div class="drop">' + drop + '</div><div class="krow" role="group" aria-label="용도 (선택)"><small>용도 (선택)</small>' + kpills + '</div><div class="crow' + (p ? ' ask' : '') + '">' + pills +
       '<label class="go" style="display:inline-flex;align-items:center;flex-direction:row;justify-content:center;font-size:20px;line-height:1;padding:0 20px;color:var(--onPri);cursor:pointer" title="옷 사진 파일 선택"><span aria-hidden="true">+</span><input type="file" class="fhid" accept="image/*" data-file="quick" aria-label="옷 사진 파일 선택"></label></div></div>' +
       '<div class="steps"><span><b>1</b>옷 사진 넣기</span><span><b>2</b>옷 종류 누르기</span><span><b>3</b>내 아바타로 확인</span></div></div>' +
-      '<div class="hpics' + (hl[0] || (st0 && st0.modelImage && styleForMe(st0)) ? '' : ' one') + '">' + (hl[0] || (st0 && st0.modelImage && styleForMe(st0)) ? '' : '<div class="hpic"><img src="' + base + '" alt="기본 캐릭터 전신"><span>원본</span></div>') + /* 2026-11-14 홈의 「원본」 그림 삭제(입은 모습만). 입은 모습 그림이 하나도 없을 때만 원본을 보여 줌 */
-      (hl[0] ? '<div class="hpic hslide" data-ri="0" data-n="' + Math.min(hl.length, 10) + '"><div class="htrack" style="display:flex;height:100%;transition:transform .7s ease">' + hl.slice(0, 10).map(function (e) { return '<div class="hs"><img class="hsbg" src="' + h(urls.tryon[e.key]) + '" alt="" aria-hidden="true"><img class="hsfg" src="' + h(urls.tryon[e.key]) + '" alt="' + h(e.items.map(function (x) { return x.name; }).join(' + ')) + ' 입은 모습"></div>'; }).join('') + '</div><span class="on">입은 모습</span></div>' : (st0 && st0.modelImage && styleForMe(st0) ? '<div class="hpic"><img src="' + h(st0.modelImage) + '" alt="' + h(st0.title) + ' 입은 모습"><span class="on">입은 모습</span></div>' : '')) + '</div></section>' +
-      '<section class="sec"><div class="sh"><h2 class="sectitle">' + (hl.length ? '최근 입어본 모습' : '이번 ' + seasonName() + ' 코디') + '</h2><span>' + (hl.length ? '눌러서 피팅룸에서 보세요' : '눌러서 바로 입어 보세요') + '</span></div><div class="grid5">' +
-      (hl.length ? hl.slice(0, 10).map(function (e) { var t = e.items.map(function (x) { return x.name; }).join(' + '); return '<button type="button" class="stylelk" data-act="histShow" data-id="' + h(e.key) + '" style="padding:0;text-align:left"><img src="' + h(urls.tryon[e.key]) + '" alt="' + h(t) + '" loading="lazy"><div class="cap"><b>' + h(t) + '</b><span>피팅룸에서 보기</span></div></button>'; }).join('') : list.map(function (st) { return '<button type="button" class="stylelk" data-act="styleTry" data-id="' + h(st.id) + '" style="padding:0;text-align:left"><img src="' + h(st.modelImage) + '" alt="' + h(st.title) + '" loading="lazy"><div class="cap"><b>' + h(st.title) + '</b><span>입어보기</span></div></button>'; }).join('')) +
-      '</div></section></main>';
+      /* 2026-11-18 홈 B안(v14): 입어본 기록이 있으면 위 = 세로 9:16 슬라이드 + 옆 글(옷 이름·추천 사이즈·피팅룸 버튼), 아래 = 「최근 입어본 옷」 옷 부분 확대 카드. 기록이 없으면 예전 그대로(샘플 코디·원본) */
+      (hl[0] ? homeHeroB(hl) : '<div class="hpics' + (st0 && st0.modelImage && styleForMe(st0) ? '' : ' one') + '">' + (st0 && st0.modelImage && styleForMe(st0) ? '<div class="hpic"><img src="' + h(st0.modelImage) + '" alt="' + h(st0.title) + ' 입은 모습"><span class="on">입은 모습</span></div>' : '<div class="hpic"><img src="' + base + '" alt="기본 캐릭터 전신"><span>원본</span></div>') + '</div>') + '</section>' + /* 2026-11-14 홈의 「원본」 그림 삭제(입은 모습만). 입은 모습 그림이 하나도 없을 때만 원본을 보여 줌 */
+      (hl.length ? homeCardsB(hl) : '<section class="sec"><div class="sh"><h2 class="sectitle">이번 ' + seasonName() + ' 코디</h2><span>눌러서 바로 입어 보세요</span></div><div class="grid5">' +
+        list.map(function (st) { return '<button type="button" class="stylelk" data-act="styleTry" data-id="' + h(st.id) + '" style="padding:0;text-align:left"><img src="' + h(st.modelImage) + '" alt="' + h(st.title) + '" loading="lazy"><div class="cap"><b>' + h(st.title) + '</b><span>입어보기</span></div></button>'; }).join('') + '</div></section>') +
+      '</main>';
+  }
+  function homeHeroB(hl) {
+    var L = hl.slice(0, 10);
+    homeInfo = L.map(function (e) { return { key: e.key, name: e.items.map(function (x) { return x.name; }).join(' + '), szIn: homeRecBox(homeRec(e.items)) }; });
+    var d = homeInfo[0];
+    return '<div class="hpics b1"><div class="hpic hslide stage" data-ri="0" data-n="' + L.length + '"><div class="htrack" style="display:flex;height:100%;transition:transform .7s ease">' + L.map(function (e, k) { return '<div class="hs"><img class="hsbg" src="' + h(urls.tryon[e.key]) + '" alt="" aria-hidden="true"><img class="hsfg" src="' + h(urls.tryon[e.key]) + '" alt="' + h(homeInfo[k].name) + ' 입은 모습"></div>'; }).join('') + '</div><span class="on">입은 모습</span>' +
+      (L.length > 1 ? '<div class="dots" aria-hidden="true">' + L.map(function (e, k) { return '<i' + (k ? '' : ' class="cur"') + '></i>'; }).join('') + '</div>' : '') + '</div>' +
+      '<div class="info" aria-live="polite"><small>방금 입어본 옷</small><h3>' + h(d.name) + '</h3><div class="szbox"' + (d.szIn ? '' : ' hidden') + '>' + d.szIn + '</div>' +
+      '<button type="button" class="btn" data-act="histShow" data-id="' + h(d.key) + '">피팅룸에서 자세히 보기</button></div></div>';
+  }
+  function homeCardsB(hl) {
+    return '<section class="sec"><div class="sh"><h2 class="sectitle">최근 입어본 옷</h2><span>옷 부분만 크게 · 오른쪽 아래 작은 그림이 입은 모습 · 눌러서 피팅룸에서 보세요</span></div><div class="g6">' +
+      hl.slice(0, 12).map(function (e) {
+        var t = e.items.map(function (x) { return x.name; }).join(' + '), rs = homeRec(e.items), u = h(urls.tryon[e.key]);
+        return '<button type="button" class="ck" data-act="histShow" data-id="' + h(e.key) + '"><div class="ph"><img class="' + homeZoom(e.items) + '" src="' + u + '" alt="' + h(t) + ' 옷 부분" loading="lazy"><img class="mini" src="' + u + '" alt="" aria-hidden="true" loading="lazy"></div><div class="m"><b>' + h(t) + '</b>' +
+          (rs.length ? '<small>추천 사이즈 ' + h(rs.map(function (r) { return rs.length > 1 ? CATS[r.cat] + ' ' + r.size : r.size; }).join(' · ')) + '</small>' : '') + '</div></button>';
+      }).join('') + '</div></section>';
   }
 
   /* ---------- 피팅룸 ---------- */
@@ -1917,6 +1966,8 @@
     /* 2026-11-12: 기본 모델(프리셋 — 지금 8명·앞으로 새로 만드는 모델 모두)도 같이 칠한다. 직접 올린 내 아바타 사진만 제외 */
     /* 2026-11-14: 내 아바타 사진·내 아바타로 입은 그림도 기본 모델과 같은 방식으로 칠한다(예전엔 제외돼 양옆이 기본 배경색으로 남았음) */
     if (bi) paintStageBg(bi, bw.querySelector('.vbox')); /* 기본 캐릭터·기본 모델(프리셋)·내 아바타 + 기본 모델 탭(코디 예시 사진) */
+    /* 2026-11-18 홈 입은 모습 슬라이드: 흐린 사진(.hsbg)으로 채우던 양옆을 사진 자신의 양끝 배경색 세로 그라데이션으로 칠한다(옷 색 얼룩·경계선 제거). 색을 못 읽으면 예전 흐린 사진 그대로 */
+    Array.prototype.forEach.call(app.querySelectorAll('.hslide .hsfg'), paintSlideBg);
     Object.keys(scr).forEach(function (q) { var e = app.querySelector(q); if (e) e.scrollTop = scr[q]; });
     if (keep) { var a = document.getElementById(keep); if (a) { a.focus(); try { if (sel != null) a.setSelectionRange(sel, sel); } catch (e) {} } }
     liftFootTag();
@@ -1965,6 +2016,16 @@
     b.onload = function () { cb(from(b, true) || from(img, false)); };
     b.onerror = function () { cb(from(img, false)); };
     b.src = base;
+  }
+  function paintSlideBg(img) {
+    function go() {
+      var cols = null; try { cols = edgeCols(img); } catch (e) {}
+      var hs = img.parentNode; if (!cols || !hs || !hs.isConnected) return;
+      var N = cols.length;
+      hs.style.background = 'linear-gradient(to bottom,' + cols.map(function (k, i) { return 'rgb(' + k.join(',') + ') ' + ((i + 0.5) / N * 100).toFixed(1) + '%'; }).join(',') + ')';
+      hs.classList.add('bgc');
+    }
+    if (img.complete && img.naturalWidth) go(); else img.addEventListener('load', go, { once: true });
   }
   function paintStageBg(img, box) {
     if (!img || !box) return;
