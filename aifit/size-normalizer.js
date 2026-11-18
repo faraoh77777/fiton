@@ -347,7 +347,7 @@
       for (const p of colPlans) {
         const { def, header: h } = p;
         if (!def || def.measure === 'enum' || /_shoe$/.test(def.measure) || def.measure === 'range') {
-          columns[p.key] = { header: h, conversion: def ? def.measure : 'raw' };
+          columns[p.key] = { header: h, conversion: def ? def.measure : 'raw', ci: p.ci };
           continue;
         }
         const vals = p.raw.filter(Boolean).map((x) => x.value);
@@ -362,6 +362,7 @@
           const md = median(vals);
           if (md < 40) { factor *= 10; note.push('cm→mm'); }
         }
+        p.unitFactor = factor; p.unitNote = note.slice();
         // 단면/둘레
         if (def.measure === 'circ') {
           const md = median(vals) * factor;
@@ -373,15 +374,17 @@
           } else if (inR(md, def.halfRange) && !inR(md, def.fullRange)) half = true;
           else if (inR(md, def.fullRange) && !inR(md, def.halfRange)) half = false;
           else half = md <= (def.halfRange[1] + def.fullRange[0]) / 2;
-          if (half) { factor *= 2; note.push('단면×2'); }
+          if (half) { factor *= 2; note.push('단면×2'); p.half = true; }
         } else if (def.measure === 'linear' && !isInch && def.range) {
           const allOut = vals.every((v) => !inR(v * factor, def.range));
           const allInInch = vals.every((v) => inR(v * factor * INCH, def.range));
           if (allOut && allInInch) { factor *= INCH; note.push('inch 추정→cm'); warnings.push(`'${h}' 값이 cm 범위를 벗어나 인치로 추정했습니다`); }
         }
         p.factor = factor;
-        columns[p.variant && !p.primary ? p.key + '@' + p.variant : p.key] = { header: h, conversion: note.join(', ') || '그대로', group: p.group, variant: p.variant || undefined };
+        /* ci·factor: 「이미지 표」가 이 열을 그대로 다시 계산할 때 쓴다(2026-11-12) */
+        columns[p.variant && !p.primary ? p.key + '@' + p.variant : p.key] = { header: h, conversion: note.join(', ') || '그대로', group: p.group, variant: p.variant || undefined, ci: p.ci, factor: factor };
       }
+      if (cat === 'bottom') skirtHemPass(colPlans, columns, defs, opts, header, warnings);
 
       // 행 조립 + 검증
       const sizes = body.map((row, ri) => {
@@ -396,7 +399,8 @@
           const n = p.raw[ri];
           if (!n || p.factor == null) continue;
           const v = round1(n.value * p.factor);
-          const chk = def.measure === 'circ' ? def.fullRange : def.range;
+          /* 단면으로 판단해 ×2 한 열은 단면 범위×2 도 정상으로 본다(2026-11-12: 단면 가슴33 → 66 이 둘레 범위 70 미만이라 빠지던 문제) */
+          const chk = def.measure === 'circ' ? (p.half ? [Math.min(def.fullRange[0], def.halfRange[0] * 2), def.fullRange[1]] : def.fullRange) : def.range;
           const chkV = def.measure === 'mm' ? v : v;
           if (chk && !inR(chkV, chk)) { warnings.push(`${row[0]} '${p.header}' 값 ${cell} → ${v}: 정상 범위(${chk[0]}~${chk[1]}) 밖이라 제외`); continue; }
           if (p.variant && !p.primary) { (variants[p.variant] = variants[p.variant] || {})[p.key] = v; continue; }
@@ -442,6 +446,55 @@
       return { category: cat, gender, orientation, sizes, columns, warnings, unknownHeaders };
     }
 
+    /* 2026-11-12 하의 「밑단」이 치마 밑단인지 가린다. 사전의 하의 밑단(leg_opening)은 바지 발목 기준(단면 8~45)이라
+       치마 밑단(예: 힙44 밑단56 → 단면, 둘레 112)이 바지 둘레 56 으로 읽히거나 범위 밖으로 빠졌다.
+       치마로 보는 경우: ① 표 제목·이름·머리글·글에 치마/스커트/skirt ② 밑단이 엉덩이와 같은 기준(단면/둘레)으로 엉덩이의 0.8배 이상
+       (바지는 한쪽 다리 통이라 엉덩이보다 훨씬 좁다) ③ 엉덩이가 없을 때: 밑단 머리글이 「단면」이거나 다른 둘레 열이 단면인데 밑단 숫자가 바지 단면 최대(45)보다 큼,
+       또는 머리글이 「둘레」인데 바지 둘레 최대(90)보다 큼. 인심·허벅지·무릎·밑위 열이 있으면 ①이 아닌 한 바지로 본다 */
+    function skirtHemPass(colPlans, columns, defs, opts, header, warnings) {
+      const sk = defs.skirt_hem;
+      if (!sk) return;
+      const hems = colPlans.filter((p) => p.key === 'leg_opening' && p.unitFactor != null);
+      if (!hems.length) return;
+      const SKIRT = /치마|스커트|skirt/i;
+      const named = !!opts.skirt || SKIRT.test(String(opts.title || '') + ' ' + String(opts.name || '')) || header.some((h) => SKIRT.test(String(h || '')));
+      const pantsOnly = colPlans.some((p) => ['inseam', 'thigh', 'knee', 'rise', 'back_rise'].includes(p.key));
+      const others = colPlans.filter((p) => p.def && p.def.measure === 'circ' && p.key !== 'leg_opening' && p.factor != null && p.group !== 'body');
+      const hip = others.find((p) => p.key === 'hip');
+      const basis = (hip || others[0]) ? !!(hip || others[0]).half : null; // 같은 표 다른 둘레 열이 단면이었는지
+      for (const p of hems) {
+        const vals = p.raw.filter(Boolean).map((x) => x.value);
+        if (!vals.length) continue;
+        const md = median(vals) * p.unitFactor;
+        const hHalf = hasHint(p.header, dict.headerHints.half), hFull = hasHint(p.header, dict.headerHints.full);
+        let isSkirt = named;
+        if (!isSkirt && !pantsOnly) {
+          if (hip) {
+            const hipCm = median(hip.raw.filter(Boolean).map((x) => x.value)) * hip.factor;
+            const sameHalf = hHalf ? true : hFull ? false : !!hip.half;
+            const hemCm = md * (sameHalf ? 2 : 1);
+            isSkirt = hipCm > 0 && hemCm >= hipCm * 0.8;
+          } else if (hFull) isSkirt = md > defs.leg_opening.fullRange[1];
+          else if (hHalf || basis === true) isSkirt = md > defs.leg_opening.halfRange[1];
+        }
+        if (!isSkirt) continue;
+        // 치마 밑단 기준으로 단면/둘레 다시 판단(머리글 힌트 > 같은 표 다른 둘레 열 기준 > 치마 범위)
+        let half;
+        if (hHalf) half = true;
+        else if (hFull) half = !inR(md, sk.fullRange) && inR(md, sk.halfRange);
+        else if (basis != null) half = basis;
+        else half = md <= (sk.halfRange[1] + sk.fullRange[0]) / 2;
+        const note = p.unitNote.slice();
+        p.factor = p.unitFactor * (half ? 2 : 1); p.half = half;
+        if (half) note.push('단면×2');
+        note.push('치마 밑단으로 판단');
+        const oldCol = p.variant && !p.primary ? 'leg_opening@' + p.variant : 'leg_opening';
+        delete columns[oldCol];
+        p.key = 'skirt_hem'; p.def = sk;
+        columns[p.variant && !p.primary ? 'skirt_hem@' + p.variant : 'skirt_hem'] = { header: p.header, conversion: note.join(', '), group: p.group, variant: p.variant || undefined, ci: p.ci, factor: p.factor };
+      }
+    }
+
     // ---------- 3-2) 글로 적힌 사이즈 → 표로 변환 후 정규화 ----------
     // 예: "S : 어깨 47 / 가슴 56 / 총장 70\nM : 어깨 49 / 가슴 58 / 총장 72 (단면, 1~3cm 오차)"
     const LABEL_RE = /(?:^|[\s\n\/|,·]|(?<=[\]\)]))[\[\(【]?\s*((?:XXXS|XXS|XS|XXXL|XXL|XL|2XL|3XL|4XL|LL|2L|3L|S|M|L|F|FREE|프리|ONE\s?SIZE)(?:\s*[(（][^)）]{1,10}[)）])?|(?:44|55|66|77|88|99)반?|\d{2,3}(?:\s*[(（](?:XXS|XS|S|M|L|XL|XXL|2XL|3XL)[)）]))\s*(?:사이즈|size)?\s*[\]\)】]?\s*(?=[:：\-–=]|\s*[\/|]|\s+[가-힣A-Za-z])/gi;
@@ -474,8 +527,10 @@
       const headers = [], rows = [], unknown = new Set();
       for (const sg of segs) {
         const row = { _label: sg.label };
+        /* 항목 이름 뒤 괄호 메모(「허리(밴딩)30~」의 (밴딩))는 지운다 — 남겨 두면 「밴딩」이 항목 이름으로 읽혀 허리가 빠진다. 숫자가 든 괄호는 그대로 */
+        const segText = sg.text.replace(/([가-힣A-Za-z])\s*[(（]([^)）\d]{1,8})[)）]\s*(?=\d)/g, (all, a, memo) => a + (/단면|둘레|너비/.test(memo) ? memo.trim() : '') + ' ');
         let p; PAIR.lastIndex = 0;
-        while ((p = PAIR.exec(sg.text))) {
+        while ((p = PAIR.exec(segText))) {
           const name = p[1].trim();
           if (!name || IGNORE.test(name)) continue;
           const r = resolveKey(name, cat);
@@ -493,7 +548,7 @@
       }
       if (!rows.length) return { category: cat, sizes: [], columns: {}, warnings: ['글에서 사이즈 수치를 찾지 못했습니다'], unknownHeaders: [...unknown], source: 'text' };
       const table = [['사이즈', ...headers.map((h) => h.header)], ...rows.map((r) => [r._label, ...headers.map((h) => (r[h.key] != null ? r[h.key] : ''))])];
-      const out = normalizeTable(table, opts);
+      const out = normalizeTable(table, Object.assign({}, opts, { skirt: !!opts.skirt || /치마|스커트|skirt/i.test(src) }));
       out.source = 'text';
       out.table = table;
       out.unknownHeaders = [...new Set([...out.unknownHeaders, ...unknown])];

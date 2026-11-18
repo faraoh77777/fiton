@@ -1,0 +1,46 @@
+/* FITON for PC — C1 색 버전 (2026-11-12 v2 패션 느낌): 따뜻한 아이보리 바탕 + 와인(버건디) 강조 + 골드 포인트. v1(보라→자홍)은 _시험도구\pc-c1_v1_보라자홍_20261112.css
+   pc.css(B 스튜디오, 검정 바탕) 뒤에 읽혀서 색만 바꾼다. 배치·크기·모서리·기능은 pc.css 그대로.
+   pc-c1.html 에서만 읽는다. 검정 버전(pc.html)·밝은 버전(pc-light.html)에는 영향이 없다.
+   사진 크게 보기·완성 연출·3D 보기(.zoom·#reveal·#d3view)는 사진이 잘 보이도록 어두운 바탕을 그대로 둔다.
+   핏 상태 색(맞음·낌·헐렁)은 뜻이 있는 색이라 밝은 버전과 같은 값을 쓴다. */
+:root{--ink:#FAF7F2;--panel:#FFFFFF;--panel2:#F1EBE2;--line:#DDD3C5;--fg:#1A1614;--muted:#6A6058;
+  --pri:#9E1B42;--priDark:#7A1230;--priSoft:rgba(158,27,66,.08);--onPri:#FFFFFF;
+  --coral:#9E1B42;--amber:#8A5A2B;--pink:#9E1B42;
+  --ok:#2E9E68;--okText:#19693F;--warn:#D98A1F;--warnText:#96590A;--warnSoft:rgba(217,138,31,.13);--err:#E0495A;--errText:#B3283A;
+  --fit:#2E9E68;--tightBad:#E5566A;--tight:#C77700;--loose:#4A90E2;--over:#8E77E8;
+  --grad:linear-gradient(95deg,#7A1230,#C2325B);--gradFull:linear-gradient(95deg,#7A1230,#C2325B 55%,#C9973F);
+  color-scheme:light}
+
+input::placeholder{color:#7A7068}
+
+/* 화려한 부분: 큰 제목 글씨와 주요 버튼에만 그라데이션 */
+.herotitle em{background:var(--gradFull);-webkit-background-clip:text;background-clip:text;color:transparent}
+.new,.go,.bar .go2,.wear,.tnew,.b.pri,.side .nv.on,.side .left.on{background:var(--grad)}
+.new:hover,.go:hover,.bar .go2:hover,.wear:hover,.tnew:hover,.b.pri:hover{background:var(--priDark);color:var(--onPri)}
+.wear:disabled{background:var(--panel2)}
+.b.pri{border-color:transparent}
+.season{background:var(--priSoft)}
+
+/* 연한 바탕 위의 강조색 글씨는 한 단계 진하게 */
+.ftabs button.on,.fstyle button.on,.pill.on,.vstatus.run,.vstatus.run button,.dot{color:var(--priDark)}
+/* 어두운 바탕을 그대로 두는 화면에서는 초점 테두리를 흰색으로 */
+.zoom :focus-visible,#reveal :focus-visible,#d3view :focus-visible{outline-color:#fff}
+
+/* 사진 위 꼬리표 */
+.tile .kb{background:rgba(255,255,255,.92);border-color:var(--line)}
+.tag,.pin{background:rgba(255,255,255,.95)}
+
+/* 상태 표시 */
+.vstatus.fail,.vwrap>.vstatus.fail{background:#FBE9EC} /* 사진 위에 겹치므로 비치지 않는 색 */
+.chip.s-ok{background:rgba(46,158,104,.12)}
+.chip.s-tight{background:rgba(224,73,90,.10)}
+.chip.s-loose{color:#255C9E;background:rgba(74,144,226,.13)}
+
+/* 핏 막대: 흰 카드 위에서 빈 칸도 보이게 */
+.seg{background:var(--line)}
+.seg.g-fit{background:var(--fit)}.seg.g-tight{background:var(--tight)}.seg.g-loose{background:var(--loose)}.seg.g-tightBad{background:var(--tightBad)}.seg.g-over{background:var(--over)}
+
+/* 그림자 · 덮는 화면 */
+@media (min-width:1180px){.fitside .runcard{box-shadow:0 -8px 18px rgba(26,22,20,.08)}}
+#wait{background:rgba(250,247,242,.97)}
+#buyask{background:rgba(26,22,20,.4)}

@@ -1,0 +1,35 @@
+/* FITON for PC — 밝은 색 버전 (2026-11-10)
+   pc.css(B 스튜디오, 검정 바탕) 뒤에 읽혀서 색만 바꾼다. 배치·크기·모서리·기능은 pc.css 그대로.
+   pc-light.html 에서만 읽는다. 검정 버전(pc.html)에는 영향이 없다.
+   사진 크게 보기·완성 연출·3D 보기(.zoom·#reveal·#d3view)는 사진이 잘 보이도록 어두운 바탕을 그대로 둔다. */
+:root{--ink:#F3F4EF;--panel:#FFFFFF;--panel2:#E9EBE4;--line:#D3D6CC;--fg:#16181C;--muted:#5E636B;
+  --pri:#4E7A00;--priDark:#3F6300;--priSoft:rgba(110,170,0,.14);--onPri:#FFFFFF;
+  --ok:#2E9E68;--okText:#19693F;--warn:#D98A1F;--warnText:#96590A;--warnSoft:rgba(217,138,31,.13);--err:#E0495A;--errText:#B3283A;
+  --fit:#2E9E68;--tightBad:#E5566A;--tight:#C77700;--loose:#4A90E2;--over:#8E77E8;
+  color-scheme:light}
+
+input::placeholder{color:#6A6F77}
+
+/* 연한 바탕 위의 강조색 글씨는 한 단계 진하게 (2026-11-10 검증: 글씨 대비 4.5 미만이던 곳) */
+.ftabs button.on,.fstyle button.on,.pill.on,.aitem.on em,.vstatus.run,.vstatus.run button,.dot{color:var(--priDark)}
+/* 어두운 바탕을 그대로 두는 화면에서는 초점 테두리를 흰색으로 */
+.zoom :focus-visible,#reveal :focus-visible,#d3view :focus-visible{outline-color:#fff}
+
+/* 사진 위 꼬리표 */
+.tile .kb{background:rgba(255,255,255,.92);border-color:var(--line)}
+.tag,.pin{background:rgba(255,255,255,.95)}
+
+/* 상태 표시 */
+.vstatus.fail,.vwrap>.vstatus.fail{background:#FBE9EC} /* 사진 위에 겹치므로 비치지 않는 색 */
+.chip.s-ok{background:rgba(46,158,104,.12)}
+.chip.s-tight{background:rgba(224,73,90,.10)}
+.chip.s-loose{color:#255C9E;background:rgba(74,144,226,.13)}
+
+/* 핏 막대: 흰 카드 위에서 빈 칸도 보이게 */
+.seg{background:var(--line)}
+.seg.g-fit{background:var(--fit)}.seg.g-tight{background:var(--tight)}.seg.g-loose{background:var(--loose)}.seg.g-tightBad{background:var(--tightBad)}.seg.g-over{background:var(--over)}
+
+/* 그림자 · 덮는 화면 */
+@media (min-width:1180px){.fitside .runcard{box-shadow:0 -8px 18px rgba(22,24,28,.08)}}
+#wait{background:rgba(243,244,239,.97)}
+#buyask{background:rgba(22,24,28,.4)}

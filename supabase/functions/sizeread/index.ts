@@ -3,7 +3,7 @@
 // 지시문(EXTRACT_PROMPT)은 aifit/size-extract.js 와 같아야 한다. 일부러 앱에서 받지 않고 여기에 둔다(앱이 임의 지시문을 보내 이 키를 마음대로 쓰지 못하게).
 const KEY = (Deno.env.get("ANTHROPIC_API_KEY") ?? "").trim();
 const MODEL = Deno.env.get("SIZEREAD_MODEL") ?? "claude-sonnet-5-5";
-const ALLOWED = (Deno.env.get("ALLOWED_ORIGINS") ?? "https://faraoh77777.github.io,http://127.0.0.1:8765,http://localhost:8765,http://127.0.0.1:8777,http://localhost:8777").split(",");
+const ALLOWED = (Deno.env.get("ALLOWED_ORIGINS") ?? "https://faraoh77777.github.io,http://127.0.0.1:8765,http://localhost:8765,http://127.0.0.1:8777,http://localhost:8777,http://127.0.0.1:8770,http://localhost:8770").split(",");
 const MAX_B64 = 5_000_000; // 캡처 base64 길이 상한(약 3.7MB)
 const DAY_LIMIT = Number(Deno.env.get("SIZEREAD_DAILY_LIMIT") ?? "30"); // 기기당 하루 읽기 횟수(이 함수 인스턴스 기준 임시 제한)
 const GLOBAL_LIMIT = Number(Deno.env.get("SIZEREAD_GLOBAL_DAILY_LIMIT") ?? "300");
