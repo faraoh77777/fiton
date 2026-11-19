@@ -1211,3 +1211,16 @@ button{font-size:14px}
 .fitside .runcard{position:static;box-shadow:none;margin-top:auto}
 .fitside .runcard::before{display:none}
 }
+
+/* ==================== 2026-11-19 최종 검토 7차 (블라인드C 7·11, 사용자 승인 권장안) ==================== */
+/* 7: 1366 등에서 「가상 피팅 시작」 아래 작은 글씨(옷 N벌 · 앞모습 · 남은 횟수…)가 두 줄로 꺾여 버튼이 3줄이 되던 것
+   → 옆 구매 버튼 폭을 100px로 줄이고 작은 글씨 13px. 글이 더 길면 그때만 줄바꿈(잘라 버리지 않음) */
+@media (min-width:1180px){
+.runrow .buy1{flex:0 0 100px}
+.runrow .wear small{font-size:13px}
+}
+/* 11: 칸 안 내용이 아래로 더 있어도 스크롤바가 안 보여(겹침형) 잘린 것처럼 보이던 것
+   → 칸 안에서 스크롤되는 곳(피팅룸 입어볼 것·핏 분석, 내 몸 정보 좌우, 입어본 기록 목록·옷 정보)에 항상 보이는 얇은 스크롤바 */
+@media (min-width:1180px){
+.rpanel,.fitside,.fitside>.fitcard,.pg-body .main>.fxL,.pg-body .main>.fxR,.pg-history .hinfo,.pg-history .col>.grid3,.pg-history .fxCard>.grid3{scrollbar-width:thin;scrollbar-color:var(--muted) transparent}
+}
