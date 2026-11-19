@@ -1200,3 +1200,14 @@ button{font-size:14px}
 /* 3: 표 아래 「+ 사이즈 추가 / + 항목 추가」가 아래 고정 「수정 저장」에 가려지던 것 → 탭·포커스로 옮겨 갈 때 저장 버튼 높이만큼 비켜 보이게 + 버튼 아래 여백 */
 .pg-closet .main>.pan{scroll-padding-bottom:84px}
 .pg-closet .pan div:has(>table.imgt)+.lkacts{margin-bottom:14px}
+
+/* 2026-11-19 최종 검토 6차 (블라인드C 6): 1800 이상 넓은 창에서 아래 고정 실행 카드가 「핏 스타일」 버튼 줄을 덮던 것
+   → 실행 카드는 고정을 풀고 칸 맨 아래에 두며, 남는 높이가 모자라면 「실측 기반 핏 분석」 카드 안에서만 스크롤(다른 카드는 가리지 않음).
+   1800 미만(1366 등)은 넘치는 양이 커서 예전 고정 카드+그림자 방식 그대로 */
+@media (min-width:1800px) and (min-height:900px){
+.fitside{overflow-y:hidden}
+.fitside>*{flex:none}
+.fitside>.fitcard{flex:1 1 auto;min-height:220px;overflow-y:auto}
+.fitside .runcard{position:static;box-shadow:none;margin-top:auto}
+.fitside .runcard::before{display:none}
+}
