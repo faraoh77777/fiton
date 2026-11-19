@@ -1298,3 +1298,15 @@ button{font-size:14px}
 .pg-body .main>.fxR{gap:6px}
 .pg-body .main>.fxR .g3,.pg-body .main>.fxR .g2{row-gap:6px}
 }
+/* 2026-11-19 15차 사용자 지시: ① 기본 모델 보기의 앞·옆·뒷모습 사진도 내 아바타 보기와 같은 크기로(아래 모델 목록 썸네일은 높이 고정해 스크롤 0)
+   ② 내 아바타 「앞모습 바꾸기」·「지우기」 버튼 줄을 사진 폭 안에 들어오게(사진 칸 폭 = 사진 폭, 버튼 글자·여백 줄임) */
+@media (min-width:861px){
+.pg-body .fxBody:has(.fxMods) img.av,.pg-body .fxBody:has(.fxMods) div.av{height:clamp(200px,calc(100vh - 477px),533px)}
+.pg-body .fxBody .fxMods{grid-template-columns:repeat(11,minmax(0,1fr)) !important}
+.pg-body .fxBody:has(.fxMods){row-gap:10px}
+.pg-body .fxBody .fxMods>button>img{height:64px;width:auto !important;max-width:100%;object-fit:cover}
+.pg-body .fxBody>div[style*="repeat(3"]>div{width:min-content;justify-self:center}
+.pg-body .fxBody .avbtns{gap:6px}
+.pg-body .fxBody .avbtns>label.btn{font-size:13px !important;padding:0 6px}
+.pg-body .fxBody .avbtns>.lk{flex:0 0 auto;font-size:13px;padding:0 8px}
+}
