@@ -2772,7 +2772,8 @@
     toCloset: function (el) { ui.closetCat = el.dataset.cat; formFollow(ui.closetCat); go('closet'); },
     wear: wearAll,
     wearAcc: accWear,
-    zoomStage: function () { openFull(stageUrl(), '입은 모습', true); },
+    /* 2026-11-19 사용자 지시: 피팅룸 크게 보기도 입어본 기록과 같게(검은 배경·원본 크기, 휠·두 번 클릭 확대·끌어 이동) — 배경 칠하기(paint) 안 씀 */
+    zoomStage: function () { openFull(stageUrl(), '입은 모습'); },
     open3d: open3d,
     savePic: function () {
       var w = wornNow(), ak = effView() === 'me' && (ui.angle === 'side' || ui.angle === 'back') ? angWornKey(wearSet()) : '';
@@ -2984,7 +2985,7 @@
   app.addEventListener('click', function (e) {
     var el = e.target.closest('[data-act]');
     if (el && ACT[el.dataset.act]) ACT[el.dataset.act](el);
-    else if (e.target.dataset && e.target.closest('.fig') && e.target.tagName === 'IMG') openFull(e.target.getAttribute('src'), e.target.alt, !!e.target.closest('.vwrap') && !e.target.closest('.cmpv, .cmpbox')); /* 피팅룸 큰 사진(비교 화면 제외)은 배경 칠하기·크기 맞춤 */
+    else if (e.target.dataset && e.target.closest('.fig') && e.target.tagName === 'IMG') openFull(e.target.getAttribute('src'), e.target.alt); /* 2026-11-19 사용자 지시: 피팅룸 큰 사진을 눌러 여는 크게 보기도 입어본 기록과 같게(배경 칠하기·크기 맞춤 안 함, 휠 확대·끌기) */
   });
   /* 마우스 휠로 확대·축소: 피팅룸 입은 모습(위쪽 − 100% + 버튼과 같은 단계), 입어본 기록 오른쪽 사진(1~4배, 다른 기록을 고르면 처음 크기) */
   app.addEventListener('wheel', function (e) {
