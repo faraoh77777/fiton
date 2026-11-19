@@ -1254,3 +1254,19 @@ button{font-size:14px}
 .planmain .plan ul{font-size:16px;gap:12px}
 .planmain .plbtn{min-height:58px;font-size:18px}
 }
+
+/* ==================== 2026-11-19 10차: 피팅룸·내 옷장·입어본 기록 카드 윗선·아랫선 맞춤 ==================== */
+/* 옷장: 종류 탭 줄을 카드 안 맨 위로 옮김(pc.js) → 왼쪽 카드와 오른쪽 「입력한 값」 칸이 같은 윗선에서 시작(9차 56px 내림은 뺌).
+   큰 탭(채운 알약 42px)과 세부 탭(테두리 36px)은 크기·모양으로 구분. 수정 칸일 때 「+ 새 옷 추가」는 탭 줄 오른쪽 끝 */
+.cfhead{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;min-width:0}
+.cfhead>.cfadd{margin:0}
+.app .fxCard .fxTab button{background:var(--ink)}
+.app .fxCard .fxTab button.on,.app .fxCard .fxTab button.on:hover{background:var(--pri)}
+.pg-closet .fxCard>.kchips{margin-top:-2px}
+/* 피팅룸: 위쪽 줄에 「피팅룸으로」 버튼이 없어 11px 낮던 것과 위·아래 여백(14/12px)이 달랐던 것 → 다른 화면과 같게(위쪽 줄 62px, 여백 20/28px) */
+.pg-fitting .topbar .tacts{min-height:44px}
+@media (min-width:1180px){
+.pg-fitting .fitmain{padding:20px 32px 28px}
+.pg-fitting .viewer{height:max(600px,calc(100vh - 110px))}
+.pg-fitting .fitside,.pg-fitting .rpanel{max-height:calc(100vh - 110px)}
+}
