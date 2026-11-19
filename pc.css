@@ -1192,3 +1192,11 @@ button{font-size:14px}
 
 /* 2026-11-19 최종 검토 4차: 옷장 수정 칸 사이즈표의 사이즈 이름 칸(72px)이 좁아 「2XL(99)」「3XL(100)」 끝이 잘리던 것 → 88px */
 .pg-closet .pan table.imgt th:first-child,.pg-closet .pan table.imgt td:first-child{width:88px;min-width:88px}
+
+/* ==================== 2026-11-19 최종 검토 5차 (블라인드C 2·3) ==================== */
+/* 2: 옷장 수정 칸 사이즈표를 옆으로 넘기면 사이즈 이름 열이 사라지던 것 → 첫 열을 왼쪽에 고정(배경을 칸 색으로 채워 뒤 칸이 비치지 않게) */
+.pg-closet .pan table.imgt th:first-child,.pg-closet .pan table.imgt td:first-child{position:sticky;left:0;z-index:1;background:var(--panel)}
+.pg-closet .pan table.imgt thead th:first-child{z-index:2}
+/* 3: 표 아래 「+ 사이즈 추가 / + 항목 추가」가 아래 고정 「수정 저장」에 가려지던 것 → 탭·포커스로 옮겨 갈 때 저장 버튼 높이만큼 비켜 보이게 + 버튼 아래 여백 */
+.pg-closet .main>.pan{scroll-padding-bottom:84px}
+.pg-closet .pan div:has(>table.imgt)+.lkacts{margin-bottom:14px}
