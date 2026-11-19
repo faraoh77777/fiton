@@ -2171,12 +2171,11 @@
   function viewBody() {
     /* 2026-11-12 「기본 모델」·「내 아바타」 두 탭. 탭은 보기만 바꾸고, 「사용 중」 표시가 붙은 쪽으로 입어본다(기본 모델은 모델을 누르면, 내 아바타는 내 치수를 「저장」하면 바뀜. 「…로 입어보기」 버튼은 없앰) */
     var p = state.profile, m = p.m || {}, w = who(), tab = ui.bodyTab === 'base' || ui.bodyTab === 'me' ? ui.bodyTab : w, b = baseModel();
-    var nowName = w === 'base' ? '기본 모델 · ' + b.name : '내 아바타';
-    var head = '<section class="pan" style="flex:1 1 100%" aria-label="입어볼 캐릭터 선택"><h2>입어볼 캐릭터</h2><p class="sub">지금 입어보는 캐릭터: <b style="color:var(--pri)">' + h(nowName) + '</b>. 핏 계산도 이쪽 치수로 해요.</p>' +
+    var head = '<section class="pan bhead" style="flex:1 1 100%" aria-label="입어볼 캐릭터 선택"><h2>입어볼 캐릭터</h2>' + /* 2026-11-19 12차 사용자 지시: 「지금 입어보는 캐릭터 …」 안내 문구 삭제(탭의 「· 사용 중」 표시로 충분) */
       '<div class="segtoggle fxTab" role="group" aria-label="캐릭터 종류">' + [['base', '기본 모델'], ['me', '내 아바타']].map(function (t) { return '<button type="button" class="' + (tab === t[0] ? 'on' : '') + '" aria-pressed="' + (tab === t[0]) + '" data-act="bTab" data-v="' + t[0] + '">' + t[1] + (w === t[0] ? ' · 사용 중' : '') + '</button>'; }).join('') + '</div></section>';
     if (tab === 'base') {
       var ro = function (label, val, unit) { return '<label>' + label + '<span class="in"><input type="text" value="' + h(val) + '" readonly aria-readonly="true" tabindex="-1" style="opacity:.85">' + (unit ? '<small>' + unit + '</small>' : '') + '</span></label>'; };
-      return '<main class="main mflex">' + head + '<section class="pan fxL fxBody" style="flex:1 1 340px" aria-label="기본 모델"><h2>기본 모델</h2>' +
+      return '<main class="main mflex">' + head + '<section class="pan fxL fxBody" style="flex:1 1 340px" aria-label="기본 모델">' + /* 2026-11-19 12차 사용자 지시: 위 탭 「기본 모델」과 겹치는 카드 제목 삭제 */
         /* 2026-11-18 기본 모델도 내 아바타처럼 앞·옆·뒷모습 3장을 같은 크기로 나란히. 옆·뒤 사진은 기본 여성·남성만 있음(assets/avatar_<default|male>_side/back.jpg), 연령대 모델은 「없음」 칸 */
         '<div style="grid-column:1 / -1;display:grid;grid-template-columns:repeat(3,minmax(0,300px));gap:14px">' + ['front'].concat(ANGS).map(function (av) {
           var src = av === 'front' ? b.img : b.ang ? b.ang[av] : b.preset ? '' : 'assets/avatar_' + (b.id === 'male' ? 'male' : 'default') + '_' + av + '.jpg?v=t';
@@ -2184,9 +2183,9 @@
         }).join('') + '</div><p class="sub" style="grid-column:1 / -1">아래에서 모델을 누르면 그 모델로 입어봐요. 내 아바타와 내 치수는 바뀌지 않아요.</p>' +
         '<div class="fxMods" style="grid-column:1 / -1;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px">' +
         BASES.map(function (x) { var on = x.id === b.id; return '<button type="button" class="lk" style="padding:4px;border-style:solid;' + (on ? 'border-color:var(--pri);box-shadow:0 0 0 1px var(--pri);color:var(--pri);' : '') + 'display:flex;flex-direction:column;align-items:center;gap:4px;font-size:13px" aria-pressed="' + on + '" data-act="bPreset" data-id="' + x.id + '" aria-label="' + x.name + ' 기본 모델 고르기"><img src="' + h(x.img) + '" alt="" style="width:100%;aspect-ratio:9/16;object-fit:' + (x.preset ? 'contain' : 'cover') + ';border-radius:8px;background:#fff">' + x.name + (on ? ' ✓' : '') + '</button>'; }).join('') + '</div></section>' +
-        '<section class="pan fxR" style="flex:2 1 520px" aria-label="기본 모델 치수"><h2>' + h(b.name) + ' 치수</h2><p class="sub">읽기 전용이에요. ' + (b.ang ? '키 ' + b.h + 'cm·몸무게 ' + b.w + 'kg 기준' : '한국 ' + (b.preset ? h(b.name.replace(/(남성|여성)$/, ' $1')) : '20대 ' + (b.g === 'male' ? '남성' : '여성')) + ' 평균') + ' 가정치이며, 기본 모델로 입어볼 때는 이 치수로 핏을 계산해요.</p>' +
+        '<section class="pan fxR" style="flex:2 1 520px" aria-label="기본 모델 치수"><h2>' + h(b.name) + ' 치수</h2><p class="sub">읽기 전용 · ' + (b.ang ? '키 ' + b.h + 'cm·몸무게 ' + b.w + 'kg 기준' : '한국 ' + (b.preset ? h(b.name.replace(/(남성|여성)$/, ' $1')) : '20대 ' + (b.g === 'male' ? '남성' : '여성')) + ' 평균') + ' 가정치</p>' + /* 2026-11-19 12차: 스크롤 없게 한 줄로 줄임 */
         '<div class="g3">' + ro('성별', b.g === 'male' ? '남성' : '여성', '') + ro('키', b.h, 'cm') + ro('몸무게', b.w, 'kg') + '</div><h2>자세한 치수</h2><div class="g3">' +
-        MFIELDS.map(function (f, i) { return ro(f[1], b.m[i], f[2]); }).join('') + '</div><div class="callout">내 몸에 맞는 사이즈를 보려면 위에서 「내 아바타」를 골라 내 치수를 넣어 주세요.</div></section></main>';
+        MFIELDS.map(function (f, i) { return ro(f[1], b.m[i], f[2]); }).join('') + '</div><div class="callout">내 사이즈는 「내 아바타」에서 내 치수로 봐요.</div></section></main>';
     }
     return '<main class="main mflex">' + head + '<section class="pan fxL fxBody" style="flex:1 1 340px" aria-label="내 아바타">' + avMakeHead() +
       /* 2026-11-18 앞·옆·뒷모습 3장을 앞모습 큰 사진과 같은 크기(.av, 9:16)로 나란히. fxBody 2칸 배치 대신 가로 전체(grid-column 1/-1)를 씀 */
@@ -2196,9 +2195,9 @@
           /* 2026-11-19 최종 검토 8차(블라인드C 12): 올리기·지우기를 같은 높이 한 줄로, 사진이 있으면 「바꾸기」 */
           '<div class="avbtns"><label class="btn" style="display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--fg);font-size:15px;font-weight:700">' + ANG_NAME[av] + (u ? ' 바꾸기' : ' 올리기') + '<input type="file" class="fhid" accept="image/*" data-file="' + (f ? 'avatar' : 'avatar_' + av) + '" aria-label="' + ANG_NAME[av] + ' 이미지 파일 선택"></label>' + (u ? (f ? '<button type="button" class="lk" data-act="avatarDel">' : '<button type="button" class="lk" data-act="avatarAngDel" data-v="' + av + '">') + '지우기</button>' : '') + '</div></div>';
       }).join('') + '</div>' + avSetupHtml() + '<p class="sub" style="grid-column:1 / -1">' + (urls.avatar ? '앞모습은 직접 올린 내 아바타 사진이에요.' : '앞모습 정면 전신 이미지를 올려 주세요. 올리지 않으면 기본 캐릭터 사진에 내 치수로 입혀 드려요.') + ' 앞모습은 정면 전신, 몸선이 보이는 나시·반바지 차림, 단색 배경 사진이 가장 잘 맞아요. 옆모습·뒷모습은 선택이에요. 올려 두면 옷을 입힐 때 옆·뒤도 골라서 만들 수 있어요(앞 사진과 같은 옷차림·배경의 전신 사진).' + (urls.avatar ? '' : ' 옆·뒤는 앞모습 사진을 먼저 올려야 쓰여요.') + '</p></section>' +
-      '<section class="pan fxR" style="flex:2 1 520px" aria-label="내 치수"><h2>내 치수</h2><p class="sub">성별, 키, 몸무게만 넣어도 시작할 수 있어요.</p><div class="segtoggle" role="group" aria-label="성별"><button type="button" class="' + (p.gender === 'male' ? 'on' : '') + '" data-act="bGender" data-v="male">남성</button><button type="button" class="' + (p.gender !== 'male' ? 'on' : '') + '" data-act="bGender" data-v="female">여성</button></div>' +
+      '<section class="pan fxR" style="flex:2 1 520px" aria-label="내 치수"><div class="bmhead"><h2>내 치수</h2><div class="segtoggle" role="group" aria-label="성별"><button type="button" class="' + (p.gender === 'male' ? 'on' : '') + '" data-act="bGender" data-v="male">남성</button><button type="button" class="' + (p.gender !== 'male' ? 'on' : '') + '" data-act="bGender" data-v="female">여성</button></div></div>' + /* 2026-11-19 12차: 1366×768 에서도 치수 칸이 스크롤되지 않게 「내 치수」 제목 옆에 성별 버튼, 안내 한 줄 삭제·노란 상자 한 줄 */
       '<div class="g2"><label for="h">키<span class="in"><input id="h" type="number" value="' + h(p.height) + '"><small>cm</small></span></label><label for="w">몸무게<span class="in"><input id="w" type="number" value="' + h(p.weight) + '"><small>kg</small></span></label></div>' +
-      '<h2>자세한 치수</h2><div class="callout">모르는 칸은 비워 두세요. 키와 몸무게로 자동 추정해요. 재서 넣을수록 핏이 정확해져요.</div><div class="g3">' +
+      '<h2>자세한 치수</h2><div class="callout">모르는 칸은 비우면 키·몸무게로 추정해요.</div><div class="g3">' +
       MFIELDS.map(function (f, i) { return '<label for="m' + i + '">' + f[1] + '<span class="in"><input id="m' + i + '" type="number" step="0.1" data-mf="' + f[0] + '" placeholder="자동" value="' + h(m[f[0]] == null ? '' : m[f[0]]) + '"><small>' + f[2] + '</small></span></label>'; }).join('') + '</div><button type="button" class="save" data-act="bSave">저장</button></section></main>';
   }
 

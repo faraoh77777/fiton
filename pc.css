@@ -1270,3 +1270,19 @@ button{font-size:14px}
 .pg-fitting .viewer{height:max(600px,calc(100vh - 110px))}
 .pg-fitting .fitside,.pg-fitting .rpanel{max-height:calc(100vh - 110px)}
 }
+/* 2026-11-19 12차 사용자 지시: 내 몸 정보 — 「지금 입어보는 캐릭터」 문구를 빼고 창 전체를 올림. 「입어볼 캐릭터」 제목과 탭을 한 줄로, 「내 치수」 제목 옆에 성별 버튼.
+   왼쪽(내 아바타·기본 모델)과 오른쪽(치수) 카드는 같은 높이로 화면 아래까지(위 줄 82+78+14, 아래 여백 28) — 1366×768 에서도 치수 칸이 스크롤되지 않게. 늘어난 만큼(88px) 내 아바타 보기의 앞·옆·뒤 사진도 키움. 치수 칸 안 간격·노란 상자 위아래 여백을 조금 줄임 */
+.pg-body .bhead{flex-direction:row;flex-wrap:wrap;align-items:center;gap:10px 20px}
+.pg-body .bhead>h2{margin:0}
+.pg-body .bmhead{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.pg-body .bmhead>h2{margin:0}
+.pg-body .bmhead>.segtoggle{flex:0 1 230px}
+@media (min-width:861px){
+.pg-body .main>.fxR,.pg-body .main>.fxL{height:calc(100vh - 204px);max-height:calc(100vh - 204px)}
+.pg-body .main>.fxR{gap:10px;padding:15px 18px}
+.pg-body .main>.fxR .g3,.pg-body .main>.fxR .g2{row-gap:8px}
+.pg-body .main>.fxR .callout{padding:8px 14px}
+.pg-body .fxBody img.av,.pg-body .fxBody div.av{height:clamp(220px,calc(100vh - 442px),533px)}
+.pg-body .fxBody:has(.avset) img.av,.pg-body .fxBody:has(.avset) div.av{height:clamp(200px,calc(100vh - 477px),533px)}
+.pg-body .fxBody:has(.fxMods) img.av,.pg-body .fxBody:has(.fxMods) div.av{height:clamp(150px,calc(100vh - 660px),533px)} /* 기본 모델 보기는 모델 목록이 2줄이라 사진 크기 예전 그대로 */
+}
