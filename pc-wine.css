@@ -1,6 +1,6 @@
 /* FITON for PC — C1 색 버전 (2026-11-12 v2 패션 느낌): 따뜻한 아이보리 바탕 + 와인(버건디) 강조 + 골드 포인트. v1(보라→자홍)은 _시험도구\pc-c1_v1_보라자홍_20261112.css
    pc.css(B 스튜디오, 검정 바탕) 뒤에 읽혀서 색만 바꾼다. 배치·크기·모서리·기능은 pc.css 그대로.
-   pc-c1.html 에서만 읽는다. 검정 버전(pc.html)·밝은 버전(pc-light.html)에는 영향이 없다.
+   pc-wine.html 에서만 읽는다. 검정 버전(pc-black.html)·밝은 버전(pc-white.html)에는 영향이 없다. (2026-11-19 파일 이름 변경: pc-c1 → pc-wine)
    사진 크게 보기·완성 연출·3D 보기(.zoom·#reveal·#d3view)는 사진이 잘 보이도록 어두운 바탕을 그대로 둔다.
    핏 상태 색(맞음·낌·헐렁)은 뜻이 있는 색이라 밝은 버전과 같은 값을 쓴다. */
 :root{--ink:#FAF7F2;--panel:#FFFFFF;--panel2:#F1EBE2;--line:#DDD3C5;--fg:#1A1614;--muted:#6A6058;

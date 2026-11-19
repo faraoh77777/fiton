@@ -16,7 +16,7 @@ const MAX_AV_B64 = 4_000_000; // 내 아바타 base64 길이 상한(약 3MB)
 
 /* 하의 기장: 사이즈표·다리 길이와 상관없이 상품 사진의 스타일 길이대로. 허리·엉덩이·허벅지·밑위는 FIT 문장이 치수대로 그린다 */
 const bottomLen = (img: string) => " The length of the bottoms follows the style in " + img + " regardless of size: full-length trousers end at her ankles, never dragging or too short; cropped styles, shorts and skirts stay as in " + img + ".";
-const BOTTOM_LEN_BODY = " The length of the bottoms is NOT taken from the product photo: it is set by her own leg length as described in the fit below (a shorter person's hems sit lower and longer, a taller person's sit higher).";
+const BOTTOM_LEN_BODY = " The length of the bottoms is set by her own leg length as described in the fit below, NOT by the product photo.";
 const PROMPTS: Record<string, string> = {
   top: "Image 1 is a full-body photo of a woman standing. Image 2 is a product photo of a top. Edit image 1 so she wears exactly the top shown in image 2 (same color, collar, pattern, sleeve length and fit) instead of her current top.",
   bottom: "Image 1 is a full-body photo of a woman standing. Image 2 is a product photo of bottoms. Edit image 1 so she wears exactly the bottoms shown in image 2 (same color, fabric and cut) instead of her current bottoms." + bottomLen("image 2"),
@@ -29,7 +29,8 @@ const PROMPTS: Record<string, string> = {
   layered: "Image 1 is a full-body photo of a woman standing. Image 2 shows a dress and image 3 shows a top. Edit image 1 so she wears exactly that dress (same color, neckline, pattern and hem length) and, layered over the dress, exactly that top (same color, collar, pattern and sleeve style) instead of her current clothes. The top is worn on top of the dress: it covers the upper part of the dress, and the dress's skirt shows below the top's hem.",
   shoe: "Image 1 is a full-body photo of a woman standing barefoot. Image 2 is a product photo of shoes. Edit image 1 so she wears exactly the shoes shown in image 2 (same color and design).",
 };
-const KEEP = " Keep her face, hair, pose, body proportions, the other clothing, the plain gray background and the framing unchanged. Photorealistic result. Do not add text, logos or accessories. Her neck, ears and wrists stay bare skin: add no necklace, earrings, watch, bracelet, scarf or any jewelry or accessory; the neckline shows only the garment's own collar.";
+const NO_ACC = " No text, logos, jewelry or accessories (no necklace, earrings, watch, bracelet or scarf). Collars keep their full height (a mock neck or turtleneck covers her neck).";
+const KEEP = " Keep her face, hair, pose, body proportions, the other clothing, the plain gray background and the framing unchanged. Photorealistic." + NO_ACC;
 
 /* 2026-11-04 사용자 결정: 사진 없이 고를 수 있는 신발 종류(많이 쓰는 것 기본 세팅). 옷장에 사진으로 등록한 신발(image 3)이 있으면 그게 우선 */
 const SHOE_TYPES: Record<string, { female: string; male: string }> = {
@@ -76,7 +77,7 @@ function extractPrompt(ex: Ex) {
 }
 
 /* 내 아바타를 쓸 때: 몸은 한 픽셀도 바꾸지 말고 옷만 바꾼다(핏 확인용이라 체형이 달라지면 안 된다) */
-const KEEP_BODY = " This is a fit-check: the person's body must stay IDENTICAL to image 1. Do NOT slim, widen, lengthen, reshape or retouch the body. Keep exactly the same height, head size, shoulder width, bust, waist, hip and thigh widths, arm and leg thickness and length, body silhouette, skin, face, hair, pose, hands, the plain background and the framing, pixel-aligned with image 1. Change ONLY the clothing item named above, and render it realistically at its true cut and fit on that unchanged body (tight where it is tight, loose where it is loose, do not tailor it to flatter the body). Keep every other garment as it is. Photorealistic result. Do not add text, logos or accessories. Her neck, ears and wrists stay bare skin: add no necklace, earrings, watch, bracelet, scarf or any jewelry or accessory; the neckline shows only the garment's own collar.";
+const KEEP_BODY = " This is a fit-check: her body stays IDENTICAL to image 1, pixel-aligned: same height, head size, shoulders, bust, waist, hips, thighs, arm and leg length and thickness, skin, face, hair, pose, hands, background and framing. Do NOT slim, widen, lengthen or reshape her body. Change ONLY the clothing item named above, at its true cut and fit (tight where tight, loose where loose, never tailored to flatter her). Keep every other garment as it is. Photorealistic." + NO_ACC;
 
 function toMale(t: string, male: boolean) {
   return male ? t.replace(/a woman/g, "a man").replace(/\bshe\b/g, "he").replace(/\bher\b/g, "his").replace(/\bShe\b/g, "He").replace(/\bHer\b/g, "His") : t;
@@ -85,14 +86,38 @@ function toMale(t: string, male: boolean) {
 /* 앱이 계산한 여유(옷 둘레 − 몸 둘레, cm)를 영어 핏 설명으로 바꾼다. 숫자만 받으므로 임의 문장이 프롬프트에 들어갈 수 없다 */
 const FIT_AREAS: Record<string, string> = { chest: "bust/chest", waist: "waist", hip: "hips", thigh: "thighs" };
 function fitWord(e: number) {
-  if (e < -4) return "much too small: the fabric is stretched taut, clinging and straining with visible tension wrinkles, riding up, and cannot close or sit properly";
-  if (e < 0) return "tight: clinging to the body with slight stretch lines";
+  if (e < -4) return "much too small: stretched taut, straining with tension wrinkles, unable to close or sit properly";
+  if (e < 0) return "tight, clinging with slight stretch lines";
   if (e < 4) return "snug and close to the body";
-  if (e < 10) return "a regular comfortable fit with light drape";
-  if (e < 18) return "relaxed and loose with visible folds and extra fabric";
-  return "oversized and baggy: much too big, the fabric hangs loosely in deep folds";
+  if (e < 10) return "a regular fit with light drape";
+  if (e < 18) return "relaxed and loose with visible folds";
+  return "oversized and baggy, hanging loosely in deep folds";
 }
 /* 길이 정보(앱이 계산한 숫자만 받음): 어깨선·소매·밑위(cm 차이), 총장(밑단 높이/키 비율) */
+/* 2026-11-18 바지 기장·부츠 문장만 따로(fitText 와 multi 경로가 같이 쓴다) */
+function bottomHemLines(len: Record<string, unknown>): string[] {
+  const out: string[] = [];
+  const hemTo = hemToOf(len);
+  const bootsOn = !!len.boots && (hemTo ? (hemTo === "foot" || hemTo === "floor") : (lenNum(len, "leg", -80, 40) ?? -99) >= -12);
+  /* 2026-11-16 부츠 풀렝스: 「신발 윗부분을 덮는다」 문장 대신 부츠 목을 덮는 문장만 쓴다(서로 부딪히지 않게). 부츠 문장은 신발 문장 바로 뒤에도 한 번 더 나간다(buildPrompt) */
+  if (hemTo) out.push(bootsOn ? "the hems are full length and fall down over the boots, completely covering the boot shafts" : HEM_TO_TEXT[hemTo]);
+  /* 2026-11-16 부츠: 풀렝스 가지(길게·바닥·자동에서 다리보다 길거나 맞는 경우)만 밑단이 부츠 목을 덮게 한다 */
+  if (bootsOn && !hemTo) out.push(BOOTS_COVER);
+  /* 2026-11-16 기준 보정(사용자 검토): leg 는 바닥 기준 차이. 발목뼈는 바닥에서 약 ANKLE_H cm 위라서 「발목 위 N cm」는 −leg−ANKLE_H 가 맞다.
+     신발을 신으면 밑단 높이가 굽(shoeH, cm)만큼 올라가므로 바닥에 끌리는 기준만 shoeH 만큼 늦춘다(발목은 신발과 같이 올라가 상쇄) */
+  const shoeH = lenNum(len, "shoeH", 0, 12) ?? 0;
+  const lg = hemTo ? null : lenNum(len, "leg", -80, 40), lp = lenNum(len, "legPos", 0, 2);
+  if (lg !== null) {
+    if (lg < -12) {
+      if (lp !== null) out.push(lp < 0.2 ? "the legs end high on her upper thighs" : lp < 0.35 ? "the hem ends at her mid-thighs" : lp < 0.5 ? "the hem ends around her knees" : lp < 0.7 ? "the hem ends just below her knees" : "the hem ends on her calves, well above her ankles");
+    }
+    else if (lg >= 3 + shoeH) out.push("the bottoms are about " + Math.round(lg - shoeH) + " cm too long for her legs: the hems pile up on her shoes and touch the floor, bunching around her ankles");
+    else if (lg >= 0) out.push("the hems fall onto the tops of her feet with a slight break");
+    else if (lg >= -ANKLE_H) out.push("the hems end right at her ankle bones");
+    else out.push("the hems end about " + Math.max(1, Math.round(-lg - ANKLE_H)) + " cm above her ankles, clearly showing her ankles; these bottoms are too short for her, so draw them visibly short and do NOT lengthen them, even if the product photo shows them longer");
+  }
+  return out;
+}
 function lenNum(len: Record<string, unknown>, k: string, lo: number, hi: number): number | null {
   if (len[k] == null) return null;
   const v = Number(len[k]);
@@ -105,8 +130,8 @@ const HEM_TO_TEXT: Record<string, string> = {
   floor: "the hems are full length: they cover the tops of her shoes and almost touch the floor, with the fabric bunching slightly at the shoes",
 };
 const ANKLE_H = 6; // 발목뼈 높이(cm, 바닥 기준 평균)
-const BOOTS_COVER = "she is wearing boots, and the trouser hems fall over the boot shafts, covering the top of the boots so no gap shows between the hems and the boots";
-const BOOTS_EARLY = " IMPORTANT: her trouser legs are long and fully cover her boots. The hems hang down over the entire boot shafts and rest on the toes of the boots, so the boot shafts are completely hidden under the fabric: no boot top, no bare ankle and no gap is visible, and only the toe caps of the boots show below the hems.";
+const BOOTS_COVER = "the trouser hems fall over her boot shafts with no gap";
+const BOOTS_EARLY = " IMPORTANT: her trouser legs are long and fully cover her boots: the hems fall over the entire boot shafts onto the boot toes; no boot top, bare ankle or gap shows, only the toe caps.";
 /* 하의 핏의 부츠 풀렝스 여부(앱이 보낸 boots 와 바지 길이만 본다) */
 function bootsFull(fit: unknown): boolean {
   const len = (fit as { len?: Record<string, unknown> } | undefined)?.len;
@@ -125,7 +150,7 @@ function lenText(fit: unknown, cat: string): string[] {
   if (cat === "top" || cat === "dress") {
     const sh = lenNum(len, "shoulder", -20, 30);
     if (sh !== null) {
-      if (sh <= -2) out.push("the shoulder seams sit inside her shoulder points, pulling tight across the upper back and shoulders");
+      if (sh <= -2) out.push("the shoulder seams sit inside her shoulder points, pulling tight across the shoulders");
       else if (sh >= 4) out.push("the shoulder seams drop about " + Math.round(sh) + " cm down onto her upper arms");
       else if (sh >= 1) out.push("the shoulder seams sit slightly past her shoulder points");
     }
@@ -139,7 +164,7 @@ function lenText(fit: unknown, cat: string): string[] {
       else out.push("the sleeves end on her forearms");
     } else if (sl !== null) {
       if (sl < -3) out.push("the sleeves end about " + Math.round(-sl) + " cm above her wrists, exposing the wrists");
-      else if (sl >= 5) out.push("the sleeves are clearly too long: the cuffs hang about " + Math.round(sl) + " cm past her wrists and cover her hands, and the extra sleeve fabric bunches in folds above the cuffs");
+      else if (sl >= 5) out.push("the sleeves are clearly too long: the cuffs hang about " + Math.round(sl) + " cm past her wrists, covering her hands, with bunched folds");
       else if (sl >= 1) out.push("the sleeves end slightly past her wrists");
       else out.push("the sleeves end at her wrists");
     }
@@ -175,34 +200,16 @@ function lenText(fit: unknown, cat: string): string[] {
     /* 2026-11-13 사용자 결정 변경(키 작은 사람·큰 사람이 같은 느낌이면 핏 의미가 없음): 바지·스커트 기장도 앱이 계산한 값으로 그린다.
        leg = 옷 인심(또는 총장-밑위) − 다리 인심(cm), legPos = 옷/다리 비율. 앞(2026-11-06)에는 상품 사진 길이만 따랐다 */
     /* 2026-11-13 사용자가 고른 바지 길이(자동이면 hemTo 없음): 계산값 대신 이 문장을 쓴다 */
-    const hemTo = hemToOf(len);
-    const bootsOn = !!len.boots && (hemTo ? (hemTo === "foot" || hemTo === "floor") : (lenNum(len, "leg", -80, 40) ?? -99) >= -12);
-    /* 2026-11-16 부츠 풀렝스: 「신발 윗부분을 덮는다」 문장 대신 부츠 목을 덮는 문장만 쓴다(서로 부딪히지 않게). 부츠 문장은 신발 문장 바로 뒤에도 한 번 더 나간다(buildPrompt) */
-    if (hemTo) out.push(bootsOn ? "the hems are full length and fall down over the boots, completely covering the boot shafts" : HEM_TO_TEXT[hemTo]);
-    /* 2026-11-16 부츠: 풀렝스 가지(길게·바닥·자동에서 다리보다 길거나 맞는 경우)만 밑단이 부츠 목을 덮게 한다 */
-    if (bootsOn && !hemTo) out.push(BOOTS_COVER);
-    /* 2026-11-16 기준 보정(사용자 검토): leg 는 바닥 기준 차이. 발목뼈는 바닥에서 약 ANKLE_H cm 위라서 「발목 위 N cm」는 −leg−ANKLE_H 가 맞다.
-       신발을 신으면 밑단 높이가 굽(shoeH, cm)만큼 올라가므로 바닥에 끌리는 기준만 shoeH 만큼 늦춘다(발목은 신발과 같이 올라가 상쇄) */
-    const shoeH = lenNum(len, "shoeH", 0, 12) ?? 0;
-    const lg = hemTo ? null : lenNum(len, "leg", -80, 40), lp = lenNum(len, "legPos", 0, 2);
-    if (lg !== null) {
-      if (lg < -12) {
-        if (lp !== null) out.push(lp < 0.2 ? "the legs end high on her upper thighs" : lp < 0.35 ? "the hem ends at her mid-thighs" : lp < 0.5 ? "the hem ends around her knees" : lp < 0.7 ? "the hem ends just below her knees" : "the hem ends on her calves, well above her ankles");
-      }
-      else if (lg >= 3 + shoeH) out.push("the bottoms are about " + Math.round(lg - shoeH) + " cm too long for her legs: the hems pile up on top of her shoes and touch the floor, bunching in loose folds around her ankles");
-      else if (lg >= 0) out.push("the hems fall onto the tops of her feet with a slight break");
-      else if (lg >= -ANKLE_H) out.push("the hems end right at her ankle bones");
-      else out.push("the hems end about " + Math.max(1, Math.round(-lg - ANKLE_H)) + " cm above her ankles, clearly showing her ankles and the top of her shoes; these bottoms are too short for her legs, so draw them visibly short and do NOT extend or lengthen the legs to reach her ankles or the floor, even if the product photo shows them longer on the model");
-    }
+    out.push(...bottomHemLines(len));
   }
   return out;
 }
 /* 원단(앱 소재 코드 중 정해진 값만 받음): 신축·뻣뻣함에 따라 작을 때·클 때 모습이 달라진다.
    'normal'(일반)은 등록 기본값이라 실제 소재를 모르는 것으로 보고 아무 문장도 넣지 않는다 */
 const FABRIC_EN: Record<string, string> = {
-  stretch: "stretch-woven fabric that follows the body smoothly",
-  knit: "soft knit with visible stitches that stretches over the body",
-  denim: "rigid heavyweight denim that holds its shape",
+  stretch: "stretch-woven fabric",
+  knit: "soft stretchy knit",
+  denim: "rigid heavyweight denim",
 };
 const FABRIC_STRETCHY = new Set(["stretch", "knit"]);
 const FABRIC_STIFF = new Set(["denim"]);
@@ -212,21 +219,25 @@ function fabricText(fit: unknown): string {
   const ease = (fit as { ease?: Record<string, unknown> }).ease;
   let minEase: number | null = null; /* 가장 꼭 끼는 부위 기준: 하나라도 작으면 '작음', 전부 14cm 이상 남으면 '큼' */
   if (ease && typeof ease === "object") for (const v of Object.values(ease)) { const n = Number(v); if (isFinite(n) && (minEase === null || n < minEase)) minEase = n; }
-  let t = " The garment is made of " + FABRIC_EN[code] + ".";
-  if (minEase !== null && minEase < 0) t += FABRIC_STRETCHY.has(code) ? " Because it stretches, the too-small size stretches over her body and clings tightly, the fabric pulled thin and smooth rather than wrinkled." : " Because it does not stretch, the too-small size strains with sharp tension wrinkles and cannot sit flat.";
-  else if (minEase !== null && minEase >= 14) t += FABRIC_STIFF.has(code) ? " The oversized fabric stands away from her body stiffly in boxy angular folds." : " The oversized fabric hangs loosely in soft folds.";
-  return t;
+  let t = " The garment is made of " + FABRIC_EN[code];
+  if (minEase !== null && minEase < 0) t += FABRIC_STRETCHY.has(code) ? ", so the too-small size clings tightly, pulled thin and smooth rather than wrinkled" : ", so the too-small size strains with sharp tension wrinkles";
+  else if (minEase !== null && minEase >= 14) t += FABRIC_STIFF.has(code) ? ", so the oversized fabric stands away stiffly in boxy folds" : ", so the oversized fabric hangs in soft folds";
+  return t + ".";
 }
 function fitText(fit: unknown, cat: string) {
   if (!fit || typeof fit !== "object") return "";
   const ease = (fit as { ease?: Record<string, unknown> }).ease;
   const order = cat === "bottom" ? ["waist", "hip", "thigh"] : cat === "dress" ? ["chest", "waist", "hip"] : ["chest"];
   const out: string[] = [];
+  /* 2026-11-18 같은 핏 말은 부위를 묶어 한 번만(문장 길이 줄이기) */
+  const grp: { areas: string[]; w: string }[] = [];
   if (ease && typeof ease === "object") for (const k of order) {
     const v = Number(ease[k]);
     if (ease[k] == null || !isFinite(v)) continue;
-    out.push("at her " + FIT_AREAS[k] + " it is " + fitWord(Math.max(-30, Math.min(50, v))));
+    const w = fitWord(Math.max(-30, Math.min(50, v))), g = grp.find((x) => x.w === w);
+    if (g) g.areas.push(FIT_AREAS[k]); else grp.push({ areas: [FIT_AREAS[k]], w });
   }
+  for (const g of grp) out.push("at her " + (g.areas.length > 1 ? g.areas.slice(0, -1).join(", ") + " and " + g.areas[g.areas.length - 1] : g.areas[0]) + " it is " + g.w);
   out.push(...lenText(fit, cat));
   return out.length ? " FIT OF THE GARMENT (the garment's real size relative to her body, show it visibly in the image): " + out.join("; ") + ". Draw the garment's size honestly, scaled to its true size relative to her unchanged body, never resized to flatter her." + fabricText(fit) : fabricText(fit);
 }
@@ -289,7 +300,7 @@ function keepOthersText(cat: string, male: boolean, shoeName: string | null, sho
   if (cat === "outfit" || cat === "layered" || cat === "outfit3") {
     const si = cat === "outfit3" ? "image 5" : "image 4";
     return (shoeName !== null
-      ? " On her feet she wears exactly the shoes" + (shoeName ? " (" + shoeName + ")" : "") + " from " + si + " (same color and design), worn properly: both feet fully inside, heels seated in the shoes with the back not crushed or folded, both soles flat on the floor, nothing else from " + si + "; ignore any person in " + si + "."
+      ? " On her feet she wears exactly the shoes" + (shoeName ? " (" + shoeName + ")" : "") + " from " + si + " (same color and design), worn properly: feet fully inside, heels seated, backs not crushed, soles flat on the floor; take nothing else from " + si + "."
       : " On her feet she wears " + typeDesc + ", NOT shoes from " + (cat === "outfit3" ? "image 2, image 3 or image 4" : "image 2 or image 3") + ".") + hands;
   }
   if (cat === "top") return " Keep her current bottoms from image 1 exactly as they are (same type, length and color); do not take the trousers, skirt, shorts or shoes from image 2." + feet + hands;
@@ -337,7 +348,7 @@ async function kl(path: string, init: RequestInit = {}) {
   return d.data ?? {};
 }
 /* 문장 안의 'image 1/2' 를 Kling 의 그림 참조(<<<image_1>>>)로 바꾸고, 길이 상한을 넘으면 몸 유지 문장을 짧은 것으로, 그래도 넘으면 문장 끝에서 자른다 */
-const KEEP_BODY_SHORT = " This is a fit-check: keep the person's body IDENTICAL to image 1 (same height, proportions, shoulder, bust, waist, hip, arm and leg widths and lengths, skin, face, hair, pose, hands, background and framing). Do NOT slim or reshape the body. Change ONLY the clothing item named above, at its true cut and fit. Keep every other garment. Photorealistic. No text, logos or accessories. Her neck, ears and wrists stay bare skin: add no necklace, earrings, watch, bracelet, scarf or any jewelry or accessory; the neckline shows only the garment's own collar.";
+const KEEP_BODY_SHORT = " This is a fit-check: keep her body IDENTICAL to image 1 (same height, proportions, widths, lengths, skin, face, hair, pose, hands, background and framing). Do NOT slim or reshape her body. Change ONLY the clothing item named above, at its true cut and fit. Keep every other garment. Photorealistic." + NO_ACC;
 /* 2026-11-13 입는 모양: 겉옷 열기/잠그기, 상의·이너 바지에 넣기/빼기. 첫 문장 바로 뒤에 넣어 상한에 걸려 끝이 잘려도 남게 한다 */
 type WearStyle = { outer?: string; tuck?: string; belt?: string };
 function styleOfBody(v: unknown): WearStyle | undefined {
@@ -349,20 +360,27 @@ function styleOfBody(v: unknown): WearStyle | undefined {
 }
 function styleText(st?: WearStyle) {
   if (!st) return "";
-  let t = "";
-  if (st.outer === "closed") t += " IMPORTANT STYLING: keep the outer layer's exact design from its product photo (collar, lapels, belt, cut, silhouette, length, color); do NOT redesign it. Only the front is worn CLOSED: the front edges meet and overlap, closed in the garment's own way (buttons fastened if it has buttons, zipper up if it has a zipper, belt tied if it is a wrap or belted style), so nothing of the front opening is visible. The layers underneath show only at the collar, cuffs and hem.";
-  else if (st.outer === "open") t += " IMPORTANT STYLING (overrides how the garments look in the product photos): the outer layer (jacket, coat or cardigan) is worn OPEN at the front: buttons undone or zipper pulled down, the front edges hanging apart so the layer underneath shows.";
-  if (st.tuck === "in") t += " IMPORTANT STYLING: the shirt or inner top is TUCKED IN: its hem goes inside the bottoms, the waistband of the bottoms is clearly visible at her waist, and no part of the top hangs over it.";
-  else if (st.tuck === "out") t += " IMPORTANT STYLING: the shirt or inner top is worn UNTUCKED: its hem hangs outside and over the top edge of the bottoms, covering the waistband, and the waistband of the bottoms is not visible.";
-  if (st.belt === "on") t += " IMPORTANT STYLING: she wears a trouser belt (waist belt) through the loops of the bottoms, always fastened with its buckle, visible at the waist; choose a belt color that suits the outfit and shoes.";
-  else if (st.belt === "off") t += " She wears no trouser belt.";
-  return t;
+  /* 2026-11-18 짧게 정리(뜻은 같음): 앞에 IMPORTANT STYLING 한 번만 */
+  const p: string[] = [];
+  if (st.outer === "closed") p.push("the outer layer keeps its exact product-photo design but is worn CLOSED in its own way (buttoned, zipped or tied); layers underneath show only at the collar, cuffs and hem");
+  else if (st.outer === "open") p.push("the outer layer is worn OPEN at the front (unbuttoned or unzipped, front edges apart) so the layer underneath shows, even if the product photo shows it closed");
+  if (st.tuck === "in") p.push("the shirt or inner top is TUCKED IN, its hem inside the bottoms with the waistband clearly visible");
+  else if (st.tuck === "out") p.push("the shirt or inner top is worn UNTUCKED, its hem hanging over and hiding the waistband");
+  if (st.belt === "on") p.push("she wears a fastened trouser belt with a buckle at the waist, in a color that suits the outfit");
+  const t = p.length ? " IMPORTANT STYLING: " + p.join("; ") + "." : "";
+  return t + (st.belt === "off" ? " She wears no trouser belt." : "");
 }
-function klPrompt(build: (keepBody: string) => string, semi = false, st?: WearStyle) {
+function klPrompt(build: (keepBody: string, tight?: boolean) => string, semi = false, st?: WearStyle) {
   const sty = styleText(st);
-  const conv = (t: string) => { const i = sty ? t.indexOf(". ") : -1; if (i > 0) t = t.slice(0, i + 1) + sty + t.slice(i + 1); if (st?.outer === "closed") t = t.replace(" and stays visible at its opening", " and shows only at the collar and cuffs").replace("The inner layers stay visible at the opening of the outer layer.", "The inner layers show only at the collar, cuffs and hem of the outer layer."); return t.replace(/\b[Ii]mage ([123456])\b/g, "<<<image_$1>>>"); };
+  const conv = (t: string) => { const i = sty ? t.indexOf(". ") : -1; if (i > 0) t = t.slice(0, i + 1) + sty + t.slice(i + 1); if (st?.outer === "closed") t = t.replace(" and stays visible at its opening", "").replace(" The inner layers stay visible at the opening of the outer layer.", ""); /* 2026-11-18 잠그기: 「안쪽은 깃·소매·밑단에만」은 STYLING 문장에 이미 있음 */ return t.replace(/\b[Ii]mage ([123456])\b/g, "<<<image_$1>>>"); };
   let t = conv(build(KEEP_BODY));
   if (t.length > KL_PROMPT_MAX) t = conv(build(KEEP_BODY_SHORT));
+  /* 2026-11-18 그래도 넘으면 끝에서 무작정 자르기 전에 덜 중요한 문장부터 뺀다: 원단 → 성별 재단 → 「크기 정직하게」 반복 문장. 핵심(몸 유지·장신구·깃·신발·기장)은 앞에 있어 남는다 */
+  const drops = [/ The (garment|top|bottoms|dress) (is|are) made of [^.]*\./g, / Keep the original (women's|men's) cut of [^.]*\./g, / GARMENT CUT: [^.]*\.[^.]*\./g, / Show each garment's real size honestly on [^.]*\./g, / Draw the garment's size honestly[^.]*\./g];
+  const dropAll = (x: string) => { for (const re of drops) { if (x.length <= KL_PROMPT_MAX) break; x = x.replace(re, ""); } return x; };
+  t = dropAll(t);
+  /* 그래도 넘으면 상품 이름을 짧게(30자) 해서 다시 만든다: 이름이 길어 몸 유지·깃 문장까지 잘리던 경우 */
+  if (t.length > KL_PROMPT_MAX) t = dropAll(conv(build(KEEP_BODY_SHORT, true)));
   if (t.length > KL_PROMPT_MAX) { t = t.slice(0, KL_PROMPT_MAX); const i = semi ? Math.max(t.lastIndexOf(". "), t.lastIndexOf("; ")) : t.lastIndexOf(". "); if (i > 0) t = t.slice(0, i) + "."; } /* semi: 두 벌 입히기는 핏이 ';'로 이어진 한 문장이라 '.'로만 자르면 옷 하나의 핏이 통째로 사라진다 */
   return t;
 }
@@ -377,9 +395,15 @@ function outfitFit(fit: unknown, fit2: unknown) {
   const fab = fabB.replace("The garment is made of", "The bottoms are made of") + fabT.replace("The garment is made of", "The top is made of");
   return top || bot || fab ? " Show each garment's real size honestly on her unchanged body, never resized to flatter her." + bot + top + fab : "";
 }
+/* 2026-11-18 두 벌 재단 문장: 같은 성별이면 한 문장으로 */
+function cutPair(g: unknown, c1: string, l1: string, g2: unknown, c2: string, l2: string, male: boolean) {
+  const a = cutText(g, male, c1) ? String(g) : "", b = cutText(g2, male, c2) ? String(g2) : "";
+  const s1 = (v: string, lab: string) => " Keep the original " + (v === "female" ? "women's" : "men's") + " cut of the " + lab;
+  if (a && a === b) return s1(a, l1 + " and " + l2) + "; do not re-tailor them.";
+  return (a ? s1(a, l1) + "; do not re-tailor it." : "") + (b ? s1(b, l2) + "; do not re-tailor it." : "");
+}
 function outfitCut(g: unknown, g2: unknown, male: boolean) {
-  const one = (v: unknown, cat: string, label: string) => cutText(v, male, cat) ? " Keep the original " + (v === "female" ? "women's" : "men's") + " cut of the " + label + "; do not re-tailor it." : "";
-  return one(g, "top", "top") + one(g2, "bottom", "bottoms");
+  return cutPair(g, "top", "top", g2, "bottom", "bottoms", male);
 }
 /* 몸 유지 문장은 '옷 하나만 바꿔라'로 되어 있어 두 벌에 맞게 고친다 */
 function outfitKeep(t: string) {
@@ -395,8 +419,7 @@ function layeredFit(fit: unknown, fit2: unknown) {
   return dr || top || fab ? " Show each garment's real size honestly on her unchanged body, never resized to flatter her." + dr + top + fab : "";
 }
 function layeredCut(g: unknown, g2: unknown, male: boolean) {
-  const one = (v: unknown, cat: string, label: string) => cutText(v, male, cat) ? " Keep the original " + (v === "female" ? "women's" : "men's") + " cut of the " + label + "; do not re-tailor it." : "";
-  return one(g, "dress", "dress") + one(g2, "top", "top");
+  return cutPair(g, "dress", "dress", g2, "top", "top", male);
 }
 type Second = { bytes: Uint8Array; name: string; fit?: unknown; garmentGender?: unknown };
 /* 보낼 문장 전체(시험에서도 이 함수를 그대로 쓴다) */
@@ -407,7 +430,10 @@ function buildPrompt(male: boolean, cat: string, mine: boolean, fit: unknown, ga
   const thirdName = e3 ? e3.desc : (third?.name ?? "");
   if (e1) name = e1.desc;
   if (e2 && second) second = { ...second, name: e2.desc };
-  return klPrompt((kb) => {
+  const nm0 = name, sec0 = second, th0 = thirdName, sh0 = shoeName;
+  return klPrompt((kb, tight) => {
+    const cutN = (v: string) => tight ? v.slice(0, 30).trim() : v;
+    name = cutN(nm0); second = sec0 ? { ...sec0, name: cutN(sec0.name) } : sec0; const thirdName = cutN(th0); const shoeName = sh0 === null ? null : cutN(sh0);
     const keep = mine ? kb : KEEP;
     const t = cat === "outfit"
       /* 몸 유지 문장을 핏 문장보다 앞에 둔다: 상한을 넘어 끝이 잘려도 얼굴·몸 유지는 남고, 하의 핏(허리·엉덩이)이 상의 핏보다 먼저 온다 */
@@ -416,7 +442,7 @@ function buildPrompt(male: boolean, cat: string, mine: boolean, fit: unknown, ga
       ? toMale(PROMPTS.outfit3 + nameText(cat, name, second?.name ?? "", e1) + keepOthersText(cat, male, shoeName, shoeType) + outfitKeep(keep).replace("the top, bottoms and shoes described above", "the top, bottoms, outer layer and shoes described above"), male) + outfitCut(garmentGender, second?.garmentGender, male) + toMale(outfitFit(fit, second?.fit), male)
       : cat === "layered"
       ? toMale(PROMPTS.layered + nameText(cat, name, second?.name ?? "") + keepOthersText(cat, male, shoeName, shoeType) + outfitKeep(keep).replace("the top, bottoms and shoes described above", "the dress, top and shoes described above"), male) + layeredCut(garmentGender, second?.garmentGender, male) + toMale(layeredFit(fit, second?.fit), male)
-      : toMale((cat === "top" && e1?.outer ? topOuterPrompt(e1) : PROMPTS[cat]) + nameText(cat, name, "", e1) + keepOthersText(cat, male, shoeName, shoeType) + fitText(fit, cat) + keep, male) + cutText(garmentGender, male, cat);
+      : toMale((cat === "top" && e1?.outer ? topOuterPrompt(e1) : PROMPTS[cat]) + nameText(cat, name, "", e1) + keepOthersText(cat, male, shoeName, shoeType) + keep + fitText(fit, cat), male) + cutText(garmentGender, male, cat); /* 2026-11-18 몸 유지·장신구·깃 문장을 핏보다 앞에(상한에 걸리면 핏 끝부터 잘림) */
     /* 2026-11-13: 하의 기장을 계산값으로 보낼 때(긴 바지·스커트)는 「크기와 상관없이 발목에서 끝남」 문장을 빼고 계산값을 따르라고 한다(서로 반대 지시 방지) */
     const bfit = cat === "bottom" ? fit : (cat === "outfit" || cat === "outfit3") ? second?.fit : null, blgLen = bfit ? (((bfit as { len?: Record<string, unknown> }).len ?? {}) as Record<string, unknown>) : null, blg = blgLen ? (hemToOf(blgLen) ? 0 : lenNum(blgLen, "leg", -80, 40)) : null;
     const bl = bottomLen(cat === "outfit" || cat === "outfit3" ? "image 3" : "image 2");
@@ -425,7 +451,7 @@ function buildPrompt(male: boolean, cat: string, mine: boolean, fit: unknown, ga
     const tb = bootsFull(bootsFit) ? t.replace(" Her " + HANDS_END, " Her " + HANDS_END + BOOTS_EARLY).replace(" His " + HANDS_END, " His " + HANDS_END + toMale(BOOTS_EARLY, true)) : t;
     const t2 = blg !== null ? tb.replace(bl, BOTTOM_LEN_BODY).replace(toMale(bl, true), toMale(BOTTOM_LEN_BODY, true)) : tb;
     return t2.split("@@NAME3@@").join(thirdName).split("@@NAME2@@").join(second?.name ?? "").split("@@NAME@@").join(name);
-  }, cat === "outfit" || cat === "layered" || cat === "outfit3", wst);
+  }, true, wst); /* 2026-11-18 한 벌도 핏이 ';' 로 이어진 한 문장이라 semi 로 자른다 */
 }
 /* 접수: 사진 두 장(base64)과 문장을 보내고 번호(task_id)를 돌려준다. 오래 붙잡지 않는다 */
 /* 옷만 뽑기 접수: 상품 사진 한 장만 보낸다(아바타 없음), 상품 사진 비율 3:4 */
@@ -442,7 +468,7 @@ async function submitExtract(garmentBytes: Uint8Array, ex: Ex) {
 /* 2026-11-13 사용자 결정: 이너(조끼 등)를 포함해 신발까지 5가지. cat=multi — items 는 원피스·상의·이너·하의·겉옷 중 2~4벌(원피스와 하의는 같이 못 입음).
    그림 순서: 1 아바타, 2.. 옷(원피스→상의→이너→하의→겉옷 순), 마지막 신발(고른 경우). 겹침 순서: 안쪽 원피스/상의 → 이너(상의 위) → 겉옷(맨 바깥) */
 const MULTI_ROLES = ["dress", "top", "inner", "bottom", "outer"];
-const ROLE_DESC: Record<string, string> = { dress: "a dress", top: "a top", inner: "an inner layer (a vest or another light top)", bottom: "bottoms", outer: "an outer layer (a jacket or coat)" };
+const ROLE_DESC: Record<string, string> = { dress: "a dress", top: "a top", inner: "an inner layer (a vest or light top)", bottom: "bottoms", outer: "an outer layer (a jacket or coat)" };
 const ROLE_THE: Record<string, string> = { dress: "the dress", top: "the top", inner: "the inner layer", bottom: "the bottoms", outer: "the outer layer" };
 type MItem = { role: string; bytes: Uint8Array; name: string; fit?: unknown; garmentGender?: unknown; ex?: Ex | null };
 function buildMultiPrompt(male: boolean, mine: boolean, items: Omit<MItem, "bytes">[], shoe: { name: string } | undefined, shoeType: string | null, wst?: WearStyle) {
@@ -451,29 +477,39 @@ function buildMultiPrompt(male: boolean, mine: boolean, items: Omit<MItem, "byte
   const idx = (r: string) => items.findIndex((i) => i.role === r) + 2;
   const list = items.map((it, k) => "image " + (k + 2) + " shows " + ROLE_DESC[it.role]);
   const listTxt = list.length > 1 ? list.slice(0, -1).join(", ") + " and " + list[list.length - 1] : list[0];
-  const layers = [has("dress") ? "the dress" : "", has("top") ? "the top" : "", has("inner") ? "the inner layer (worn over the top or dress, not under it)" : "", has("outer") ? "the outer layer over everything" : ""].filter(Boolean);
+  const layers = [has("dress") ? "the dress" : "", has("top") ? "the top" : "", has("inner") ? (has("top") || has("dress") ? "the inner layer" : "the inner layer (over the top or dress, not under it)") : "", has("outer") ? "the outer layer over everything" : ""].filter(Boolean);
   const layering = layers.length > 1 ? " Layering from the inside out: " + layers.join(", then ") + (has("outer") ? ". The inner layers stay visible at the opening of the outer layer." : ".") : "";
   const nums = items.map((_, k) => String(k + 2));
   const numsTxt = nums.length > 1 ? "Images " + nums.slice(0, -1).join(", ") + " and " + nums[nums.length - 1] : "Image " + nums[0];
   const takes = items.map((it, k) => "ONLY " + (it.name || it.ex ? "the @@N" + k + "@@" : ROLE_THE[it.role]) + " from image " + (k + 2));
-  const names = " " + numsTxt + " may be model photos: take " + takes.join(", ") + "; ignore the models' faces, hair, bodies, shoes, jewelry (necklaces, earrings, watches), bags, belts, scarves and all other accessories and clothing there. She wears no necklace or other jewelry and no accessories. Her neckline shows only the collar or neckline of the garments themselves. She is fully and modestly dressed and nothing of her old clothes remains visible.";
+  const names = " " + numsTxt + " may be model photos: take " + takes.join(", ") + "; ignore everything else there (the models' faces, hair, bodies, shoes, jewelry, bags, belts, scarves and other clothing). She is fully and modestly dressed and nothing of her old clothes remains visible.";
   const typeDesc = (SHOE_TYPES[shoeType ?? ""] ?? SHOE_TYPES.pumps)[male ? "male" : "female"];
-  const hands = " Her arms and hands stay exactly as in image 1; do not put her hands in pockets. Her feet and shoes stay fully inside the frame with a margin of background below them.";
+  const hands = " Her arms and hands stay exactly as in image 1, not in pockets. Her feet and shoes stay fully inside the frame with background below them.";
   const feet = (shoeName !== null
-    ? " On her feet she wears exactly the shoes" + (shoeName ? " (" + shoeName + ")" : "") + " from image " + shoeIdx + " (same color and design), worn properly: both feet fully inside, heels seated in the shoes with the back not crushed or folded, both soles flat on the floor, nothing else from image " + shoeIdx + "; ignore any person in image " + shoeIdx + "."
+    ? " On her feet she wears exactly the shoes" + (shoeName ? " (" + shoeName + ")" : "") + " from image " + shoeIdx + " (same color and design), worn properly: feet fully inside, heels seated, backs not crushed, soles flat on the floor; take nothing else from image " + shoeIdx + "."
     : " On her feet she wears " + typeDesc + ", NOT shoes from any garment image.") + hands;
   const bot = get("bottom");
+  /* 2026-11-18 바지 기장·부츠 문장을 신발 문장 바로 뒤에 둔다(끝의 핏 문장은 상의 없으면 없고, 2500자 상한에 잘렸음) */
+  const botLen = bot && bot.fit ? (((bot.fit as { len?: Record<string, unknown> }).len ?? null) as Record<string, unknown> | null) : null;
+  const hemLines = botLen && typeof botLen === "object" ? bottomHemLines(botLen) : [];
+  const bootsEarly = bootsFull(bot?.fit);
+  const hemEarly = bootsEarly ? " LENGTH OF THE BOTTOMS: IMPORTANT: the trouser hems are long and fall over her boots, completely hiding the boot shafts; no boot top, ankle or gap shows, only the boot toes." : hemLines.length ? " LENGTH OF THE BOTTOMS (set by her own leg length, not the product photo): " + hemLines.join("; ") + "." : "";
   const bl = bot ? bottomLen("image " + idx("bottom")) : "";
   const blgLen = bot && bot.fit ? (((bot.fit as { len?: Record<string, unknown> }).len ?? {}) as Record<string, unknown>) : null;
   const blg = blgLen ? (hemToOf(blgLen) ? 0 : lenNum(blgLen, "leg", -80, 40)) : null;
   const topLike = get("top") ?? get("inner"), dr = get("dress");
-  const fitPart = dr ? layeredFit(dr.fit, topLike?.fit) : topLike && bot ? outfitFit(topLike.fit, bot.fit) : "";
-  const cutOne = (it: Omit<MItem, "bytes">) => { const cat = it.role === "dress" ? "dress" : it.role === "bottom" ? "bottom" : "top", g = it.garmentGender; return cutText(g, male, cat) ? " Keep the original " + (g === "female" ? "women's" : "men's") + " cut of " + ROLE_THE[it.role] + "; do not re-tailor it." : ""; };
-  return klPrompt((kb) => {
+  let fitPart = dr ? layeredFit(dr.fit, topLike?.fit) : topLike && bot ? outfitFit(topLike.fit, bot.fit) : "";
+  hemLines.forEach((l) => { fitPart = fitPart.replace("; " + l, "").replace(l + "; ", "").replace(l, ""); }); /* 앞에 이미 쓴 기장 문장은 끝에서 뺀다 */
+  /* 2026-11-18 성별 재단 문장은 옷마다 반복하지 않고 한 문장으로 묶는다 */
+  const cutAll = (["female", "male"] as const).map((g) => { const ws = items.filter((it) => { const cat = it.role === "dress" ? "dress" : it.role === "bottom" ? "bottom" : "top"; return it.garmentGender === g && !!cutText(g, male, cat); }).map((it) => ROLE_THE[it.role].replace("the ", "")); return ws.length ? " Keep the original " + (g === "female" ? "women's" : "men's") + " cut of the " + (ws.length > 1 ? ws.slice(0, -1).join(", ") + " and " + ws[ws.length - 1] : ws[0]) + "; do not re-tailor " + (ws.length > 1 ? "them" : "it") + "." : ""; }).join("");
+  return klPrompt((kb, tight) => {
     const keep = mine ? kb : KEEP;
-    let t = toMale("Image 1 is a full-body photo of a woman standing. " + listTxt.charAt(0).toUpperCase() + listTxt.slice(1) + ". Edit image 1 so she wears exactly all of these garments together, each with the same color, pattern, collar and sleeve style as in its photo, instead of her current clothes." + layering + names + bl + feet + outfitKeep(keep).replace("the top, bottoms and shoes described above", "the garments and shoes described above"), male) + items.map(cutOne).join("") + toMale(fitPart, male);
-    if (blg !== null) t = t.replace(bl, BOTTOM_LEN_BODY).replace(toMale(bl, true), toMale(BOTTOM_LEN_BODY, true));
-    items.forEach((it, k) => { t = t.split("@@N" + k + "@@").join(it.ex ? it.ex.desc : it.name); });
+    const cutN = (v: string) => tight ? v.slice(0, 30).trim() : v;
+    let t = toMale("Image 1 is a full-body photo of a woman standing. " + listTxt.charAt(0).toUpperCase() + listTxt.slice(1) + ". Edit image 1 so she wears exactly all of these garments together, each with the same color, pattern, collar and sleeve style as in its photo, instead of her current clothes." + layering + names + bl + feet + hemEarly + outfitKeep(keep).replace("the top, bottoms and shoes described above", "the garments and shoes described above"), male) + cutAll + toMale(fitPart, male);
+    /* 기장 문장(hemEarly)이 있으면 상품 사진 기장 문장(bl)은 뺀다(뜻이 hemEarly 에 들어 있음) */
+    if (blg !== null) { const rb = hemEarly ? "" : BOTTOM_LEN_BODY; t = t.replace(bl, rb).replace(toMale(bl, true), toMale(rb, true)); }
+    items.forEach((it, k) => { t = t.split("@@N" + k + "@@").join(it.ex ? it.ex.desc : cutN(it.name)); });
+    if (tight && shoeName) t = t.split(" (" + shoeName + ")").join(" (" + cutN(shoeName) + ")");
     return t;
   }, true, wst);
 }

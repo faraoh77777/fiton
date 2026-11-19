@@ -1,6 +1,6 @@
 /* FITON for PC — 밝은 색 버전 (2026-11-10)
    pc.css(B 스튜디오, 검정 바탕) 뒤에 읽혀서 색만 바꾼다. 배치·크기·모서리·기능은 pc.css 그대로.
-   pc-light.html 에서만 읽는다. 검정 버전(pc.html)에는 영향이 없다.
+   pc-white.html 에서만 읽는다. 검정 버전(pc-black.html)에는 영향이 없다. (2026-11-19 파일 이름 변경: pc-light → pc-white, pc.html → pc-black.html)
    사진 크게 보기·완성 연출·3D 보기(.zoom·#reveal·#d3view)는 사진이 잘 보이도록 어두운 바탕을 그대로 둔다. */
 :root{--ink:#F3F4EF;--panel:#FFFFFF;--panel2:#E9EBE4;--line:#D3D6CC;--fg:#16181C;--muted:#5E636B;
   --pri:#4E7A00;--priDark:#3F6300;--priSoft:rgba(110,170,0,.14);--onPri:#FFFFFF;

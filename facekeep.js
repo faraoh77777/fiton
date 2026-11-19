@@ -77,6 +77,40 @@
     return best;
   }
 
+  /* 덮을 조각 t 의 아래쪽(g0→g1 사이에서 서서히)에서, 같은 자리 결과 그림이 살색이 아니면 덮지 않는다.
+     살색 기준 = 결과 그림 얼굴 가운데(fy·fx 범위)의 (R-G)/밝기·(G-B)/밝기·밝기 중간값. 회색·베이지·오트밀 니트는 (R-G)/밝기가 살(약 0.23)보다 훨씬 낮다.
+     얼굴 살색을 못 찾으면 아무것도 바꾸지 않는다(예전 그대로) */
+  function neckGate(t, R, dx0, dy0, fr) {
+    var W = t.width, H = t.height, x, y, i;
+    if (W < 8 || H < 8) return;
+    var rc = cv(W, H), rx = rc.getContext('2d', { willReadFrequently: true });
+    rx.drawImage(R, dx0, dy0, W, H, 0, 0, W, H);
+    var rd = rx.getImageData(0, 0, W, H).data;
+    function m3(o) { var r = rd[o], g = rd[o + 1], b = rd[o + 2], L = (r + g + b) / 3 + 1; return [(r - g) / L, (g - b) / L, L]; }
+    var q = [], gb = [], lu = [], v;
+    for (y = Math.max(0, Math.round(fr.fy0 * H)); y < Math.min(H, Math.round(fr.fy1 * H)); y += 2)
+      for (x = Math.max(0, Math.round(fr.fx0 * W)); x < Math.min(W, Math.round(fr.fx1 * W)); x += 2) { v = m3((y * W + x) * 4); q.push(v[0]); gb.push(v[1]); lu.push(v[2]); }
+    if (q.length < 20) return;
+    var rq = median(q), rg = median(gb), rl = median(lu);
+    if (!(rq > 0.12 && rq < 0.4 && rl > 40)) return;
+    function soft(d, a, b) { d = Math.abs(d); return d <= a ? 1 : d >= b ? 0 : (b - d) / (b - a); }
+    var y0 = Math.max(0, Math.floor(fr.g0 * H)), sk = new Float32Array(W * H);
+    for (y = y0; y < H; y++) for (x = 0; x < W; x++) {
+      v = m3((y * W + x) * 4); var lr = v[2] / rl;
+      sk[y * W + x] = soft(v[0] - rq, 0.06, 0.11) * soft(v[1] - rg, 0.09, 0.14) * (lr < 0.6 ? soft(0.6 - lr, 0, 0.15) : lr > 1.25 ? soft(lr - 1.25, 0, 0.15) : 1);
+    }
+    /* 점 얼룩이 없게 가로·세로 평균(반지름 3) */
+    var r3 = 3, tmp = new Float32Array(W * H), s, n;
+    for (y = y0; y < H; y++) for (x = 0; x < W; x++) { s = 0; n = 0; for (i = Math.max(0, x - r3); i <= Math.min(W - 1, x + r3); i++) { s += sk[y * W + i]; n++; } tmp[y * W + x] = s / n; }
+    for (y = y0; y < H; y++) for (x = 0; x < W; x++) { s = 0; n = 0; for (i = Math.max(y0, y - r3); i <= Math.min(H - 1, y + r3); i++) { s += tmp[i * W + x]; n++; } sk[y * W + x] = s / n; }
+    var tc = t.getContext('2d'), id = tc.getImageData(0, 0, W, H), d = id.data, gs = Math.max(1, (fr.g1 - fr.g0) * H);
+    for (y = y0; y < H; y++) {
+      var wg = Math.min(1, (y - fr.g0 * H) / gs); if (wg <= 0) continue;
+      for (x = 0; x < W; x++) { i = y * W + x; d[i * 4 + 3] = Math.round(d[i * 4 + 3] * (1 - wg * (1 - sk[i]))); }
+    }
+    tc.putImageData(id, 0, 0);
+  }
+
   /* resultBlob: 서버가 만든 입은 모습, avatarBlob: 그때 보낸 아바타. 성공하면 얼굴을 되돌린 Blob, 아니면 resultBlob 그대로 */
   function apply(resultBlob, avatarBlob, opt) {
     opt = opt || {};
@@ -108,6 +142,9 @@
       var rr = t.width / 2, g = tc.createRadialGradient(0, 0, rr * 0.62, 0, 0, rr);
       g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)');
       tc.fillStyle = g; tc.fillRect(-rr, -rr, rr * 2, rr * 2); tc.restore();
+      /* 2026-11-18 A안: 턱 아래(목)는 결과 그림이 살일 때만 덮는다(목폴라·모크넥 깃이 맨 목으로 덮여 잘려 보이던 문제) */
+      var fh = ay1 - ay0, fw = ax1 - ax0, fcx = ((box.xa + box.xb) / 2 - ax0) / fw;
+      neckGate(t, R, dx0, dy0, { g0: (box.y0 + bh * 0.74 - ay0) / fh, g1: (box.y0 + bh * 0.82 - ay0) / fh, fy0: (box.y0 + bh * 0.45 - ay0) / fh, fy1: (box.y0 + bh * 0.65 - ay0) / fh, fx0: fcx - bw * 0.12 / fw, fx1: fcx + bw * 0.12 / fw });
       ctx.drawImage(t, dx0, dy0);
       return new Promise(function (done) {
         out.toBlob(function (b) { done(b || resultBlob); }, /png/i.test(resultBlob.type) ? 'image/png' : 'image/jpeg', 0.94);

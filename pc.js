@@ -50,7 +50,9 @@
   var BASES = [
     { id: 'female', name: '기본 여성', g: 'female', h: 161, w: 54, m: [85, 38, 69, 91, 53, 55, 73, 25, 237], img: 'assets/avatar_default.jpg?v=t' },
     { id: 'male', name: '기본 남성', g: 'male', h: 174, w: 70, m: [95, 44, 79, 95, 56, 60, 80, 26, 260], img: 'assets/avatar_male.jpg?v=t' }
-  ].concat(PRESETS.map(function (x) { return { id: x.id, name: x.name, g: x.g, h: x.h, w: x.w, m: x.m, img: 'assets/avatars/' + x.id + '.png', preset: true }; }));
+  ].concat(PRESETS.map(function (x) { return { id: x.id, name: x.name, g: x.g, h: x.h, w: x.w, m: x.m, img: 'assets/avatars/' + x.id + '.png', preset: true }; }))
+    /* 2026-11-19 얼굴 사진 1장으로 만든 기본 모델(FASHN model-swap + edit). 앞·옆·뒷모습 사진이 모두 있다(ang). 치수는 키 171·몸무게 70 기준 가정치 */
+    .concat([{ id: 'cool', name: '멋진남자', g: 'male', h: 171, w: 70, m: [96, 44, 81, 95, 56, 59, 78, 26, 258], img: 'assets/avatars/cool.jpg?v=a', preset: true, ang: { side: 'assets/avatars/cool_side.jpg?v=a', back: 'assets/avatars/cool_back.jpg?v=a' } }]);
   var SHOE_TYPES =[['pumps', '구두 (기본)'], ['sneakers', '운동화'], ['loafers', '로퍼'], ['sandals', '샌들'], ['boots', '부츠']];
   var ACC_TYPES = {
     '모자': { part: 'head', top: '3%', left: '44%', icon: 'M8 5h8l2 9H6zM3 14h18l-1 3H4z' },
@@ -99,7 +101,8 @@
 
   var app = document.getElementById('app');
   var user = (function () { try { return Core.userById(localStorage.getItem(CUR_KEY)); } catch (e) { return null; } })();
-  var state = null, urls = { avatar: null, tryon: {} }, genPending = null, syncDue = false;
+  var state = null, urls = { avatar: null, tryon: {}, ang: { side: null, back: null }, angTry: { side: {}, back: {} } }, genPending = null, syncDue = false;
+  var ANGS = ['side', 'back'], ANG_NAME = { front: '앞모습', side: '옆모습', back: '뒷모습' }, angBusy = null; /* 2026-11-18 옆·뒷모습 입히기: 방향별 아바타 사진(avatar_side/back)과 결과(tryon_side:/tryon_back:<id>)는 폰 앱과 섞이지 않게 따로 저장 */
   var ui = { page: pageFromHash(), view: 'me', angle: 'front', zoom: 1, rpOff: false, ruler: true, lenmark: true, genErr: null, genSizes: {}, left: 'clothes', fitTab: null, closetCat: 'outer', closetKind: 'all', homeKind: '', accTab: 'all', cmp: null, pend: null, homeCat: null, linkEdit: null, accFull: false,
     cf: null, af: null, lg: { mode: 'list', id: null, err: '', fails: 0, until: 0 } };
 
@@ -123,16 +126,23 @@
   function clearUrls() {
     if (urls.avatar) URL.revokeObjectURL(urls.avatar);
     Object.keys(urls.tryon).forEach(function (k) { if (urls.tryon[k]) URL.revokeObjectURL(urls.tryon[k]); });
-    urls = { avatar: null, tryon: {} };
+    ANGS.forEach(function (v) { if (urls.ang[v]) URL.revokeObjectURL(urls.ang[v]); Object.keys(urls.angTry[v]).forEach(function (k) { URL.revokeObjectURL(urls.angTry[v][k]); }); });
+    urls = { avatar: null, tryon: {}, ang: { side: null, back: null }, angTry: { side: {}, back: {} } };
   }
   function loadMedia() {
     if (!user) return Promise.resolve();
     var uid = user.id, ids = state.closet.map(function (x) { return x.id; }).concat(Object.keys(state.looks || {}));
-    return Promise.all([blobGet('avatar')].concat(ids.map(function (id) { return blobGet('tryon:' + id); }))).then(function (r) {
+    var angIds = [];   /* 옆·뒷모습 결과는 만든 기록(state.angBase)이 있는 것만 읽는다 */
+    ANGS.forEach(function (v) { Object.keys((state.angBase && state.angBase[v]) || {}).forEach(function (id) { angIds.push([v, id]); }); });
+    var none = function () { return null; };
+    return Promise.all([blobGet('avatar'), blobGet('avatar_side').catch(none), blobGet('avatar_back').catch(none)].concat(ids.map(function (id) { return blobGet('tryon:' + id); })).concat(angIds.map(function (a) { return blobGet('tryon_' + a[0] + ':' + a[1]).catch(none); }))).then(function (r) {
       if (!user || user.id !== uid) return;
       clearUrls();
       if (r[0]) urls.avatar = URL.createObjectURL(r[0]);
-      ids.forEach(function (id, j) { if (r[1 + j]) urls.tryon[id] = URL.createObjectURL(r[1 + j]); });
+      if (r[1]) urls.ang.side = URL.createObjectURL(r[1]);
+      if (r[2]) urls.ang.back = URL.createObjectURL(r[2]);
+      ids.forEach(function (id, j) { if (r[3 + j]) urls.tryon[id] = URL.createObjectURL(r[3 + j]); });
+      angIds.forEach(function (a, j) { var b = r[3 + ids.length + j]; if (b) urls.angTry[a[0]][a[1]] = URL.createObjectURL(b); });
     });
   }
 
@@ -250,7 +260,26 @@
   /* ---------- 조합·입은 모습 ---------- */
   function got(c) { var x = state.sel[c]; return x ? item(x.id) : null; }
   function lookItems(key) { return String(key).split('+').map(item).filter(Boolean); }
-  function lookName(key) { return lookItems(key).map(function (x) { return x.name; }).join(' + '); }
+  function lookName(key) { return lookItems(key).map(shortName).join(' + '); }
+  /* 2026-11-19 사용자 지시: 상품명이 너무 길어 화면에는 짧은 이름. 옷장에서 직접 넣은 짧은 이름(it.short)이 먼저, 없으면 자동(브랜드·광고어·괄호·영문 빼고 끝쪽 옷 종류 단어). 원래 이름(it.name)은 그대로 보관 */
+  var SN_DROP = /^(여성|여자|남성|남자|공용|여성용|남성용|가성비|빅사이즈|데일리|따뜻한|기본|베이직|스탠다드|신상|인기|간절기|겨울|여름|봄|가을|사계절|봄가을|하프기장|롱|숏|슬림핏|루즈핏|오버핏|고탄력|사방스판|스판|허리밴딩|허리조절|노수선|면접|복장|세트|무지|단독|특가|국내생산|[0-9A-Z]{5,})$/i;
+  var SN_KEY = /(티셔츠|셔츠|블라우스|니트|스웨터|카디건|가디건|맨투맨|후드티|후드|조끼|베스트|자켓|재킷|코트|패딩|점퍼|트렌치|원피스|스커트|치마|청바지|데님|슬랙스|바지|팬츠|레깅스|조거|반바지|쇼츠|터틀넥|폴라|모크넥|민소매|나시|탑|운동화|스니커즈|로퍼|부츠|구두|힐|샌들|슬리퍼|플랫)/;
+  function shortName(it) {
+    if (!it) return '';
+    var own = String(it.short || '').trim(); if (own) return own;
+    var EN = { CARDIGAN: '카디건', SKIRT: '스커트', PANTS: '팬츠', JACKET: '재킷', COAT: '코트', SHIRT: '셔츠', BLOUSE: '블라우스', DRESS: '원피스', KNIT: '니트', JEANS: '청바지', TEE: '티셔츠', VEST: '조끼', HOODIE: '후드' };
+    var raw = String(it.name || '').replace(/[A-Za-z]+/g, function (m) { return EN[m.toUpperCase()] || m; }).replace(/[(\[［【][^)\]］】]*[)\]］】]/g, ' ').replace(/[^0-9A-Za-z가-힣\s]/g, ' ');
+    var w = raw.split(/\s+/).filter(function (x) { return x && !/^[A-Za-z0-9]+$/.test(x) && !SN_DROP.test(x); });
+    if (!w.length) return String(it.name || CATS[it.cat] || '').slice(0, 14);
+    /* 옷 종류에 맞는 단어를 먼저 찾음(정장 세트처럼 이름에 재킷·바지가 같이 있으면 겉옷은 재킷, 하의는 바지) */
+    var CK = { outer: /(자켓|재킷|코트|패딩|점퍼|트렌치|카디건|가디건|조끼|베스트)/, bottom: /(청바지|데님|슬랙스|바지|팬츠|레깅스|조거|반바지|쇼츠|스커트|치마)/, dress: /(원피스|드레스)/ }[it.cat];
+    var k = -1, i;
+    if (CK) for (i = w.length - 1; i >= 0; i--) if (CK.test(w[i])) { k = i; break; }
+    if (k < 0) for (i = w.length - 1; i >= 0; i--) if (SN_KEY.test(w[i])) { k = i; break; }
+    var out = k < 0 ? w.slice(-2) : (k > 0 && !SN_KEY.test(w[k - 1]) && w[k - 1].length <= 6 ? [w[k - 1], w[k]] : [w[k]]);
+    out = out.join(' '); return out.length > 14 ? out.slice(0, 14) : out;
+  }
+  function shortLabel(it) { return (CATS[it.cat] || '') + ' · ' + shortName(it); }
   /* 서버가 받을 수 있는 옷: 원피스(+그 위 상의) 또는 상의·하의, 옷 없이 신발만이면 신발 */
   /* 2026-11-13 서버 tryon 에 cat=multi(이너·겉옷 포함 최대 4벌)를 배포한 뒤 tryon-config.js 에 multi: true 를 넣는다. 켜지기 전에는 이너를 입히지 않는다 */
   function multiOn() { return !!(window.TRYON_CFG && window.TRYON_CFG.multi === true); }
@@ -300,7 +329,7 @@
   var HSPAN = { /* 그림별 [머리 꼭대기 %, 발끝 %] — 2026-11-13 측정(칸 높이 기준) */
     'avatar_default.jpg': [6.05, 94.53], 'avatar_default_wide.jpg': [6.05, 94.53], 'avatar_default_side_wide.jpg': [6.77, 95.12], 'avatar_default_back_wide.jpg': [5.40, 94.60], 'avatar_default_motion.mp4': [5.53, 95.06],
     'avatar_male.jpg': [6.71, 96.09], 'avatar_male_wide.jpg': [6.71, 96.09], 'avatar_male_side_wide.jpg': [6.97, 96.55], 'avatar_male_back_wide.jpg': [5.27, 95.83],
-    f10: [2.94, 98.90], f20: [3.46, 96.76], f30: [3.90, 98.24], f40: [3.46, 96.62], m10: [3.82, 96.40], m20: [5.74, 97.35], m30: [4.04, 97.72], m40: [5.59, 97.43]
+    f10: [2.94, 98.90], f20: [3.46, 96.76], f30: [3.90, 98.24], f40: [3.46, 96.62], m10: [3.82, 96.40], m20: [5.74, 97.35], m30: [4.04, 97.72], m40: [5.59, 97.43], cool: [6.90, 96.03]
   };
   var mySpan = { seq: -1, v: null, busy: false };
   function charSpan() {
@@ -342,8 +371,8 @@
     var yy = function (c) { return Math.round((HS.F - (HS.F - HS.T0) * Math.max(0, c) / ((H || HS.REF) + shH)) * 100) / 100; }, o = '';
     var lab = function (t) { return '<b class="l">' + t + '</b><b class="r">' + t + '</b>'; };
     if (ui.ruler) {
-      if (shH) o += '<i class="rl rf" style="top:' + HS.F + '%">' + lab('바닥(신발 밑)') + '</i><i class="rl rme" style="top:' + yy(shH) + '%">' + lab('뒤꿈치 끝(키 기준) · 굽 ' + (Math.round(shH * 10) / 10) + 'cm') + '</i>';
-      else o += '<i class="rl rf" style="top:' + HS.F + '%">' + lab('바닥(뒤꿈치)') + '</i>';
+      /* 2026-11-19 사용자 지시: 발끝(바닥) 표시는 필요 없어 삭제 — 「바닥(뒤꿈치)」「바닥(신발 밑)」 선을 그리지 않음. 신발 굽 높이 선은 정보라 그대로 */
+      if (shH) o += '<i class="rl rme" style="top:' + yy(shH) + '%">' + lab('뒤꿈치 끝(키 기준) · 굽 ' + (Math.round(shH * 10) / 10) + 'cm') + '</i>';
       /* 2026-11-13 아바타 본인 치수만: 150~190 기준 눈금은 쓰지 않고 발끝선·내 키만 */
       if (H) o += '<i class="rl rme" style="top:' + yy(H + shH) + '%">' + lab('내 키 ' + Math.round(H) + 'cm' + (shH ? ' (뒤꿈치 끝~머리)' : '')) + '</i>';
     }
@@ -378,7 +407,8 @@
           var zn = ''; if (r.cat === 'bottom') { var hz = hem * 170 / H; zn = hz <= 0 ? '바닥(끌림)' : hz < 4 ? '발등' : hz < 10 ? '발목(복숭아뼈) 근처' : hz < 25 ? '발목 위~종아리 아래' : hz < 40 ? '종아리' : '무릎 부근'; zn = ' · 위치: ' + zn; }
           /* 2026-11-14 사용자 지시: 파란 밑단 설명은 왼쪽·오른쪽 두 번 길게 나오지 않고 오른쪽에 한 번, 줄을 바꿔서 보여 준다 */
           var rl = [r.cat === 'bottom' ? '하의 밑단 위치' : (CATS[r.cat] || '') + ' 밑단']; if (wh) rl.push(wh.replace(/ · $/, '')); rl.push(txt); if (zn) rl.push(zn.replace(/^ · /, ''));
-          o += '<i class="rl rlen" style="top:' + yy(hem) + '%"><b class="r">' + rl.join('<br>') + '</b></i>';
+          /* 2026-11-19 사용자 지시: 총장(밑단) 설명은 오른쪽 핏 표시와 겹쳐서 왼쪽으로 옮김 */
+          o += '<i class="rl rlen" style="top:' + yy(hem) + '%"><b class="l">' + rl.join('<br>') + '</b></i>';
         });
       });
     }
@@ -601,9 +631,22 @@
     var set = wearSet(), key = set.length ? setKey(set) : '';
     if (key && tryonOk(key)) return { key: key, url: urls.tryon[key], name: lookName(key) };
     var l = state.wearLast;
-    if (!key && l && tryonOk(l)) return { key: l, url: urls.tryon[l], name: lookName(l) };
+    /* 2026-11-18 사용자: 옷을 다 빼면 원래 아바타. 고른 옷이 0벌이면 마지막 입은 그림(wearLast)을 보여 주지 않음 */
+    void l;
     return null;
   }
+  /* ---------- 2026-11-18 옆·뒷모습 ---------- */
+  /* 그 방향으로 입힐 아바타 사진: 내 아바타(앞 사진 있음)는 직접 올린 옆·뒤 사진, 기본 여성·남성은 준비된 사진, 프리셋 기본 모델은 없음 */
+  function angSrc(v) {
+    if (myPic()) return urls.ang[v] || null;
+    if (charPic()) { var pb = baseModel(); return who() === 'base' && pb.ang ? pb.ang[v] || null : null; } /* 2026-11-19 옆·뒤 사진이 있는 기본 모델(멋진남자) */
+    return 'assets/avatar_' + (isMale() ? 'male' : 'default') + '_' + v + '.jpg';
+  }
+  function angBaseNow(v) { var q = state.avAngSeq || {}; return myPic() ? 'avatar:' + (state.avSeq || 0) + ':' + (q[v] || 0) : charPic() ? (who() === 'base' && baseModel().ang ? 'preset:' + baseModel().id : '') : (isMale() ? 'male' : 'female'); }
+  function angTryOk(v, key) { return !!(key && urls.angTry[v][key] && state.angBase && state.angBase[v] && state.angBase[v][key] && state.angBase[v][key] === angBaseNow(v)); }
+  function angWhy(v) { return myPic() ? '내 아바타 화면에서 ' + ANG_NAME[v] + ' 사진을 올리면 고를 수 있어요.' : '이 기본 모델은 ' + ANG_NAME[v] + ' 사진이 없어 앞모습만 만들 수 있어요.'; }
+  function genViews() { var g = state.genViews || { front: true }; return ['front'].concat(ANGS).filter(function (v) { return g[v] && (v === 'front' || angSrc(v)); }); }
+  function angWornKey(set) { var w = wornNow(); return w ? w.key : set.length ? setKey(set) : ''; }
   function modelShow() {
     var st = FD.styles.filter(function (s) { return s.id === state.styleId; })[0];
     /* 2026-11-12 코디 예시 사진은 내 성별(또는 공용) 코디일 때만. 남성인데 여성 모델 사진이 「기본 모델」로 나오던 문제 */
@@ -646,7 +689,8 @@
         /* 2026-11-13 하의 기장도 키(다리 길이)로 계산해 보낸다(사용자 결정 변경). 인심이 있으면 인심, 없으면 총장(스커트 등). 서버가 배포되기 전에는 서버가 이 값을 쓰지 않음 */
         if (it.cat === 'bottom' && (p.key === 'inseam' || (p.key === 'length' && len.leg == null)) && isFinite(p.diff)) { len.leg = p.diff; if (isFinite(p.pos)) len.legPos = p.pos; }
       });
-      if (it.cat === 'bottom' && hemNow() !== 'auto') len.hemTo = hemNow();
+      /* 2026-11-18 사용자 지시: 바지 길이 선택 줄 삭제, 바지는 기본으로 발등까지. 단 짧은 바지(다리보다 6cm 넘게 짧음 — 2026-11-14 지시로 늘려 그리지 않음)·반바지·치마(총장만 있는 사이즈표)는 계산값 그대로 */
+      if (it.cat === 'bottom' && hemFootOk(it, r, len)) len.hemTo = 'foot';
       if (it.cat === 'bottom' && wearsBoots()) len.boots = 1;
       if (it.cat === 'bottom' && E.num(prof().height)) { var shH = wearShoeH(); if (shH != null) len.shoeH = shH; }
       if (!Object.keys(ease).length && !Object.keys(len).length) return null;
@@ -871,25 +915,72 @@
       setTimeout(function () { accPoll(key, taskId, t0, baseBlob, accs, hasNoacc); }, 6000);
     });
   }
-  function wearAll() {
-    var set = wearSet();
-    if (genPending || !Core.genEnabled()) return;
+  /* 2026-11-18 입히기 요청 내용 만들기(앞모습 입히기에 있던 코드를 그대로 떼어 옆·뒷모습에도 씀). a=[첫 옷, 아바타, 신발, 둘째, 셋째…] */
+  function genBody(key, set, a, isMulti, it, second, third, shoeIt, fix) {
+      if (isMulti) {
+        var mb = { device: Core.deviceId(), cat: 'multi', gender: isMale() ? 'male' : 'female', items: [] };
+        set.forEach(function (x, k) {
+          var o = { role: x.cat, image: k === 0 ? a[0] : a[2 + k], garmentGender: garGender(x) };
+          if (x.name) o.name = String(x.name).slice(0, 60);
+          var fh2 = fitHint(x); if (fh2) o.fit = fh2;
+          if (x.ext) { o.extracted = 1; o.ekind = x.ext.kind; o.ecolor = x.ext.color || ''; }
+          mb.items.push(o);
+        });
+        if (a[2]) { mb.shoe = a[2]; if (shoeIt.name) mb.shoeName = String(shoeIt.name).slice(0, 60); if (E.num(shoeIt.heel)) mb.shoeHeel = Math.round(shoeIt.heel); }
+        else mb.shoeType = tryShoeTypeId();
+        if (a[1]) mb.avatar = a[1];
+        var sty = styleOf(set.map(function (x) { return x.cat; })); if (sty) mb.style = sty; if (fix && sty && sty.outer === 'closed') ui.genFix[key] = sty;
+        return mb;
+      }
+      /* 두 벌: 상의+하의 = outfit, 원피스+그 위 상의 = layered(garment 원피스, garment2 상의) */
+      var body = { device: Core.deviceId(), cat: second ? (it.cat === 'dress' ? 'layered' : (third && a[4] ? 'outfit3' : 'outfit')) : (it.cat === 'inner' || it.cat === 'outer' ? 'top' : it.cat), garment: a[0], gender: isMale() ? 'male' : 'female' };
+      if (a[2]) { body.shoe = a[2]; if (shoeIt.name) body.shoeName = String(shoeIt.name).slice(0, 60); if (E.num(shoeIt.heel)) body.shoeHeel = Math.round(shoeIt.heel); }
+      else if (it.cat !== 'shoe') body.shoeType = tryShoeTypeId();
+      if (it.name) body.name = String(it.name).slice(0, 60);
+      if (it.cat !== 'shoe') body.garmentGender = garGender(it);
+      if (a[1]) body.avatar = a[1];
+      if (body.cat === 'outfit' || body.cat === 'outfit3') { var sty2 = styleOf((body.cat === 'outfit3' ? ['outer'] : []).concat(['top', 'bottom'])); if (sty2) { body.style = sty2; if (fix && sty2.outer === 'closed') ui.genFix[key] = sty2; } }
+      var fh = fitHint(it); if (fh) body.fit = fh;
+      if (it.ext) { body.extracted = 1; body.ekind = it.ext.kind; body.ecolor = it.ext.color || ''; } /* 옷만 뽑은 사진: 서버가 코디 사진 문장 대신 그 옷 이름(종류·색)으로 입힌다 */
+      if (second) {
+        body.garment2 = a[3]; body.garmentGender2 = garGender(second);
+        if (second.ext) { body.extracted2 = 1; body.ekind2 = second.ext.kind; body.ecolor2 = second.ext.color || ''; }
+        if (second.name) body.name2 = String(second.name).slice(0, 60);
+        var f2 = fitHint(second); if (f2) body.fit2 = f2;
+      }
+      if (third && a[4]) {
+        body.garment3 = a[4];
+        if (third.name) body.name3 = String(third.name).slice(0, 60);
+        if (third.ext) { body.extracted3 = 1; body.ekind3 = third.ext.kind; body.ecolor3 = third.ext.color || ''; }
+      }
+      return body;
+  }
+  function wearAll(opt) {
+    var set = wearSet(), frontOnly = !!(opt && opt.frontOnly);
+    if (genPending || angBusy || !Core.genEnabled()) return;
     if (!set.length) { toast(got('outer') || got('inner') || state.accSel.length ? NOT_YET + ' 상의·하의·원피스·신발을 함께 골라 주세요.' : '입을 옷을 먼저 골라 주세요.'); return; }
     var noPhoto = set.filter(function (x) { return !x.photo; })[0];
     if (noPhoto) { toast('"' + noPhoto.name + '"의 상품 사진이 없어요. 내 옷장에서 수정해 사진을 넣어 주세요.'); return; }
+    var views = frontOnly ? ['front'] : genViews(), angV = views.filter(function (v) { return v !== 'front'; }), doFront = views.indexOf('front') >= 0;   /* 2026-11-18 고른 방향(앞·옆·뒤)마다 1회씩 */
+    if (!views.length) { toast('만들 방향(앞모습·옆모습·뒷모습)을 하나 이상 골라 주세요.'); return; }
     if (tryLeft() <= 0) { toast('이번 달 입어보기 횟수를 다 썼어요.'); go('plan'); return; }
+    if (tryLeft() < views.length) { toast('남은 횟수(' + tryLeft() + '회)보다 고른 방향(' + views.length + '개)이 많아요. 방향을 줄여 주세요.'); return; }
     var it = set[0], second = set[1] || null, third = set[2] || null, key = setKey(set), first = false;
     try { first = !localStorage.getItem('fit-gen-ok'); } catch (e) { first = true; }
     if (first && !confirm('고른 옷의 상품 사진이 AI 이미지 생성 서버(Supabase·Kling)로 전송되어 입은 모습을 만듭니다. 내 얼굴 사진과 몸 정보는 전송되지 않아요. 만들어진 이미지는 AI가 생성한 것이라 실제 상품과 다를 수 있고, 플랜별 월 횟수와 하루 이용 한도가 있습니다. 계속할까요?')) return;
-    if (urls.tryon[key] && !confirm('이미 만든 입은 모습이 있습니다. 다시 만들면 입어보기 횟수가 한 번 더 쓰입니다. (남은 ' + tryLeft() + '회) 계속할까요?')) return;
+    if (doFront && urls.tryon[key] && !confirm('이미 만든 입은 모습이 있습니다. 다시 만들면 입어보기 횟수가 한 번 더 쓰입니다. (남은 ' + tryLeft() + '회) 계속할까요?')) return;
     if (myPic()) {
       var avFirst = false;
       try { avFirst = !localStorage.getItem('fit-gen-av-ok'); } catch (e) { avFirst = true; }
       if (avFirst && !confirm('내 아바타 이미지도 옷을 입히는 동안 AI 이미지 생성 서버(Supabase·Kling)로 전송됩니다. 서버에는 저장하지 않고 입히기 요청에만 쓰입니다. 계속할까요?')) return;
       try { localStorage.setItem('fit-gen-av-ok', '1'); } catch (e) {}
     }
+    var angDup = angV.filter(function (v) { return angTryOk(v, key); });
+    if (angDup.length && !confirm('이미 만든 ' + angDup.map(function (v) { return ANG_NAME[v]; }).join('·') + '이 있습니다. 다시 만들면 방향마다 입어보기 횟수가 한 번씩 더 쓰입니다. 계속할까요?')) return;
     try { localStorage.setItem('fit-gen-ok', '1'); } catch (e) {}
     ensureNotifyPermission();
+    if (angV.length) angQueue(key, angV);   /* 옆·뒷모습은 앞모습이 끝난 뒤 하나씩 이어서 만든다(서버 작업은 한 번에 하나) */
+    if (!doFront) { ui.genErr = null; toast(angV.map(function (v) { return ANG_NAME[v]; }).join('·') + '을 만들기 시작했어요. 보통 방향마다 1~2분 걸려요.', 5000); angNext(); return; }
     ui.genErr = null; ui.genBase = ui.genBase || {}; ui.genBase[key] = curBase(); ui.genSizes[key] = {}; set.forEach(function (x) { ui.genSizes[key][x.id] = curSize(x); });
     ui.genShoe = ui.genShoe || {}; ui.genShoe[key] = set[0].cat !== 'shoe' ? shoeSig() : null;
     ui.genSig = ui.genSig || {}; ui.genSig[key] = {}; set.forEach(function (x) { ui.genSig[key][x.id] = photoSig(x); });
@@ -906,43 +997,7 @@
       if (bd) { ui.genStack[key] = baseKey; it = set[1]; second = null; toast('"' + set[0].name + '"은(는) 입은 그대로 두고 하의만 바꿔 입혀요.', 5000); }
       return Promise.all([garData(it), bd || avatarData(), shoeIt ? shoeData(shoeIt) : null, second ? garData(second) : null, third && !bd ? garData(third) : null]);
     }).then(function (a) {
-      if (isMulti) {
-        var mb = { device: Core.deviceId(), cat: 'multi', gender: isMale() ? 'male' : 'female', items: [] };
-        set.forEach(function (x, k) {
-          var o = { role: x.cat, image: k === 0 ? a[0] : a[2 + k], garmentGender: garGender(x) };
-          if (x.name) o.name = String(x.name).slice(0, 60);
-          var fh2 = fitHint(x); if (fh2) o.fit = fh2;
-          if (x.ext) { o.extracted = 1; o.ekind = x.ext.kind; o.ecolor = x.ext.color || ''; }
-          mb.items.push(o);
-        });
-        if (a[2]) { mb.shoe = a[2]; if (shoeIt.name) mb.shoeName = String(shoeIt.name).slice(0, 60); if (E.num(shoeIt.heel)) mb.shoeHeel = Math.round(shoeIt.heel); }
-        else mb.shoeType = tryShoeTypeId();
-        if (a[1]) mb.avatar = a[1];
-        var sty = styleOf(set.map(function (x) { return x.cat; })); if (sty) mb.style = sty; if (sty && sty.outer === 'closed') ui.genFix[key] = sty;
-        return Core.genCall(mb);
-      }
-      /* 두 벌: 상의+하의 = outfit, 원피스+그 위 상의 = layered(garment 원피스, garment2 상의) */
-      var body = { device: Core.deviceId(), cat: second ? (it.cat === 'dress' ? 'layered' : (third && a[4] ? 'outfit3' : 'outfit')) : (it.cat === 'inner' || it.cat === 'outer' ? 'top' : it.cat), garment: a[0], gender: isMale() ? 'male' : 'female' };
-      if (a[2]) { body.shoe = a[2]; if (shoeIt.name) body.shoeName = String(shoeIt.name).slice(0, 60); if (E.num(shoeIt.heel)) body.shoeHeel = Math.round(shoeIt.heel); }
-      else if (it.cat !== 'shoe') body.shoeType = tryShoeTypeId();
-      if (it.name) body.name = String(it.name).slice(0, 60);
-      if (it.cat !== 'shoe') body.garmentGender = garGender(it);
-      if (a[1]) body.avatar = a[1];
-      if (body.cat === 'outfit' || body.cat === 'outfit3') { var sty2 = styleOf((body.cat === 'outfit3' ? ['outer'] : []).concat(['top', 'bottom'])); if (sty2) { body.style = sty2; if (sty2.outer === 'closed') ui.genFix[key] = sty2; } }
-      var fh = fitHint(it); if (fh) body.fit = fh;
-      if (it.ext) { body.extracted = 1; body.ekind = it.ext.kind; body.ecolor = it.ext.color || ''; } /* 옷만 뽑은 사진: 서버가 코디 사진 문장 대신 그 옷 이름(종류·색)으로 입힌다 */
-      if (second) {
-        body.garment2 = a[3]; body.garmentGender2 = garGender(second);
-        if (second.ext) { body.extracted2 = 1; body.ekind2 = second.ext.kind; body.ecolor2 = second.ext.color || ''; }
-        if (second.name) body.name2 = String(second.name).slice(0, 60);
-        var f2 = fitHint(second); if (f2) body.fit2 = f2;
-      }
-      if (third && a[4]) {
-        body.garment3 = a[4];
-        if (third.name) body.name3 = String(third.name).slice(0, 60);
-        if (third.ext) { body.extracted3 = 1; body.ekind3 = third.ext.kind; body.ecolor3 = third.ext.color || ''; }
-      }
-      return Core.genCall(body);
+      return Core.genCall(genBody(key, set, a, isMulti, it, second, third, shoeIt, true));
     }).then(function (res) {
       if (!res.ok || !res.j.taskId) throw new Error((res.j && res.j.error) || '요청을 접수하지 못했습니다.');
       subNow().used++; save(); /* 서버가 접수한 뒤에만 횟수를 뺀다 */
@@ -1255,8 +1310,94 @@
       setTimeout(function () { genPoll(id, taskId, t0); }, 6000);
     });
   }
+  /* ---------- 2026-11-18 옆·뒷모습 입히기 (앞모습과 같은 서버 요청, 아바타만 그 방향 사진) ----------
+     대기열은 localStorage 에 두어 새로 고침해도 이어 간다. 얼굴 되돌리기·머리 맞추기·옷만 합치기는 앞모습 기준이라 쓰지 않고,
+     몸 윤곽 비교(shapeCheck)로 아바타가 달라졌으면 버리고 횟수를 돌려준다. 배경은 그 방향 아바타 배경에 맞춘다 */
+  function angKey() { return 'fit-gen-ang:' + (user ? user.id : ''); }
+  function angLoad() { try { var o = JSON.parse(localStorage.getItem(angKey()) || 'null'); if (o && o.q) return o; } catch (e) {} return { q: [], cur: null }; }
+  function angSave(o) { try { if (!o.q.length && !o.cur) localStorage.removeItem(angKey()); else localStorage.setItem(angKey(), JSON.stringify(o)); } catch (e) {} }
+  var ANG_TTL = 15 * 60 * 1000;   /* 넣은 지 15분이 지난 대기열 항목은 만들지 않고 버린다 */
+  function angQueue(key, vs) { var o = angLoad(), t = Date.now(); vs.forEach(function (v) { o.q.push({ key: key, view: v, base: angBaseNow(v), t: t }); }); angSave(o); }
+  function angAvBlob(v) { var src = angSrc(v); if (!src) return Promise.resolve(null); return fetch(src).then(function (r) { if (!r.ok) throw 0; return r.blob(); }).catch(function () { return null; }); }
+  function angNext() {
+    if (!user || genPending || angBusy || !Core.genEnabled()) return;
+    var o = angLoad(), now = Date.now();
+    o.q = o.q.filter(function (x) { return x && x.t && now - x.t < ANG_TTL; });
+    var job = o.q.shift();
+    if (!job) { angSave(o); return; }
+    var set = lookItems(job.key);
+    if (!set.length || !angSrc(job.view) || angBaseNow(job.view) !== job.base) { angSave(o); toast(ANG_NAME[job.view] + '은(는) 그사이 아바타나 옷이 바뀌어 만들지 않았어요.', 6000); angNext(); return; }
+    if (tryLeft() <= 0) { o.q = []; angSave(o); toast('입어보기 횟수를 다 써서 ' + ANG_NAME[job.view] + '은(는) 만들지 않았어요.', 6000); render(); return; }
+    job.uid = user.id; angBusy = job; angSave(o); render();
+    var it = set[0], second = set[1] || null, third = set[2] || null, avB = null;
+    var isMulti = multiOn() && set.length >= 2 && set.some(function (x) { return x.cat === 'inner' || x.cat === 'outer'; });
+    var shoeIt = it.cat !== 'shoe' ? wearShoe() : null;
+    angAvBlob(job.view).then(function (b) {
+      if (!b) throw new Error(ANG_NAME[job.view] + ' 아바타 사진을 읽지 못했어요.');
+      avB = b; return Core.shrink(b, 1280, 0.88).then(Core.blobToDataUrl).then(Core.klingSafe);
+    }).then(function (avd) {
+      if (!avd) throw new Error(ANG_NAME[job.view] + ' 아바타 사진을 보낼 수 없어요.');
+      return Promise.all(isMulti ? [garData(set[0]), avd, shoeIt ? shoeData(shoeIt) : null].concat(set.slice(1).map(garData))
+        : [garData(it), avd, shoeIt ? shoeData(shoeIt) : null, second ? garData(second) : null, third ? garData(third) : null]);
+    }).then(function (a) {
+      return Core.genCall(genBody(job.key, set, a, isMulti, it, second, third, shoeIt, false));
+    }).then(function (res) {
+      if (!res.ok || !res.j.taskId) throw new Error((res.j && res.j.error) || '요청을 접수하지 못했습니다.');
+      subNow().used++; save();   /* 서버가 접수한 뒤에만 횟수를 뺀다 */
+      job.taskId = res.j.taskId; job.t0 = Date.now();
+      var o2 = angLoad(); o2.cur = job; angSave(o2);
+      angPoll(job, avB);
+    }).catch(function (err) { angDone(job, false, ANG_NAME[job.view] + '을 만들지 못했어요. ' + ((err && err.message) || '') + ' (횟수는 차감되지 않았습니다)'); });
+  }
+  function angPoll(job, avB) {
+    if (!user || user.id !== job.uid || angBusy !== job) return;
+    if (Date.now() - job.t0 > 6 * 60 * 1000) { angDone(job, false, ANG_NAME[job.view] + '을 만드는 데 너무 오래 걸려 중단했어요.'); return; }
+    Core.genCall({ action: 'status', taskId: job.taskId }).then(function (res) {
+      if (!res.ok) throw new Error('retry');
+      var j = res.j;
+      if (j.status === 'success' && j.image) {
+        var raw = Core.imageBlob(j);
+        shapeCheck(raw, avB, null, raw).then(function (why) {
+          if (why) {
+            var sb = subNow(); if (sb.used > 0) sb.used--; save();
+            try { console.debug('[fiton-reject-' + job.view + '] ' + why + ' ' + JSON.stringify(ui.lastShape || null)); } catch (e3) {}
+            angDone(job, false, '만든 ' + ANG_NAME[job.view] + '에서 아바타 ' + (why === 'height' ? '몸 비율이' : '머리 모양·위치가') + ' 원본과 달라져서 보여 주지 않았어요. 횟수는 돌려 드렸어요. [이유: ' + why + ']');
+            return;
+          }
+          var bg = !avB ? Promise.resolve(raw) : layerSwap(raw, avB).then(function (l) { return l || bgMatch(raw, avB).then(function (m) { return m && m.blob ? m.blob : raw; }); });
+          return bg.catch(function () { return raw; }).then(function (b2) {
+            return blobPut('tryon_' + job.view + ':' + job.key, b2).catch(function () { toast('결과를 이 기기에 저장하지 못했어요. 「결과 저장」으로 내려받아 주세요.', 8000); }).then(function () {
+              var u = urls.angTry[job.view]; if (u[job.key]) URL.revokeObjectURL(u[job.key]); u[job.key] = URL.createObjectURL(b2);
+              state.angBase = state.angBase || {}; state.angBase[job.view] = state.angBase[job.view] || {}; state.angBase[job.view][job.key] = job.base; save();
+              var msg = (lookName(job.key) || '옷') + ' ' + ANG_NAME[job.view] + '이 완성됐어요!';
+              notifyDone('FITON', msg); angDone(job, true, msg);
+            });
+          });
+        }).catch(function () { angDone(job, false, ANG_NAME[job.view] + ' 그림을 정리하지 못했어요. 다시 시도해 주세요.'); });
+        return;
+      }
+      if (j.status === 'failed') { var why2 = String(j.error || '').slice(0, 200); angDone(job, false, ANG_NAME[job.view] + '을 만들지 못했어요.' + (why2 ? ' (사유: ' + why2 + ')' : ' 잠시 뒤 다시 시도해 주세요.')); return; }
+      setTimeout(function () { angPoll(job, avB); }, 4000);
+    }).catch(function () { setTimeout(function () { angPoll(job, avB); }, 6000); });
+  }
+  function angDone(job, ok, msg) {
+    if (angBusy !== job) return;
+    angBusy = null;
+    var o = angLoad(); o.cur = null; angSave(o);
+    if (ok && ui.page === 'fitting') { ui.view = 'me'; ui.angle = job.view; }
+    toast(msg, ok ? 5000 : 12000); render();
+    setTimeout(angNext, 0);
+  }
+  function angResume() {
+    if (!user || angBusy || !Core.genEnabled()) return;
+    var o = angLoad(), c = o.cur;
+    if (c && c.taskId && c.uid === user.id && Date.now() - c.t0 < 6 * 60 * 1000) { angBusy = c; render(); angAvBlob(c.view).then(function (b) { angPoll(c, b); }); return; }
+    if (c) { o.cur = null; angSave(o); }
+    angNext();
+  }
   function genFinish(id, ok, msg, ms) {
     genPending = null;
+    setTimeout(angNext, 0);   /* 2026-11-18 앞모습이 끝나면 고른 옆·뒷모습을 이어서 */
     try { localStorage.removeItem(GEN_KEY()); } catch (e) {}
     waitEnd();
     ui.genErr = ok ? null : (msg || '알 수 없는 이유로 실패했어요. 잠시 뒤 다시 시도해 주세요.');
@@ -1372,7 +1513,7 @@
     try { localStorage.setItem(CUR_KEY, user.id); } catch (e) {}
     ui.lg = { mode: 'list', id: null, err: '', fails: 0, until: 0 }; ui.cf = blankForm(ui.closetCat || 'top'); ui.af = blankAcc();
     clearUrls(); render();
-    loadMedia().then(function () { render(); genResume(); });
+    loadMedia().then(function () { render(); genResume(); angResume(); });
   }
 
   /* ---------- 공통 틀 ---------- */
@@ -1387,6 +1528,14 @@
       '<button type="button" class="nv' + (st ? ' on' : '') + '" data-act="go" data-page="set"' + (st ? ' aria-current="page"' : '') + '><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"></path><circle cx="16" cy="7" r="2"></circle><circle cx="8" cy="17" r="2"></circle></svg>설정</button></div></nav>';
   }
   /* 위쪽 줄: 화면 제목 + (피팅룸이면 보기 전환·패널 접기, 그 밖에는 새로 입어보기) + 닉네임 */
+  /* 2026-11-19 홈 위쪽 줄 스킨 드롭다운: 지금 스킨(색 점+이름)을 누르면 3개가 펼쳐지고, 고르면 바로 바뀌고 닫힌다. 바깥을 누르거나 Esc 로도 닫힌다. 설정의 스킨 카드와 같은 값(skin.js) */
+  function skinDot(s) { return '<i class="skdot" aria-hidden="true" style="background:linear-gradient(135deg,' + h(s.sw[0]) + ' 50%,' + h(s.sw[2]) + ' 50%)"></i>'; }
+  function skinDrop() {
+    var FS = window.FitSkin; if (!FS) return '';
+    var now = FS.list.filter(function (s) { return s.id === FS.cur(); })[0] || FS.list[0];
+    return '<div class="skindd"><button type="button" class="tl skinbtn" id="skinbtn" data-act="skinMenu" aria-haspopup="true" aria-expanded="' + !!ui.skinOpen + '" aria-label="스킨 바꾸기, 지금 ' + h(now.name) + '">' + skinDot(now) + h(now.name) + '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>' +
+      (ui.skinOpen ? '<div class="skinmenu" role="group" aria-label="스킨">' + FS.list.map(function (s) { var o = s.id === now.id; return '<button type="button" class="' + (o ? 'on' : '') + '" aria-pressed="' + o + '" data-act="skinPick" data-v="' + h(s.id) + '">' + skinDot(s) + '<span>' + h(s.name) + '</span>' + (o ? CHECK : '') + '</button>'; }).join('') + '</div>' : '') + '</div>';
+  }
   function topbar() {
     var fit = ui.page === 'fitting', v = ui.view;
     /* 2026-11-10: 피팅룸은 위쪽 줄을 없애 입은 모습을 키운다. 보기 전환·패널 접기는 입은 모습 카드 안(fitTabs·fitToggle)으로 옮겼다 */
@@ -1395,7 +1544,7 @@
     var mid = fit ? '<div class="vtabs" role="tablist" aria-label="보기 선택">' + [['model', '기본 모델'], ['me', '내 아바타'], ['cmp', '원본과 비교']].map(function (t) { return '<button type="button" role="tab" aria-selected="' + (v === t[0]) + '" class="' + (v === t[0] ? 'on' : '') + '" data-act="view" data-v="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div>' : '';
     var act = fit ? '<button type="button" class="tl" data-act="rpToggle" aria-controls="rpanel" aria-expanded="' + !ui.rpOff + '">' + (ui.rpOff ? '패널 펼치기' : '패널 접기') + '</button>'
       : '<button type="button" class="tnew" data-act="go" data-page="fitting"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>새로 입어보기</button>';
-    return '<header class="topbar"><h1>' + TITLES[ui.page] + '</h1>' + mid + '<div class="tacts">' + act + '<span class="tnick">' + h(user.nick) + ' 님</span></div></header>';
+    return '<header class="topbar"><h1>' + TITLES[ui.page] + '</h1>' + mid + '<div class="tacts">' + (ui.page === 'home' ? skinDrop() : '') + act + '<span class="tnick">' + h(user.nick) + ' 님</span></div></header>';
   }
   function buyHtml(it, cls) { var u = safeUrl(it.url); return '<a class="' + cls + '" data-buyid="' + h(it.id) + '" href="' + h(u) + '" target="_blank" rel="noopener noreferrer" aria-label="' + h(it.name) + ' 구매하기">구매하기' + ARROW + '</a>'; }
   /* 구매하기로 링크를 연 뒤 FITON 화면으로 돌아오면 "상품 페이지가 열렸나요?" 확인 팝업을 띄운다.
@@ -1441,13 +1590,40 @@
   var homeHover = false;
   document.addEventListener('mouseover', function (e) { if (e.target.closest && e.target.closest('.hslide')) homeHover = true; });
   document.addEventListener('mouseout', function (e) { if (e.target.closest && e.target.closest('.hslide') && !(e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('.hslide'))) homeHover = false; });
+  /* 2026-11-18 사용자 지시: 홈 「최근 입어본 옷」은 한 줄, 마우스로 끌거나 휠을 굴려 좌우로 넘겨 본다. 끌고 놓을 때는 카드 클릭으로 치지 않음 */
+  var rowDrag = null, rowMoved = false;
+  document.addEventListener('mousedown', function (e) {
+    var r = e.button === 0 && e.target.closest && e.target.closest('.g6'); if (!r) return;
+    rowDrag = { el: r, x: e.clientX, s: r.scrollLeft }; rowMoved = false; e.preventDefault();
+  });
+  document.addEventListener('mousemove', function (e) {
+    if (!rowDrag) return;
+    var dx = e.clientX - rowDrag.x; if (Math.abs(dx) > 5) { rowMoved = true; rowDrag.el.classList.add('drag'); }
+    rowDrag.el.scrollLeft = rowDrag.s - dx;
+  });
+  document.addEventListener('mouseup', function () { if (rowDrag) rowDrag.el.classList.remove('drag'); rowDrag = null; setTimeout(function () { rowMoved = false; }, 0); });
+  document.addEventListener('click', function (e) { if (rowMoved && e.target.closest && e.target.closest('.g6')) { e.preventDefault(); e.stopPropagation(); rowMoved = false; } }, true);
+  document.addEventListener('wheel', function (e) {
+    var r = e.target.closest && e.target.closest('.g6'); if (!r || r.scrollWidth <= r.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+    e.preventDefault(); r.scrollLeft += e.deltaY;
+  }, { passive: false });
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-g6]'); if (!b) return;
+    var r = document.querySelector('.g6'); if (r) r.scrollBy({ left: (+b.getAttribute('data-g6')) * r.clientWidth * 0.8, behavior: 'smooth' });
+  });
   setInterval(function () {
     var box = document.querySelector('.hslide'); if (!box || document.hidden || homeHover) return;
     try {
       if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
       var n = +box.getAttribute('data-n') || 0; if (n < 2) return;
-      var i = ((+box.getAttribute('data-ri') || 0) + 1) % n; box.setAttribute('data-ri', i);
-      box.querySelector('.htrack').style.transform = 'translateX(-' + (i * 100) + '%)';
+      /* 2026-11-18 사용자 지시: 마지막 다음에 처음으로 되감지 말고 원처럼 이어서 돈다 — 맨 끝의 첫 그림 복사본으로 넘어간 뒤, 움직임 없이 진짜 첫 그림 자리로 바꿔 놓는다 */
+      var tr = box.querySelector('.htrack'), i = (+box.getAttribute('data-ri') || 0) + 1;
+      tr.style.transform = 'translateX(-' + (i * 100) + '%)';
+      if (i >= n) {
+        i = 0;
+        setTimeout(function () { tr.style.transition = 'none'; tr.style.transform = 'translateX(0)'; void tr.offsetWidth; tr.style.transition = 'transform .7s ease'; }, 750);
+      }
+      box.setAttribute('data-ri', i);
       homeSlideSync(i);
     } catch (e) { }
   }, 4000);
@@ -1503,17 +1679,17 @@
   }
   function homeHeroB(hl) {
     var L = hl.slice(0, 10);
-    homeInfo = L.map(function (e) { return { key: e.key, name: e.items.map(function (x) { return x.name; }).join(' + '), szIn: homeRecBox(homeRec(e.items)) }; });
+    homeInfo = L.map(function (e) { return { key: e.key, name: e.items.map(shortLabel).join(' + '), szIn: homeRecBox(homeRec(e.items)) }; });
     var d = homeInfo[0];
-    return '<div class="hpics b1"><div class="hpic hslide stage" data-ri="0" data-n="' + L.length + '"><div class="htrack" style="display:flex;height:100%;transition:transform .7s ease">' + L.map(function (e, k) { return '<div class="hs"><img class="hsbg" src="' + h(urls.tryon[e.key]) + '" alt="" aria-hidden="true"><img class="hsfg" src="' + h(urls.tryon[e.key]) + '" alt="' + h(homeInfo[k].name) + ' 입은 모습"></div>'; }).join('') + '</div><span class="on">입은 모습</span>' +
+    return '<div class="hpics b1"><div class="hpic hslide stage" data-ri="0" data-n="' + L.length + '"><div class="htrack" style="display:flex;height:100%;transition:transform .7s ease">' + L.map(function (e, k) { return '<div class="hs"><img class="hsbg" src="' + h(urls.tryon[e.key]) + '" alt="" aria-hidden="true"><img class="hsfg" src="' + h(urls.tryon[e.key]) + '" alt="' + h(homeInfo[k].name) + ' 입은 모습"></div>'; }).join('') + (L.length > 1 ? '<div class="hs" aria-hidden="true"><img class="hsbg" src="' + h(urls.tryon[L[0].key]) + '" alt=""><img class="hsfg" src="' + h(urls.tryon[L[0].key]) + '" alt=""></div>' : '') + '</div><span class="on">입은 모습</span>' +
       (L.length > 1 ? '<div class="dots" aria-hidden="true">' + L.map(function (e, k) { return '<i' + (k ? '' : ' class="cur"') + '></i>'; }).join('') + '</div>' : '') + '</div>' +
       '<div class="info" aria-live="polite"><small>방금 입어본 옷</small><h3>' + h(d.name) + '</h3><div class="szbox"' + (d.szIn ? '' : ' hidden') + '>' + d.szIn + '</div>' +
       '<button type="button" class="btn" data-act="histShow" data-id="' + h(d.key) + '">피팅룸에서 자세히 보기</button></div></div>';
   }
   function homeCardsB(hl) {
-    return '<section class="sec"><div class="sh"><h2 class="sectitle">최근 입어본 옷</h2><span>옷 부분만 크게 · 오른쪽 아래 작은 그림이 입은 모습 · 눌러서 피팅룸에서 보세요</span></div><div class="g6">' +
-      hl.slice(0, 12).map(function (e) {
-        var t = e.items.map(function (x) { return x.name; }).join(' + '), rs = homeRec(e.items), u = h(urls.tryon[e.key]);
+    return '<section class="sec g6sec"><div class="sh"><h2 class="sectitle">최근 입어본 옷</h2><span>마우스로 끌거나 휠을 굴려 좌우로 넘겨 보세요 · 눌러서 피팅룸에서 보세요</span><span class="g6nav"><button type="button" data-g6="-1" aria-label="이전 옷">‹</button><button type="button" data-g6="1" aria-label="다음 옷">›</button></span></div><div class="g6">' +
+      hl.map(function (e) {
+        var t = e.items.map(shortName).join(' + '), rs = homeRec(e.items), u = h(urls.tryon[e.key]);
         return '<button type="button" class="ck" data-act="histShow" data-id="' + h(e.key) + '"><div class="ph"><img class="' + homeZoom(e.items) + '" src="' + u + '" alt="' + h(t) + ' 옷 부분" loading="lazy"><img class="mini" src="' + u + '" alt="" aria-hidden="true" loading="lazy"></div><div class="m"><b>' + h(t) + '</b>' +
           (rs.length ? '<small>추천 사이즈 ' + h(rs.map(function (r) { return rs.length > 1 ? CATS[r.cat] + ' ' + r.size : r.size; }).join(' · ')) + '</small>' : '') + '</div></button>';
       }).join('') + '</div></section>';
@@ -1530,10 +1706,16 @@
     /* 2026-11-14 사용자 지시: 입어볼 것 칸은 이미지만(이름·사이즈는 오른쪽 핏 분석·사이즈 비교에 있어 중복). 이름은 마우스를 올리면 보임 */
     return '<div class="slot" title="' + h(role + ' · ' + it.name + (on ? ' · ' + on : '')) + '"><div class="srow">' + (it.photo ? '<img src="' + h(it.photo) + '" alt="' + h(it.name) + '" class="' + posOf(it) + '">' : '<span class="thumb" aria-hidden="true">' + SHIRT + '</span>') +
       '<div class="sname" style="flex:1"></div><button type="button" class="rm" aria-label="' + h(it.name) + ' 빼기" data-act="unsel" data-cat="' + cat + '">빼기</button></div>' +
-      (cat === 'bottom' ? hemRow() + hemShortNote(it) + optRow('beltUse', '허리띠', [['off', '사용안함'], ['on', '사용']], state.beltUse === 'on' ? 'on' : 'off') : '') + (cat === 'outer' ? optRow('outerClosed', '겉옷', [['open', '열기'], ['closed', '잠그기']], state.outerClosed === 'closed' ? 'closed' : 'open') : '') + ((cat === 'inner' || (cat === 'top' && !got('inner'))) && got('bottom') ? optRow('tuckIn', '상의', [['out', '빼기'], ['in', '넣기']], state.tuckIn === 'in' ? 'in' : 'out') : '') + '</div>';
+      (cat === 'bottom' ? hemShortNote(it) + optRow('beltUse', '허리띠', [['off', '사용안함'], ['on', '사용']], state.beltUse === 'on' ? 'on' : 'off') : '') + '</div>'; /* 2026-11-18 사용자 지시: 겉옷 열기/잠그기·상의 빼기/넣기 줄 삭제 */
   }
   /* 2026-11-13 바지 길이 선택: 자동(옷 길이와 다리 길이로 계산) 또는 발목 위·발목·발등·바닥. 입히기 그림 문장에 쓰임(서버 tryon) */
   var HEM_OPTS = [['auto', '기본'], ['above', '짧게'], ['foot', '길게'], ['floor', '바닥']];
+  function hemFootOk(it, r, len) {
+    var ek = it.ext && it.ext.kind; if (ek === 'shorts' || ek === 'skirt') return false;
+    var keys = r.current.parts.map(function (p) { return p.key; });
+    if (keys.indexOf('length') >= 0 && keys.indexOf('inseam') < 0) return false;
+    return !(isFinite(len.leg) && len.leg < -6);
+  }
   function hemNow() { var v = state.hemTo; return HEM_OPTS.some(function (o) { return o[0] === v; }) ? v : 'auto'; }
   /* 2026-11-13 입는 모양 선택: 겉옷 열기/잠그기, 상의·이너 바지에 넣기/빼기 (서버 tryon 의 style 문장) */
   function optRow(key, title, opts, cur) {
@@ -1541,9 +1723,9 @@
   }
   function styleOf(roles) {
     var st = {}, has = function (r) { return roles.indexOf(r) >= 0; };
-    if (has('outer')) st.outer = state.outerClosed === 'closed' ? 'closed' : 'open';
+    if (has('outer')) st.outer = 'open'; /* 2026-11-18 잠그기 선택 삭제: 겉옷은 항상 열어 입힘(예전에 저장된 closed 값은 무시) */
     if (has('bottom')) st.belt = state.beltUse === 'on' ? 'on' : 'off';
-    if (has('bottom') && (has('top') || has('inner'))) st.tuck = state.tuckIn === 'in' ? 'in' : 'out';
+    /* 2026-11-18 넣기/빼기 선택 삭제: tuck 은 보내지 않음(그림이 알아서) */
     return Object.keys(st).length ? st : null;
   }
   /* 2026-11-14 사용자 지시: 바지 총장이 다리 길이보다 짧으면 자동으로 늘려 보이면 안 되고 짧다고 알려 준다. leg = 옷 인심(총장) − 내 다리 인심(cm), 음수면 짧음 */
@@ -1671,13 +1853,19 @@
     var angleName = { side: '측면', back: '후면', motion: '모션' }[ui.angle];
     /* 2026-11-11 기본 여성 캐릭터(옷 입히기 전·내 아바타 없음)는 Kling 마스터 캐릭터의 옆·뒷모습 사진을 보여 준다. 입어 본 결과는 여전히 정면만 */
     var gn = isMale() ? 'male' : 'default', gq = isMale() ? '?v=w' : '', mo = ui.angle === 'motion';
-    var angImg = !front && v === 'me' && !worn && !charPic() ? 'assets/avatar_' + gn + '_' + (mo ? 'wide' : ui.angle + '_wide') + '.jpg' + gq : '';
+    var angImg = !front && v === 'me' && !worn && !charPic() ? 'assets/avatar_' + gn + '_' + (mo ? 'wide' : ui.angle + '_wide') + '.jpg' + gq : (!front && !mo && !myPic() && (v === 'me' ? !worn : v === 'model' && url === charPic()) && angSrc(ui.angle)) || ''; /* 2026-11-19 옆·뒤 사진이 있는 기본 모델(멋진남자)은 「기본 모델」 보기에서도 옆·뒤를 보여 준다 */
     var motSeq = ['assets/avatar_' + gn + '_wide.jpg' + gq, 'assets/avatar_' + gn + '_side_wide.jpg' + gq, 'assets/avatar_' + gn + '_back_wide.jpg' + gq, 'assets/avatar_' + gn + '_side_wide.jpg' + gq].join('|');
     var vidMo = mo && !isMale() && v === 'me' && !worn && !charPic();
+    /* 2026-11-18 옆·뒷모습 입은 그림(있으면 먼저), 옷 입기 전이면 내가 올린 옆·뒤 사진 */
+    var angV2 = !front && !mo && v === 'me' ? ui.angle : '', angK = angV2 ? angWornKey(set) : '', angRes = angV2 && angTryOk(angV2, angK) ? urls.angTry[angV2][angK] : '';
+    var angMine = angV2 && !angRes && !worn && myPic() && urls.ang[angV2] ? urls.ang[angV2] : '', angPend = !!(angV2 && angBusy && angBusy.view === angV2 && angBusy.key === angK);
+    var angMsg = mo ? '모션은 기본 캐릭터(옷 입히기 전)에서만 볼 수 있어요.' : v !== 'me' ? '옆모습·뒷모습은 「내 아바타」 보기에서 볼 수 있어요.' : angPend ? 'AI가 ' + ANG_NAME[angV2] + '을 만들고 있어요. 보통 1~2분 걸려요.'
+      : !angSrc(ui.angle) ? angWhy(ui.angle) : '이 옷의 ' + ANG_NAME[ui.angle] + '은 아직 만들지 않았어요. 오른쪽 「가상 피팅 시작」 위에서 ' + ANG_NAME[ui.angle] + '을 켜고 입혀 보세요.';
     var hmA = vidMo ? hsMap(HSPAN['avatar_default_motion.mp4']) : angImg ? hsMap(spanOf(angImg)) : null, hmC = v === 'cmp' && front ? hsMap(charSpan()) : null;
     var fig = vidMo ? '<div class="fig' + (hmA ? ' hs' : '') + '"' + hsAttr(hmA) + '><video src="assets/avatar_default_motion.mp4" autoplay muted loop playsinline preload="auto" aria-label="캐릭터 모션"></video></div>'
+      : angRes || angMine ? '<div class="fig"><img src="' + h(angRes || angMine) + '" alt="' + h((angRes ? (worn ? worn.name + ' ' : '') + '입은 ' : '내 아바타 ') + ANG_NAME[angV2]) + '"></div>'
       : angImg ? '<div class="fig wide' + (hmA ? ' hs' : '') + '"' + hsAttr(hmA) + '><img src="' + angImg + '"' + (mo ? ' data-motion="' + motSeq + '"' : '') + ' alt="캐릭터 ' + h(mo ? '모션' : ui.angle === 'side' ? '옆모습' : '뒷모습') + '"></div>'
-      : !front ? '<div class="fig vphf"><div class="vph"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M4 17l5-5 4 4 3-3 4 4M9 3v0"></path><path d="M3 3l18 18"></path></svg><b>' + angleName + ' 지원 이미지 없음</b><p>' + (mo ? '모션은 기본 캐릭터(옷 입히기 전)에서만 볼 수 있어요. ' : '') + 'FITON은 정면 착용 이미지만 만들어요. ' + angleName + ' 결과는 만들지 않으며, 정면 이미지를 돌려 보여 주지도 않습니다.</p></div></div>'
+      : !front ? '<div class="fig vphf"><div class="vph"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M4 17l5-5 4 4 3-3 4 4M9 3v0"></path><path d="M3 3l18 18"></path></svg><b>' + angleName + (angPend ? ' 만드는 중' : ' 이미지 없음') + '</b><p>' + h(angMsg) + ' 앞모습 그림을 돌려서 보여 주지는 않아요.</p></div></div>'
       : v === 'cmp' ? '<div class="fig cmpv' + (hmC ? ' hs' : '') + '"' + hsAttr(hmC) + '><figure><img src="' + h(avatarShow()) + '" alt="원본 아바타"><figcaption>원본</figcaption></figure><figure><img src="' + h(worn ? worn.url : avatarShow()) + '" alt="입은 모습"><figcaption>' + (worn ? '입은 모습' : '아직 입은 모습이 없어요') + '</figcaption></figure></div>'
       : '<div class="fig' + (/avatar_(default|male)_wide/.test(url) ? ' wide' : '') + (hm ? ' hs' : '') + '"' + hsAttr(hm) + '><img src="' + h(url) + '" alt="' + h(v === 'model' ? '기본 모델 코디 예시' : worn ? worn.name + ' 입은 모습' : '캐릭터') + '">' + (hm && v !== 'model' && (ui.ruler || ui.lenmark) ? rulerHtml(E.num(prof().height), res, tagsR, (function () { try { return E.bodyOf(prof(), cfgNow()); } catch (e) { return null; } })()) : '') + tags + pins + '</div>';
     var zoomOk = front && v !== 'cmp', zi = ZOOMS.indexOf(z);
@@ -1743,7 +1931,8 @@
       FSTYLE.map(function (f) { var o = pref === f[0]; return '<button type="button" class="' + (o ? 'on' : '') + '" aria-pressed="' + o + '" data-act="fitStyle" data-v="' + f[0] + '">' + f[1] + '<small>' + f[2] + '</small></button>'; }).join('') +
       '</div><p class="rule">추천 사이즈와 핏 판정 기준이 바뀌어요. 입은 그림은 상품 사진의 핏대로 만들어져 이 선택으로 바뀌지 않아요.</p></section>' +
       '<section class="card2 runcard" aria-label="실행">' + (Core.genEnabled() ? '' : '<p class="demo" role="note">AI 입히기 서버가 연결되지 않은 데모 상태예요. 가상 피팅 시작을 눌러도 실제 결과는 만들어지지 않습니다.</p>') +
-      '<div class="runrow"><button type="button" class="wear" data-act="wear"' + (set.length && !genPending && Core.genEnabled() ? '' : ' disabled') + '>' + (genPending ? '진행 중… 다른 걸 해도 돼요' : '가상 피팅 시작<small>' + h((label.join(' · ') || '고른 옷') + ' · 남은 횟수 1회 사용') + '</small>') + '</button>' + buy + '</div>' + (accOn() ? '<div class="runrow"><button type="button" class="wear" data-act="wearAcc"' + (accs.length && wornNow() && !genPending && Core.genEnabled() ? '' : ' disabled') + '>' + (genPending ? '진행 중… 다른 걸 해도 돼요' : '액세서리 입히기<small>' + (accs.length ? '액세서리 ' + accs.length + '개 · 옷 입은 그림 위에' : '액세서리를 먼저 골라 주세요') + (accs.length > ACC_LIMIT ? ' (최대 ' + ACC_LIMIT + '개)' : '') + '</small>') + '</button></div>' : '') + buyNote + '</section></aside>';
+      '<div class="fstyle" role="group" aria-label="만들 방향" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:6px">' + ['front'].concat(ANGS).map(function (gv) { var ok = gv === 'front' || !!angSrc(gv), on = ok && !!(state.genViews || { front: true })[gv]; return '<button type="button" class="' + (on ? 'on' : '') + '" aria-pressed="' + on + '" data-act="genView" data-v="' + gv + '"' + (ok ? '' : ' disabled style="opacity:.45;cursor:not-allowed" title="' + h(angWhy(gv)) + '"') + '>' + ANG_NAME[gv] + '<small>' + (ok ? (on ? '만들기' : '안 만들기') : '사진 없음') + '</small></button>'; }).join('') + '</div><p class="rule" style="margin:0 0 8px">고른 방향마다 입어보기 1회씩 써요. 옆·뒷모습은 앞모습 다음에 하나씩 만들어요.</p>' +
+      '<div class="runrow"><button type="button" class="wear" data-act="wear"' + (set.length && genViews().length && !genPending && !angBusy && Core.genEnabled() ? '' : ' disabled') + '>' + (genPending || angBusy ? '진행 중' + (angBusy && !genPending ? '(' + ANG_NAME[angBusy.view] + ')' : '') + '… 다른 걸 해도 돼요' : '가상 피팅 시작<small>' + h((label.join(' · ') || '고른 옷') + ' · ' + (genViews().length ? genViews().map(function (gv) { return ANG_NAME[gv]; }).join('·') + ' · 남은 횟수 ' + genViews().length + '회 사용' : '방향을 골라 주세요')) + '</small>') + '</button>' + buy + '</div>' + (accOn() ? '<div class="runrow"><button type="button" class="wear" data-act="wearAcc"' + (accs.length && wornNow() && !genPending && Core.genEnabled() ? '' : ' disabled') + '>' + (genPending ? '진행 중… 다른 걸 해도 돼요' : '액세서리 입히기<small>' + (accs.length ? '액세서리 ' + accs.length + '개 · 옷 입은 그림 위에' : '액세서리를 먼저 골라 주세요') + (accs.length > ACC_LIMIT ? ' (최대 ' + ACC_LIMIT + '개)' : '') + '</small>') + '</button></div>' : '') + buyNote + '</section></aside>';
     return '<main class="main fitmain"><div class="fitgrid' + (ui.rpOff ? ' rpoff' : '') + '">' + rpanel + viewer + sizecmp + fitside + '</div></main>';
   }
 
@@ -1816,6 +2005,7 @@
       /* 2026-11-12 사용자 결정(1번): 원단 4종(핏 계산 fit-config·서버 입히기 문장이 이미 아는 값만) 고르는 칸 */
       (f.cat === 'shoe' ? '' : '<label for="pfab">원단 (선택)<select id="pfab" data-chg="cfFab">' + Object.keys(cfgNow().fabric).map(function (k) { return '<option value="' + k + '"' + ((f.fabric || 'normal') === k ? ' selected' : '') + '>' + h(cfgNow().fabric[k].label + (k === 'normal' ? ' (모르면 그대로)' : '')) + '</option>'; }).join('') + '</select></label><p class="hint">' + (f.material ? '상품 페이지 소재: ' + h(f.material) + ' · ' : '') + '스판·니트는 늘어나서 조금 작아도 덜 끼고, 데님은 안 늘어나 더 끼게 계산해요.</p>') +
       '<label for="pname">' + (sh ? '신발 이름' : '옷 이름') + '<input id="pname" type="text" data-cf="name" value="' + h(f.name) + '" maxlength="60"></label>' +
+      '<label for="pshort">짧은 이름 (화면 표시용, 비우면 자동)<input id="pshort" type="text" data-cf="short" value="' + h(f.short || '') + '" placeholder="' + h(shortName({ name: f.name, cat: f.cat })) + '" maxlength="14"></label>' +
       (sh ? '<label for="pheel">굽 높이 (mm, 선택)<input id="pheel" type="text" inputmode="decimal" autocomplete="off" data-cf="heel" placeholder="예: 70 (운동화 20~30, 구두 50~90)" value="' + h(f.heel == null ? '' : f.heel) + '" maxlength="3"></label>' : '') + '<label for="pprice">가격<input id="pprice" type="text" data-cf="price" value="' + h(f.price) + '"></label><label for="purl">상품 링크 (선택)<input id="purl" type="url" data-cf="url" placeholder="https://..." value="' + h(f.url) + '"></label>' +
       (linkReadOn() ? '<button type="button" class="lk" data-act="linkRead"' + (f.linkBusy ? ' disabled' : '') + '>' + (f.linkBusy ? '읽는 중…' : '링크에서 이름·가격 가져오기') + '</button>' : '') +
       '<p class="hint">상품 주소를 넣으면 ' + (sh ? '신발' : '옷') + ' 카드에 구매하기가 생겨요.</p>' + (f.err ? '<p class="gone" role="alert">' + h(f.err) + '</p>' : '') + (f.saved ? '<p class="ok" role="status">저장했어요.</p>' : '') +
@@ -1874,24 +2064,42 @@
   }
   /* 2026-11-13 입어본 기록: 입은 사이즈(만들 때 저장한 state.lookSize)와 그 사이즈의 옷 치수(내 옷장 표)를 보여 준다 */
   function lookSizeOf(key, it) { var t = state.lookSize && state.lookSize[key]; return t && typeof t === 'object' && t[it.id] ? String(t[it.id]) : ''; } /* lookSize[그림 키] = { 옷 id: 사이즈 이름 } */
-  function lookSizeHtml(key, items) {
-    var rows = items.map(function (it) {
-      var lb = lookSizeOf(key, it); if (!lb) return '';
-      var z = (it.sizes || []).filter(function (r) { return r.label === lb; })[0], vals = z ? (FIELDS[it.cat] || []).filter(function (f) { return z[f[0]] != null && String(z[f[0]]).trim() !== ''; }).map(function (f) { return f[1] + ' ' + z[f[0]]; }).join(' · ') : '';
-      return '<p class="lsz"><b>' + h((CATS[it.cat] || '') + ' ' + lb + ' 사이즈') + '</b>' + (vals ? ' · ' + h(vals) : '') + '</p>';
-    }).join('');
-    return rows;
+  /* 2026-11-19 사용자 지시: 옷 카드 아래 한 줄 글 대신, 카드 안에 입은 사이즈의 치수를 표(항목·치수)로. 사이즈표가 저장된 옷은 표에 적힌 이름·숫자 그대로(피팅룸 사이즈 카드와 같은 cmpCell), 없는 옷·신발은 앱 기본 이름 */
+  function lookSizeTable(key, it) {
+    var lb = lookSizeOf(key, it); if (!lb) return '';
+    var z = (it.sizes || []).filter(function (r) { return String(r.label) === lb; })[0]; if (!z) return '';
+    var unit = it.cat === 'shoe' ? 'mm' : 'cm', ic = imgCols(it), t = null, rows = [];
+    if (ic && ic.rows[lb]) { try { t = FitNotes.tblSync(it, FIELDS[it.cat]); } catch (e) { t = null; } }
+    var cmOnly = !!t && it.cat !== 'shoe' && !(t.conv || []).some(function (cv) { return cv && cv[0] !== 1 && cv[0] !== 2; });
+    if (t) t.head.forEach(function (nm, i) {
+      nm = String(nm == null ? '' : nm).trim(); var cell = String(ic.rows[lb][i + 1] == null ? '' : ic.rows[lb][i + 1]).trim(); if (!nm || !cell || /^[-–—\/.·~\s]+$/.test(cell)) return; /* 「-」·「/」처럼 값이 없는 칸은 줄을 만들지 않는다 */
+      var k = t.keys[i], n = k && ic.ci[k] === i ? E.num(z[k]) : 0;
+      /* 계산에 안 쓰는 칸(예: 자켓의 허리): 숫자만 적힌 cm 표의 칸이면 cm 를 붙이고, 체중·키 같은 칸과 글자가 섞인 칸은 적힌 그대로 */
+      var r = n ? cmpCell(ic, it, z, k, n, unit) : [nm, cmOnly && /^\d+(\.\d+)?$/.test(cell) && /길이|기장|총장|둘레|단면|너비|넓이|폭|밑위|밑단|소매|어깨|가슴|허리|엉덩이|허벅지|팔뚝|암홀/.test(nm) && !/kg|체중|몸무게|inch|인치/i.test(nm) ? cell + unit : cell];
+      if (/cm$/.test(r[1])) r[0] = r[0].replace(/\s*\(\s*cm\s*\)$/i, '');
+      rows.push(r);
+    });
+    else (FIELDS[it.cat] || []).forEach(function (f) {
+      var v = z[f[0]]; if (v == null || String(v).trim() === '') return;
+      var n = E.num(v); rows.push([fieldLabel(it, f[0]).replace(/\s*\(mm\)$/, ''), n ? n + unit : String(v)]);
+    });
+    if (!rows.length) return '';
+    return '<table class="lstb" aria-label="' + h((CATS[it.cat] || '') + ' ' + lb + ' 사이즈 치수') + '"><tbody>' + rows.map(function (r) { return '<tr><th scope="row">' + h(r[0]) + '</th><td>' + h(r[1]) + '</td></tr>'; }).join('') + '</tbody></table>';
   }
   function viewHistory() {
     var list = histList(), cur = list.filter(function (e) { return e.key === ui.cmp; })[0] || list[0] || null;
-    return '<main class="main mflex"><div class="col fxL" style="flex:3 1 520px"><div class="fxCard"><p class="sub">옷이나 옷 조합마다 마지막으로 입힌 모습 한 장이 저장돼요.</p>' +
+    return '<main class="main mflex"><div class="col fxL" style="flex:2 1 420px"><div class="fxCard"><p class="sub">옷이나 옷 조합마다 마지막으로 입힌 모습 한 장이 저장돼요.</p>' +
       (list.length ? '<div class="grid3">' + list.map(function (e) {
-        var on = cur === e, title = e.items.map(function (x) { return x.name; }).join(' + ');
-        return '<div class="card' + (on ? ' on' : '') + '"><button type="button" class="pick" aria-label="' + h(title) + ' 크게 보기" aria-pressed="' + on + '" data-act="histPick" data-id="' + h(e.key) + '"><img src="' + urls.tryon[e.key] + '" alt=""></button><div class="its">' +
-          e.items.map(function (i) { return '<div class="it"><b>' + h(i.name) + '</b>' + (i.gone ? '<p class="gone">이 상품은 현재 없는 것으로 보입니다</p>' : safeUrl(i.url) ? buyHtml(i, 'buy') : '') + '</div>'; }).join('') + '</div></div>'; /* 2026-11-14 기록 카드: 옷 이름·구매하기만(사이즈는 오른쪽 상세에만) */
+        var on = cur === e, title = e.items.map(shortLabel).join(' + ');
+        /* 2026-11-19 사용자 지시: 작은 그림 아래 옷 이름·구매하기 없앰(마우스를 올리면 짧은 이름), 내용은 오른쪽 큰 그림 옆으로 */
+        return '<div class="card hcard' + (on ? ' on' : '') + '" title="' + h(title) + '"><button type="button" class="pick" aria-label="' + h(title) + ' 크게 보기" aria-pressed="' + on + '" data-act="histPick" data-id="' + h(e.key) + '"><img src="' + urls.tryon[e.key] + '" alt=""></button></div>';
       }).join('') + '</div>' : '<p class="hint">아직 입어본 기록이 없어요. 피팅룸에서 입어 보면 여기에 쌓여요.</p>') + '</div></div>' +
-      (cur ? '<aside class="cmp fxR" style="flex:1 1 320px;max-width:480px" aria-label="고른 기록"><h2>' + h(cur.items.map(function (x) { return x.name; }).join(' + ')) + '</h2><figure><img src="' + urls.tryon[cur.key] + '" alt="입은 모습 (눌러서 크게 보기)" role="button" tabindex="0" class="zoomimg" data-act="histZoom" data-id="' + h(cur.key) + '"></figure>' + lookSizeHtml(cur.key, cur.items) +
-        '<div class="acts hacts"><button type="button" class="b pri" data-act="histShow" data-id="' + h(cur.key) + '">피팅룸에서 보기</button><button type="button" class="b d" data-act="histDel" data-id="' + h(cur.key) + '">삭제</button></div></aside>' : '') + '</main>';
+      (cur ? '<aside class="cmp fxR hdet" style="flex:3 1 620px;max-width:none" aria-label="고른 기록"><figure><img src="' + urls.tryon[cur.key] + '" alt="입은 모습 (눌러서 크게 보기)" role="button" tabindex="0" class="zoomimg" data-act="histZoom" data-id="' + h(cur.key) + '"></figure>' +
+        '<div class="hinfo"><h2>입은 옷 ' + cur.items.length + '벌</h2>' + cur.items.map(function (i) {
+          var lb = lookSizeOf(cur.key, i);
+          return '<div class="hit"><small>' + h(CATS[i.cat] || '') + (lb ? ' · ' + h(lb) + ' 사이즈' : '') + '</small><b title="' + h(i.name) + '">' + h(shortName(i)) + '</b>' + lookSizeTable(cur.key, i) + (i.gone ? '<p class="gone">이 상품은 현재 없는 것으로 보입니다</p>' : safeUrl(i.url) ? buyHtml(i, 'buy') : '') + '</div>';
+        }).join('') +
+        '<div class="acts hacts"><button type="button" class="b pri" data-act="histShow" data-id="' + h(cur.key) + '">피팅룸에서 보기</button><button type="button" class="b d" data-act="histDel" data-id="' + h(cur.key) + '">삭제</button></div></div></aside>' : '') + '</main>';
   }
 
   /* 2026-11-12 로그인 화면 로고: 옷걸이 마크 + 두 색 글자(FIT + ON) */
@@ -1906,15 +2114,25 @@
       '<div class="segtoggle fxTab" role="group" aria-label="캐릭터 종류">' + [['base', '기본 모델'], ['me', '내 아바타']].map(function (t) { return '<button type="button" class="' + (tab === t[0] ? 'on' : '') + '" aria-pressed="' + (tab === t[0]) + '" data-act="bTab" data-v="' + t[0] + '">' + t[1] + (w === t[0] ? ' · 사용 중' : '') + '</button>'; }).join('') + '</div></section>';
     if (tab === 'base') {
       var ro = function (label, val, unit) { return '<label>' + label + '<span class="in"><input type="text" value="' + h(val) + '" readonly aria-readonly="true" tabindex="-1" style="opacity:.85">' + (unit ? '<small>' + unit + '</small>' : '') + '</span></label>'; };
-      return '<main class="main mflex">' + head + '<section class="pan fxL fxBody" style="flex:1 1 340px" aria-label="기본 모델"><h2>기본 모델</h2><img class="av" src="' + h(b.img) + '" alt="' + h(b.name) + ' 전신" style="object-fit:contain;background:#fff"><p class="sub">아래에서 모델을 누르면 그 모델로 입어봐요. 내 아바타와 내 치수는 바뀌지 않아요.</p>' +
-        '<div class="fxMods" style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px">' +
+      return '<main class="main mflex">' + head + '<section class="pan fxL fxBody" style="flex:1 1 340px" aria-label="기본 모델"><h2>기본 모델</h2>' +
+        /* 2026-11-18 기본 모델도 내 아바타처럼 앞·옆·뒷모습 3장을 같은 크기로 나란히. 옆·뒤 사진은 기본 여성·남성만 있음(assets/avatar_<default|male>_side/back.jpg), 연령대 모델은 「없음」 칸 */
+        '<div style="grid-column:1 / -1;display:grid;grid-template-columns:repeat(3,minmax(0,300px));gap:14px">' + ['front'].concat(ANGS).map(function (av) {
+          var src = av === 'front' ? b.img : b.ang ? b.ang[av] : b.preset ? '' : 'assets/avatar_' + (b.id === 'male' ? 'male' : 'default') + '_' + av + '.jpg?v=t';
+          return '<div style="display:flex;flex-direction:column;gap:8px;min-width:0">' + (src ? '<img class="av zoomimg" role="button" tabindex="0" data-act="bodyZoom" title="눌러서 크게 보기" src="' + h(src) + '" alt="' + h(b.name) + ' ' + ANG_NAME[av] + ' 전신" style="max-width:none;object-fit:' + (b.preset ? 'contain' : 'cover') + ';background:#fff">' : '<div class="av" style="max-width:none;border:1px dashed var(--line);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:14px">' + ANG_NAME[av] + ' 없음</div>') + '<div style="text-align:center;font-size:14px;font-weight:700">' + ANG_NAME[av] + '</div></div>';
+        }).join('') + '</div><p class="sub" style="grid-column:1 / -1">아래에서 모델을 누르면 그 모델로 입어봐요. 내 아바타와 내 치수는 바뀌지 않아요.</p>' +
+        '<div class="fxMods" style="grid-column:1 / -1;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px">' +
         BASES.map(function (x) { var on = x.id === b.id; return '<button type="button" class="lk" style="padding:4px;border-style:solid;' + (on ? 'border-color:var(--pri);box-shadow:0 0 0 1px var(--pri);color:var(--pri);' : '') + 'display:flex;flex-direction:column;align-items:center;gap:4px;font-size:13px" aria-pressed="' + on + '" data-act="bPreset" data-id="' + x.id + '" aria-label="' + x.name + ' 기본 모델 고르기"><img src="' + h(x.img) + '" alt="" style="width:100%;aspect-ratio:9/16;object-fit:' + (x.preset ? 'contain' : 'cover') + ';border-radius:8px;background:#fff">' + x.name + (on ? ' ✓' : '') + '</button>'; }).join('') + '</div></section>' +
-        '<section class="pan fxR" style="flex:2 1 520px" aria-label="기본 모델 치수"><h2>' + h(b.name) + ' 치수</h2><p class="sub">읽기 전용이에요. 한국 ' + (b.preset ? h(b.name.replace(/(남성|여성)$/, ' $1')) : '20대 ' + (b.g === 'male' ? '남성' : '여성')) + ' 평균 가정치이며, 기본 모델로 입어볼 때는 이 치수로 핏을 계산해요.</p>' +
+        '<section class="pan fxR" style="flex:2 1 520px" aria-label="기본 모델 치수"><h2>' + h(b.name) + ' 치수</h2><p class="sub">읽기 전용이에요. ' + (b.ang ? '키 ' + b.h + 'cm·몸무게 ' + b.w + 'kg 기준' : '한국 ' + (b.preset ? h(b.name.replace(/(남성|여성)$/, ' $1')) : '20대 ' + (b.g === 'male' ? '남성' : '여성')) + ' 평균') + ' 가정치이며, 기본 모델로 입어볼 때는 이 치수로 핏을 계산해요.</p>' +
         '<div class="g3">' + ro('성별', b.g === 'male' ? '남성' : '여성', '') + ro('키', b.h, 'cm') + ro('몸무게', b.w, 'kg') + '</div><h2>자세한 치수</h2><div class="g3">' +
         MFIELDS.map(function (f, i) { return ro(f[1], b.m[i], f[2]); }).join('') + '</div><div class="callout">내 몸에 맞는 사이즈를 보려면 위에서 「내 아바타」를 골라 내 치수를 넣어 주세요.</div></section></main>';
     }
-    return '<main class="main mflex">' + head + '<section class="pan fxL fxBody" style="flex:1 1 340px" aria-label="내 아바타"><h2>내 아바타</h2><img class="av" src="' + h(urls.avatar || (p.gender === 'male' ? 'assets/avatar_male.jpg?v=t' : 'assets/avatar_default.jpg?v=t')) + '" alt="' + (urls.avatar ? '내 아바타' : '기본 캐릭터') + ' 전신"><p class="sub">' + (urls.avatar ? '직접 올린 내 아바타 사진이에요.' : '정면 전신 이미지를 올려 주세요. 올리지 않으면 기본 캐릭터 사진에 내 치수로 입혀 드려요.') + '</p>' +
-      '<label class="btn" style="display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--fg);font-size:16px;font-weight:700">아바타 이미지 올리기<input type="file" class="fhid" accept="image/*" data-file="avatar" aria-label="아바타 이미지 파일 선택"></label><p class="sub">정면 전신, 몸선이 보이는 나시·반바지 차림, 단색 배경 사진이 가장 잘 맞아요.</p>' + (urls.avatar ? '<button type="button" class="lk" data-act="avatarDel">내 아바타 사진 지우기</button>' : '') + '</section>' +
+    return '<main class="main mflex">' + head + '<section class="pan fxL fxBody" style="flex:1 1 340px" aria-label="내 아바타"><h2>내 아바타</h2>' +
+      /* 2026-11-18 앞·옆·뒷모습 3장을 앞모습 큰 사진과 같은 크기(.av, 9:16)로 나란히. fxBody 2칸 배치 대신 가로 전체(grid-column 1/-1)를 씀 */
+      '<div style="grid-column:1 / -1;display:grid;grid-template-columns:repeat(3,minmax(0,300px));gap:14px">' + ['front'].concat(ANGS).map(function (av) {
+        var f = av === 'front', u = f ? urls.avatar : urls.ang[av], src = f ? (u || (p.gender === 'male' ? 'assets/avatar_male.jpg?v=t' : 'assets/avatar_default.jpg?v=t')) : u;
+        return '<div style="display:flex;flex-direction:column;gap:8px;min-width:0">' + (src ? '<img class="av zoomimg" role="button" tabindex="0" data-act="bodyZoom" title="눌러서 크게 보기" src="' + h(src) + '" alt="' + (f && !u ? '기본 캐릭터 전신' : '내 아바타 ' + ANG_NAME[av]) + '" style="max-width:none">' : '<div class="av" style="max-width:none;border:1px dashed var(--line);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:14px">' + ANG_NAME[av] + ' 없음</div>') +
+          '<label class="btn" style="display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--fg);font-size:15px;font-weight:700">' + ANG_NAME[av] + ' 올리기<input type="file" class="fhid" accept="image/*" data-file="' + (f ? 'avatar' : 'avatar_' + av) + '" aria-label="' + ANG_NAME[av] + ' 이미지 파일 선택"></label>' + (u ? (f ? '<button type="button" class="lk" data-act="avatarDel">' : '<button type="button" class="lk" data-act="avatarAngDel" data-v="' + av + '">') + ANG_NAME[av] + ' 지우기</button>' : '') + '</div>';
+      }).join('') + '</div>' + avSetupHtml() + '<p class="sub" style="grid-column:1 / -1">' + (urls.avatar ? '앞모습은 직접 올린 내 아바타 사진이에요.' : '앞모습 정면 전신 이미지를 올려 주세요. 올리지 않으면 기본 캐릭터 사진에 내 치수로 입혀 드려요.') + ' 앞모습은 정면 전신, 몸선이 보이는 나시·반바지 차림, 단색 배경 사진이 가장 잘 맞아요. 옆모습·뒷모습은 선택이에요. 올려 두면 옷을 입힐 때 옆·뒤도 골라서 만들 수 있어요(앞 사진과 같은 옷차림·배경의 전신 사진).' + (urls.avatar ? '' : ' 옆·뒤는 앞모습 사진을 먼저 올려야 쓰여요.') + '</p></section>' +
       '<section class="pan fxR" style="flex:2 1 520px" aria-label="내 치수"><h2>내 치수</h2><p class="sub">성별, 키, 몸무게만 넣어도 시작할 수 있어요.</p><div class="segtoggle" role="group" aria-label="성별"><button type="button" class="' + (p.gender === 'male' ? 'on' : '') + '" data-act="bGender" data-v="male">남성</button><button type="button" class="' + (p.gender !== 'male' ? 'on' : '') + '" data-act="bGender" data-v="female">여성</button></div>' +
       '<div class="g2"><label for="h">키<span class="in"><input id="h" type="number" value="' + h(p.height) + '"><small>cm</small></span></label><label for="w">몸무게<span class="in"><input id="w" type="number" value="' + h(p.weight) + '"><small>kg</small></span></label></div>' +
       '<h2>자세한 치수</h2><div class="callout">모르는 칸은 비워 두세요. 키와 몸무게로 자동 추정해요. 재서 넣을수록 핏이 정확해져요.</div><div class="g3">' +
@@ -1934,11 +2152,17 @@
           '<button type="button" class="plbtn" aria-pressed="' + on + '" data-act="planPick" data-plan="' + h(k) + '">' + (on ? '이 플랜 쓰는 중' : '이 플랜 선택') + '</button></section>';
       }).join('') + '</div></main>';
   }
+  /* 2026-11-19 스킨 선택: 블랙·화이트·부티크 색 버전을 설정에서 바꾼다(skin.js 가 색 파일만 갈아 끼움, 새로 고침 없음). skin.js 가 없으면 카드를 안 그린다 */
+  function skinCard() {
+    var FS = window.FitSkin; if (!FS) return '';
+    return '<section class="card2" aria-label="스킨"><div><h2>스킨</h2><p class="sub">화면 색만 바뀌어요. 옷·기록·입힌 그림은 그대로입니다.</p></div><div class="skins" role="group" aria-label="스킨">' +
+      FS.list.map(function (s) { var o = FS.cur() === s.id; return '<button type="button" class="' + (o ? 'on' : '') + '" aria-pressed="' + o + '" data-act="skinPick" data-v="' + h(s.id) + '"><span class="sw" aria-hidden="true" style="background:' + h(s.sw[0]) + '"><i style="background:' + h(s.sw[1]) + '"></i><i style="background:' + h(s.sw[2]) + '"></i></span><b>' + h(s.name) + '</b>' + (o ? '<em>사용 중</em>' : '') + '</button>'; }).join('') + '</div></section>';
+  }
   function viewSettings() {
     var pref = state.profile.pref || 'fit';
     return '<main class="main setmain"><section class="card2 setprof" aria-label="프로필"><h2>프로필</h2><div class="prow"><img src="' + h(avatarShow()) + '" alt=""><div><b>' + h(user.nick) + ' 님</b><small>이 브라우저에 저장된 프로필</small></div></div>' +
       '<button type="button" class="obtn" data-act="go" data-page="body">내 몸 정보 고치기</button><button type="button" class="obtn" data-act="logout">프로필 바꾸기</button></section>' +
-      '<div class="setcol"><section class="card2" aria-label="선호 핏"><div><h2>선호 핏</h2><p class="sub">사이즈 추천과 핏 판정에만 반영돼요. 입힌 그림은 바뀌지 않습니다.</p></div><div class="prefs" role="group" aria-label="선호 핏">' +
+      '<div class="setcol">' + skinCard() + '<section class="card2" aria-label="선호 핏"><div><h2>선호 핏</h2><p class="sub">사이즈 추천과 핏 판정에만 반영돼요. 입힌 그림은 바뀌지 않습니다.</p></div><div class="prefs" role="group" aria-label="선호 핏">' +
       PREFS.map(function (x) { var o = pref === x[0]; return '<button type="button" class="' + (o ? 'on' : '') + '" aria-pressed="' + o + '" data-act="fitStyle" data-v="' + x[0] + '">' + x[1] + '</button>'; }).join('') + '</div></section>' +
       '<section class="card2 setplan" aria-label="요금제"><div class="bignum sm"><b>' + leftText() + '</b><div><small>이번 달 남은 횟수</small><strong>' + h(planNow().name) + ' 플랜</strong></div></div><button type="button" class="plbtn" data-act="go" data-page="plan">요금제 보기</button></section></div></main>';
   }
@@ -1947,7 +2171,7 @@
   function render() {
     syncDue = false;
     if (!user) { app.className = ''; app.innerHTML = viewLogin(); return; }
-    ensureBasePic();
+    ensureBasePic(); avSetupAuto(); /* 2026-11-19 아바타 세팅: 저장값 없는 내 아바타 사진은 한 번 자동 실행(비동기) */
     var p = ui.page, inner = p === 'fitting' ? viewFitting() : p === 'closet' ? viewCloset() : p === 'accessory' ? viewAccessory() : p === 'history' ? viewHistory() : p === 'body' ? viewBody() : p === 'plan' ? viewPlan() : p === 'set' ? viewSettings() : viewHome();
     var ae = document.activeElement, keep = ae && ae.id, sel = null, scr = {};
     try { sel = keep && ae.selectionStart; } catch (e) {}
@@ -1995,18 +2219,44 @@
   /* 2026-11-14 사용자 지시: 옷을 입을 때마다 배경색이 변하지 않게, 칠할 색은 입은 그림이 아니라 아바타(기본 모델·내 아바타) 원본 사진의 양끝에서 한 번만 읽어 저장해 둔다.
      같은 색을 크게 보기 창(openFull)에도 쓴다. 원본을 읽을 수 없으면(캔버스 보안) 예전처럼 지금 보이는 그림에서 읽는다 */
   var BGC = {};
+  /* 2026-11-19 사용자 지시(배경 경계선): 사진 배경이 왼쪽·오른쪽 밝기가 달라(예: 왼쪽 195·오른쪽 185) 양쪽 평균 한 색으로 칠하면 양옆에 경계선이 보였다.
+     → 왼쪽 띠·오른쪽 띠 색을 따로(cols.L / cols.R) 읽고, 24칸으로 나눠 칸마다 줄 여러 개·폭 1~4% 띠를 평균(한 줄 1픽셀 읽기의 얼룩 없앰). cols 자체는 예전처럼 양쪽 평균 */
   function edgeCols(img) {
     var w = img.naturalWidth || img.videoWidth, h = img.naturalHeight || img.videoHeight; if (!w || !h) return null;
-    var N = 12, c = document.createElement('canvas'); c.width = w; c.height = h;
-    var g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, w, h); g.drawImage(img, 0, 0); /* 투명 PNG(흰 바탕 사본을 만들기 전 잠깐)는 흰 바탕으로 읽는다 — 검게 칠해지지 않게 */
-    var bw = Math.max(2, Math.round(w * 0.01)), cols = [];
+    var N = 24, cw = 200, ch = Math.max(N, Math.round(cw * h / w)), c = document.createElement('canvas'); c.width = cw; c.height = ch;
+    var g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, cw, ch); g.drawImage(img, 0, 0, cw, ch); /* 투명 PNG(흰 바탕 사본을 만들기 전 잠깐)는 흰 바탕으로 읽는다 — 검게 칠해지지 않게 */
+    var d = g.getImageData(0, 0, cw, ch).data, x0 = 2, x1 = 8, cols = [], L = [], R = [];
+    function avg(y0, y1, xa, xb) { var s = [0, 0, 0], n = 0; for (var y = y0; y < y1; y++) for (var x = xa; x < xb; x++) { var o = (y * cw + x) * 4; s[0] += d[o]; s[1] += d[o + 1]; s[2] += d[o + 2]; n++; } return [s[0] / n, s[1] / n, s[2] / n]; }
     for (var i = 0; i < N; i++) {
-      var y = Math.min(h - 1, Math.round((i + 0.5) * h / N)), a = g.getImageData(0, y, bw, 1).data, b = g.getImageData(w - bw, y, bw, 1).data, s = [0, 0, 0], n = 0;
-      [a, b].forEach(function (d) { for (var k = 0; k < d.length; k += 4) { s[0] += d[k]; s[1] += d[k + 1]; s[2] += d[k + 2]; n++; } });
-      cols.push([Math.round(s[0] / n), Math.round(s[1] / n), Math.round(s[2] / n)]);
+      var ya = Math.floor(i * ch / N), yb = Math.max(ya + 1, Math.floor((i + 1) * ch / N));
+      var l = avg(ya, yb, x0, x1), r = avg(ya, yb, cw - x1, cw - x0);
+      L.push(l.map(Math.round)); R.push(r.map(Math.round)); cols.push([0, 1, 2].map(function (k) { return Math.round((l[k] + r[k]) / 2); }));
     }
+    cols.L = L; cols.R = R;
     return cols;
   }
+  /* 칸(el) 배경 칠하기: 사진 왼쪽 바깥 = 사진 왼쪽 끝 색, 오른쪽 바깥 = 오른쪽 끝 색, 사진 폭 안에서는 왼쪽→오른쪽으로 서서히 바뀜(가운데 이음매 없음).
+     ys[i] = i번째 색의 세로 위치(px, el 기준), xl·xr = 사진 왼쪽·오른쪽 끝(px, el 기준). 작은 캔버스(1/4 크기)에 그려 칸 크기로 늘린다 */
+  function bgPaint(el, cols, ys, xl, xr) {
+    var W = el.clientWidth, H = el.clientHeight, n = cols.length, L = cols.L || cols, R = cols.R || cols;
+    if (!W || !H || !n) return;
+    var s = 4, cw = Math.max(8, Math.ceil(W / s)), chh = Math.max(8, Math.ceil(H / s)), c = document.createElement('canvas'); c.width = cw; c.height = chh;
+    var g = c.getContext('2d'), a = Math.min(xl, xr) / s, b = Math.max(xl + 1, xr) / s;
+    function at(A, y) {
+      if (y <= ys[0]) return A[0]; if (y >= ys[n - 1]) return A[n - 1];
+      for (var j = 0; j < n - 1; j++) if (y < ys[j + 1]) { var t = (y - ys[j]) / Math.max(1, ys[j + 1] - ys[j]); return [0, 1, 2].map(function (k) { return A[j][k] + (A[j + 1][k] - A[j][k]) * t; }); }
+      return A[n - 1];
+    }
+    var rgb = function (k) { return 'rgb(' + k.map(Math.round).join(',') + ')'; };
+    for (var yy = 0; yy < chh; yy++) {
+      var y = (yy + 0.5) * s, gr = g.createLinearGradient(a, 0, b, 0); gr.addColorStop(0, rgb(at(L, y))); gr.addColorStop(1, rgb(at(R, y)));
+      g.fillStyle = gr; g.fillRect(0, yy, cw, 1);
+    }
+    el.style.background = 'url(' + c.toDataURL() + ') 0 0 / 100% 100% no-repeat';
+  }
+  /* 창 크기가 바뀌면 칠한 배경을 다시 맞춘다(사진 위치·크기가 바뀌므로). el.__bgRe = 다시 칠하는 함수 */
+  (function () { var tm = 0; window.addEventListener('resize', function () { clearTimeout(tm); tm = setTimeout(function () { document.querySelectorAll('.bgre').forEach(function (e) { if (e.isConnected && e.__bgRe) try { e.__bgRe(); } catch (x) {} }); }, 150); }); })();
+  function bgHook(el, fn) { el.__bgRe = fn; el.classList.add('bgre'); }
   function stageCols(img, cb) {
     var base = avatarStage(), key = base + '|' + (state.avSeq || 0);
     if (BGC[key]) { cb(BGC[key]); return; }
@@ -2017,13 +2267,48 @@
     b.onerror = function () { cb(from(img, false)); };
     b.src = base;
   }
+  /* 2026-11-19 배경 경계선 검토: 옆·뒷모습·모션은 앞모습 아바타와 사진 배경이 달라 앞모습 색을 쓰면 경계선이 생김 → 그 보기에서는 지금 보이는 사진에서 읽는다(사진 주소별로 저장). 앞모습은 예전대로 아바타 원본 색 */
+  /* 2026-11-19 아바타 세팅(별도 기능 avatar-setup.js): 내 아바타 앞·옆·뒤 사진을 올리면 그 사진의 배경색(좌·우 따로)과 배경 점검 결과를 한 번 읽어
+     state.avBg[front|side|back] = { seq, L, R, warn } 로 저장. 이미 올려 둔 사용자도 처음 볼 때 한 번 자동 실행. 배경 칠하기는 저장값을 먼저 씀 */
+  function avSeqOf(v) { return v === 'front' ? (state.avSeq || 0) : ((state.avAngSeq || {})[v] || 0); }
+  function avBgOk(v) { var b = state.avBg && state.avBg[v]; return b && b.seq === avSeqOf(v) && b.L ? b : null; }
+  var avSetBusy = {};
+  function avSetup(v, src) {
+    if (!window.AvatarSetup || avSetBusy[v] === 1) return;
+    var seq = avSeqOf(v); avSetBusy[v] = 1;
+    AvatarSetup.run(src).then(function (r) {
+      if (!r) { avSetBusy[v] = 2; return; } /* 못 읽으면 이번 접속에서는 다시 하지 않음(예전 방식으로 칠함) */
+      avSetBusy[v] = 0; if (seq !== avSeqOf(v)) return;
+      state.avBg = state.avBg || {}; state.avBg[v] = { seq: seq, L: r.L, R: r.R, warn: r.warn, t: Date.now() }; save(); render();
+    });
+  }
+  function avSetupAuto() {
+    if (!window.AvatarSetup || !user) return;
+    ['front'].concat(ANGS).forEach(function (v) { var u = v === 'front' ? urls.avatar : urls.ang[v]; if (u && !avBgOk(v) && !avSetBusy[v]) avSetup(v, u); });
+  }
+  function avSetupHtml() {
+    var vs = ['front'].concat(ANGS).filter(function (v) { return v === 'front' ? urls.avatar : urls.ang[v]; }); if (!vs.length) return '';
+    var warn = [], parts = vs.map(function (v) { var b = avBgOk(v); if (b && b.warn) b.warn.forEach(function (t) { if (warn.indexOf(t) < 0) warn.push(t); }); return ANG_NAME[v] + ' ' + (b ? '✓' : avSetBusy[v] === 2 ? '읽기 실패' : '세팅 중…'); });
+    return '<div class="avset" style="grid-column:1 / -1;display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;font-size:13px"><b>아바타 세팅 · 배경색 맞춤</b><span>' + parts.join(' · ') + '</span>' +
+      '<button type="button" class="lk" data-act="avSetupRe" style="font-size:13px;padding:2px 10px">다시 하기</button>' + (warn.length ? '<span style="flex-basis:100%;color:var(--muted)">' + warn.map(h).join(' ') + '</span>' : '') + '</div>';
+  }
+  function colsFor(img, cb) {
+    if (myPic()) { /* 아바타 세팅 저장값: 앞모습은 내 아바타, 옆·뒷모습은 그 방향 내 사진(입힌 옆·뒤 그림도 그 사진 배경에 맞춰져 있음) */
+      var v = img.hasAttribute('data-motion') ? '' : ui.angle, sv = v && avBgOk(v), sc = sv && AvatarSetup.toCols(sv);
+      if (sc) { cb(sc); return; }
+    }
+    if (ui.angle === 'front' && !img.hasAttribute('data-motion')) { stageCols(img, cb); return; }
+    var k = 'img|' + (img.getAttribute('src') || ''); if (BGC[k]) { cb(BGC[k]); return; }
+    var c = null; try { c = edgeCols(img); } catch (e) {} if (c) BGC[k] = c; cb(c);
+  }
   function paintSlideBg(img) {
     function go() {
       var cols = null; try { cols = edgeCols(img); } catch (e) {}
       var hs = img.parentNode; if (!cols || !hs || !hs.isConnected) return;
       var N = cols.length;
-      hs.style.background = 'linear-gradient(to bottom,' + cols.map(function (k, i) { return 'rgb(' + k.join(',') + ') ' + ((i + 0.5) / N * 100).toFixed(1) + '%'; }).join(',') + ')';
-      hs.classList.add('bgc');
+      var hr = hs.getBoundingClientRect(), ir = img.getBoundingClientRect(), hh = hs.clientHeight;
+      bgPaint(hs, cols, cols.map(function (k, i) { return (i + 0.5) / N * hh; }), ir.left - hr.left, ir.right - hr.left);
+      hs.classList.add('bgc'); bgHook(hs, go);
     }
     if (img.complete && img.naturalWidth) go(); else img.addEventListener('load', go, { once: true });
   }
@@ -2032,17 +2317,18 @@
     function go() {
       try {
         var w = img.naturalWidth || img.videoWidth, h = img.naturalHeight || img.videoHeight; if (!w || !h) return;
-        stageCols(img, function (cols) {
-          if (!cols || !box.isConnected) return;
+        colsFor(img, function (cols) {
+          if (!cols || !box.isConnected || !img.isConnected) return;
           var N = cols.length, fig = img.parentNode, top = fig.offsetTop, fh = fig.offsetHeight; if (!fh) return;
           /* 2026-11-13 키 비례로 사진을 줄여 보여 줄 때는 줄인 사진의 줄 위치에 맞춰 색을 깐다 */
           var hk = parseFloat(fig.style.getPropertyValue('--hk')) || 1, hy = (parseFloat(fig.style.getPropertyValue('--hy')) || 0) / 100;
-          var stops = cols.map(function (k, i) { return 'rgb(' + k.join(',') + ') ' + Math.round(top + (hy + (i + 0.5) / N * hk) * fh) + 'px'; });
-          box.style.background = 'linear-gradient(to bottom,' + stops.join(',') + ')';
-          box.classList.add('bgc');
+          var br = box.getBoundingClientRect(), ir = img.getBoundingClientRect(), bl = br.left + box.clientLeft;
+          bgPaint(box, cols, cols.map(function (k, i) { return top + (hy + (i + 0.5) / N * hk) * fh; }), ir.left - bl, ir.right - bl);
+          box.classList.add('bgc'); bgHook(box, go);
         });
       } catch (e) {}
     }
+    if (img.hasAttribute('data-motion') && !img.__mbg) { img.__mbg = 1; img.addEventListener('load', function () { requestAnimationFrame(go); }); } /* 모션: 사진이 바뀔 때마다 그 사진 색으로 */
     if (img.tagName === 'VIDEO') { if (img.readyState >= 2) requestAnimationFrame(go); else img.addEventListener('loadeddata', function () { requestAnimationFrame(go); }, { once: true }); } else if (img.complete && img.naturalWidth) requestAnimationFrame(go); else img.addEventListener('load', function () { requestAnimationFrame(go); }, { once: true });
   }
 
@@ -2102,7 +2388,7 @@
       var under = ui.homeKind === 'under' && cat !== 'shoe'; ui.homeKind = '';
       if (under) { ui.closetCat = cat; go('closet'); toast('언더웨어는 옷장에 저장했어요. 사이즈 확인용이라 입어보기에는 쓰지 않아요.', 5000); return; }
       ui.left = 'clothes'; go('fitting');
-      if (cat === 'outer' || cat === 'inner') toast((cat === 'inner' ? '이너' : '겉옷') + '는 상의·하의와 함께 골랐을 때 입혀져요. 상의·하의를 골라 「가상 피팅 시작」을 눌러 주세요.', 6000); else wearAll();
+      if (cat === 'outer' || cat === 'inner') toast((cat === 'inner' ? '이너' : '겉옷') + '는 상의·하의와 함께 골랐을 때 입혀져요. 상의·하의를 골라 「가상 피팅 시작」을 눌러 주세요.', 6000); else wearAll({ frontOnly: true });
     }).catch(function (err) { toast((err && err.message) || '사진을 읽지 못했습니다.'); render(); });
   }
   function homeFile(file) {
@@ -2228,6 +2514,7 @@
   function dropTryon(id) {
     if (urls.tryon[id]) URL.revokeObjectURL(urls.tryon[id]);
     delete urls.tryon[id]; blobDel('tryon:' + id).catch(function () {});
+    ANGS.forEach(function (v) { if (urls.angTry[v][id]) URL.revokeObjectURL(urls.angTry[v][id]); delete urls.angTry[v][id]; blobDel('tryon_' + v + ':' + id).catch(function () {}); if (state.angBase && state.angBase[v]) delete state.angBase[v][id]; });
     if (state.aiHem) delete state.aiHem[id];
     if (state.aiOver) delete state.aiOver[id];
     if (state.aiBase) delete state.aiBase[id];
@@ -2250,21 +2537,34 @@
       (function () {
         function go() {
           try {
-            stageCols(zi, function (cols) {
+            colsFor(zi, function (cols) {
               if (!cols || !o.isConnected) return;
               var r = zi.getBoundingClientRect(), N = cols.length;
-              o.style.background = 'linear-gradient(to bottom,' + cols.map(function (k, i) { return 'rgb(' + k.join(',') + ') ' + Math.round(r.top + (i + 0.5) / N * r.height) + 'px'; }).join(',') + ')';
+              bgPaint(o, cols, cols.map(function (k, i) { return r.top + (i + 0.5) / N * r.height; }), r.left, r.right); bgHook(o, go);
             });
           } catch (e) {}
         }
         if (zi.complete && zi.naturalWidth) requestAnimationFrame(go); else zi.addEventListener('load', function () { requestAnimationFrame(go); }, { once: true });
       })();
     }
+    /* 2026-11-19 사용자 지시: 크게 보기에서 휠·두 번 누르기로 더 확대하고 마우스로 끌어 이동. 끌었으면 닫지 않음(배경색 칠하기 보기는 제외) */
+    var pz = { k: 1, x: 0, y: 0, d: null, moved: false }, pimg = o.querySelector('img');
+    function papply() { pimg.style.transform = 'translate(' + pz.x + 'px,' + pz.y + 'px) scale(' + pz.k + ')'; pimg.style.cursor = pz.k > 1 ? (pz.d ? 'grabbing' : 'grab') : 'zoom-in'; }
+    if (!paint) {
+      pimg.style.transition = 'transform .15s'; pimg.draggable = false; papply();
+      var tip = document.createElement('div'); tip.className = 'ztip'; tip.textContent = '휠·두 번 클릭으로 확대 · 확대 후 끌어서 이동'; o.appendChild(tip);
+      o.addEventListener('wheel', function (e) { e.preventDefault(); var k0 = pz.k; pz.k = Math.min(5, Math.max(1, pz.k * (e.deltaY < 0 ? 1.2 : 1 / 1.2))); if (pz.k === 1) { pz.x = 0; pz.y = 0; } else { var r = pimg.getBoundingClientRect(), cx = e.clientX - (r.left + r.width / 2), cy = e.clientY - (r.top + r.height / 2), f = pz.k / k0; pz.x -= cx * (f - 1); pz.y -= cy * (f - 1); } papply(); }, { passive: false });
+      pimg.addEventListener('dblclick', function (e) { e.stopPropagation(); if (pz.k > 1) { pz.k = 1; pz.x = 0; pz.y = 0; } else { var r = pimg.getBoundingClientRect(); pz.k = 2.5; pz.x = -(e.clientX - (r.left + r.width / 2)) * 1.5; pz.y = -(e.clientY - (r.top + r.height / 2)) * 1.5; } papply(); });
+      pimg.addEventListener('mousedown', function (e) { if (e.button !== 0 || pz.k <= 1) return; e.preventDefault(); pz.d = { x: e.clientX - pz.x, y: e.clientY - pz.y }; pz.moved = false; pimg.style.transition = 'none'; papply(); });
+      o.addEventListener('mousemove', function (e) { if (!pz.d) return; pz.x = e.clientX - pz.d.x; pz.y = e.clientY - pz.d.y; pz.moved = true; papply(); });
+      o.addEventListener('mouseup', function () { if (!pz.d) return; pz.d = null; pimg.style.transition = 'transform .15s'; papply(); });
+      pimg.addEventListener('click', function (e) { e.stopPropagation(); pz.moved = false; });
+    }
     function key(e) { if (e.key === 'Escape') close(); }
     function close() { o.remove(); document.removeEventListener('keydown', key); if (back && back.isConnected && back.focus) back.focus(); }
-    o.addEventListener('click', close); document.body.appendChild(o); document.addEventListener('keydown', key); o.querySelector('.x').focus();
+    o.addEventListener('click', function () { if (pz.moved) { pz.moved = false; return; } close(); }); o.querySelector('.x').addEventListener('click', function (e) { e.stopPropagation(); close(); }); document.body.appendChild(o); document.addEventListener('keydown', key); o.querySelector('.x').focus();
   }
-  function stageUrl() { var w = wornNow(); return ui.view === 'model' ? modelShow() : w ? w.url : avatarStage(); }
+  function stageUrl() { if (ui.view === 'me' && (ui.angle === 'side' || ui.angle === 'back')) { var ak = angWornKey(wearSet()); if (angTryOk(ui.angle, ak)) return urls.angTry[ui.angle][ak]; } var w = wornNow(); return ui.view === 'model' ? modelShow() : w ? w.url : avatarStage(); }
   var ACT = {
     go: function (el) { go(el.dataset.page); },
     /* 폰 앱(shorts.js ACT.plan)과 같은 동작: 결제 연결 전이라 이 기기 안에서만 플랜을 바꾼다 */
@@ -2272,7 +2572,7 @@
     logout: function () {
       if (genPending && !confirm('입은 모습을 만드는 중이에요. 프로필을 바꾸면 이 화면에서는 결과를 받지 못해요. 계속할까요?')) return;
       try { localStorage.removeItem(CUR_KEY); } catch (e) {}
-      genPending = null; ui.genErr = null; waitEnd(); pendClear(); clearUrls(); user = null; state = null; render();
+      genPending = null; angBusy = null; ui.genErr = null; waitEnd(); pendClear(); clearUrls(); user = null; state = null; render();
     },
     lgNew: function () { ui.lg.mode = 'new'; ui.lg.err = ''; render(); },
     lgPick: function (el) { ui.lg.mode = 'pin'; ui.lg.id = el.dataset.id; ui.lg.err = ''; render(); },
@@ -2303,9 +2603,14 @@
       ui.view = v; render();
     },
     angle: function (el) { ui.angle = el.dataset.v; render(); },
+    genView: function (el) { var gv = el.dataset.v; state.genViews = state.genViews || { front: true }; state.genViews[gv] = !state.genViews[gv]; save(); render(); },
+    avSetupRe: function () { state.avBg = {}; avSetBusy = {}; save(); avSetupAuto(); render(); toast('아바타 세팅을 다시 하고 있어요.'); },
+    avatarAngDel: function (el) { var av = el.dataset.v; if (ANGS.indexOf(av) < 0 || !confirm('내 아바타 ' + ANG_NAME[av] + ' 사진을 지울까요?')) return; if (urls.ang[av]) URL.revokeObjectURL(urls.ang[av]); urls.ang[av] = null; state.avAngSeq = state.avAngSeq || {}; state.avAngSeq[av] = (state.avAngSeq[av] || 0) + 1; save(); blobDel('avatar_' + av).catch(function () {}); render(); },
     zoom: function (el) { var i = ZOOMS.indexOf(ui.zoom), d = el.dataset.v; ui.zoom = d === '1' ? 1 : ZOOMS[Math.max(0, Math.min(ZOOMS.length - 1, i + (d === '+' ? 1 : -1)))]; render(); },
     rpToggle: function () { ui.rpOff = !ui.rpOff; render(); },
     fitStyle: function (el) { state.profile.pref = el.dataset.v; save(); render(); },
+    skinPick: function (el) { var was = ui.skinOpen; ui.skinOpen = false; if ((window.FitSkin && window.FitSkin.set(el.dataset.v)) || was) { render(); if (was) { var sb = document.getElementById('skinbtn'); if (sb) sb.focus(); } } },
+    skinMenu: function () { ui.skinOpen = !ui.skinOpen; render(); },
     resetSel: function () {
       if (genPending) return;
       state.sel = {}; state.accSel = []; delete state.wearLast; ui.genErr = null; ui.zoom = 1; ui.angle = 'front'; ui.fitTab = null; ui.accFull = false; save(); render();
@@ -2313,7 +2618,7 @@
     },
     waitShow: function () { var o = document.getElementById('wait'); if (o) o.style.display = ''; },
     fitTab: function (el) { ui.fitTab = el.dataset.cat; render(); },
-    unsel: function (el) { delete state.sel[el.dataset.cat]; save(); render(); },
+    unsel: function (el) { delete state.sel[el.dataset.cat]; if (!wearSet().length) delete state.wearLast; /* 2026-11-18 옷을 다 빼면 마지막 입은 그림 대신 원래 아바타 */ save(); render(); },
     wearOpt: function (el) { if (el.dataset.k === 'outerClosed') state.outerClosed = el.dataset.v === 'closed' ? 'closed' : 'open'; else if (el.dataset.k === 'beltUse') state.beltUse = el.dataset.v === 'on' ? 'on' : 'off'; else if (el.dataset.k === 'tuckIn') state.tuckIn = el.dataset.v === 'in' ? 'in' : 'out'; save(); render(); },
     hemTo: function (el) { state.hemTo = el.dataset.v; save(); render(); },
     size: function (el) { var s = state.sel[el.dataset.cat]; if (s) { s.size = el.dataset.v; save(); render(); } },
@@ -2323,7 +2628,9 @@
     zoomStage: function () { openFull(stageUrl(), '입은 모습', true); },
     open3d: open3d,
     savePic: function () {
-      var w = wornNow(); if (!w) { toast('저장할 입은 모습이 아직 없어요.'); return; }
+      var w = wornNow(), ak = ui.view === 'me' && (ui.angle === 'side' || ui.angle === 'back') ? angWornKey(wearSet()) : '';
+      if (ak && angTryOk(ui.angle, ak)) w = { url: urls.angTry[ui.angle][ak], name: (lookName(ak) || '옷') + '_' + ANG_NAME[ui.angle] };
+      if (!w) { toast('저장할 입은 모습이 아직 없어요.'); return; }
       var a = document.createElement('a'); a.href = w.url; a.download = 'FITON_' + String(w.name).replace(/[\\/:*?"<>|]/g, '_').slice(0, 40) + '.png'; document.body.appendChild(a); a.click(); a.remove();
     },
     closetKind: function (el) { ui.closetKind = el.dataset.v; render(); },
@@ -2423,7 +2730,7 @@
       var odd = oddSizes(f.cat, f.measureType, sizes);
       if (odd.length && !confirm('보통 범위를 벗어난 값이 있어요.\n\n' + odd.slice(0, 6).join('\n') + (odd.length > 6 ? '\n… 외 ' + (odd.length - 6) + '개' : '') + '\n\n이 값으로 핏을 계산하고 입은 모습을 그려서, 틀리면 결과가 이상해져요. 그대로 저장할까요?')) { f.err = '표시된 값을 확인한 뒤 다시 저장해 주세요: ' + odd[0].replace(/^· /, ''); toast(f.err, 5000); render(); return; }
       var old = f.id ? item(f.id) : null, rec = old ? JSON.parse(JSON.stringify(old)) : { id: 'p' + (state.seq++), gender: isMale() ? 'male' : 'female', fabric: 'normal', isRef: false, refSize: '' };
-      rec.cat = f.cat; rec.name = String(f.name || '').trim() || (CATS[f.cat] + ' ' + rec.id.slice(1)); rec.price = f.price; rec.url = f.url; rec.measureType = f.cat === 'shoe' ? '' : f.measureType || 'flat'; rec.sizes = sizes; rec.photo = f.photo;
+      rec.cat = f.cat; rec.name = String(f.name || '').trim() || (CATS[f.cat] + ' ' + rec.id.slice(1)); rec.short = String(f.short || '').trim(); rec.price = f.price; rec.url = f.url; rec.measureType = f.cat === 'shoe' ? '' : f.measureType || 'flat'; rec.sizes = sizes; rec.photo = f.photo;
       if (f.table && f.cat !== 'shoe') rec.table = FitNotes.tblClean(f.table, rec.measureType); else delete rec.table;
       if (f.cat === 'shoe') {
         var hv = String(f.heel == null ? '' : f.heel).replace(/[^\d.]/g, ''), hn = hv === '' ? null : Number(hv);
@@ -2489,6 +2796,8 @@
       blobDel('aphoto:' + it.id).catch(function () {}); save(); render();
     },
     histPick: function (el) { ui.cmp = el.dataset.id; render(); },
+    /* 2026-11-19 사용자 지시: 내 몸 정보에서 아바타(앞·옆·뒤 큰 사진)를 누르면 크게 보기 */
+    bodyZoom: function (el) { var u = el.getAttribute('src'); if (u) openFull(u, el.alt); },
     histZoom: function (el) { var u = urls.tryon[el.dataset.id]; if (u) openFull(u, lookName(el.dataset.id)); },
     histShow: function (el) { var key = el.dataset.id, its = lookItems(key); if (!its.length) return; var hc = its.map(function (x) { return x.cat; }); Object.keys(state.sel).forEach(function (c) { if (hc.indexOf(c) < 0) delete state.sel[c]; }); its.forEach(selectItem); state.wearLast = key; save(); ui.view = 'me'; ui.left = 'clothes'; go('fitting'); if (urls.tryon[key] && !tryonOk(key)) toast('이 입은 모습은 지금과 다른 캐릭터로 만든 것이라 피팅룸에는 보이지 않아요. 입어본 기록에서는 계속 볼 수 있어요.', 6000); },
     histDel: function (el) { if (!confirm('이 입은 모습을 삭제할까요?')) return; dropTryon(el.dataset.id); ui.cmp = null; save(); render(); },
@@ -2542,9 +2851,14 @@
       im.dataset.z = nz; im.style.transform = nz === 1 ? '' : 'scale(' + nz + ')';
     }
   }, { passive: false });
+  /* 스킨 드롭다운: 바깥을 누르면 닫는다(메뉴·버튼 안쪽 누름은 위 ACT 가 처리) */
+  document.addEventListener('click', function (e) { if (ui.skinOpen && !(e.target.closest && e.target.closest('.skindd'))) { ui.skinOpen = false; render(); } });
   app.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && ui.skinOpen) { ui.skinOpen = false; render(); var sb0 = document.getElementById('skinbtn'); if (sb0) sb0.focus(); return; }
     if (e.key === 'Escape' && app.querySelector('.cfmodal')) { ui.cfModal = false; ui.cf = blankForm(ui.closetCat); render(); return; }
     if (e.key === 'Enter' && e.target.id && /^lg/.test(e.target.id)) { var b = app.querySelector('[data-act="lgLogin"],[data-act="lgCreate"]'); if (b) b.click(); }
+    /* 2026-11-19 내 몸 정보 아바타 사진: 키보드(Enter·Space)로도 크게 보기 */
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.dataset && e.target.dataset.act === 'bodyZoom') { e.preventDefault(); e.target.click(); }
   });
   app.addEventListener('input', function (e) {
     var t = e.target, d = t.dataset;
@@ -2589,7 +2903,8 @@
     else if (kind === 'detailCap') detailCap(fl);
     else if (kind === 'photo') closetPhoto(fl);
     else if (kind === 'accPhoto') setAccPhoto(fl);
-    else if (kind === 'avatar') Core.shrink(fl, 2000, 0.92).then(normAvatar).then(function (b) { return blobPut( /* 2026-11-13 A안: 표준 틀(867×1536)에 맞춰 저장 */'avatar', b).then(function () { if (urls.avatar) URL.revokeObjectURL(urls.avatar); urls.avatar = URL.createObjectURL(b); state.avSeq = (state.avSeq || 0) + 1; mySpan = { seq: -1, v: null, busy: false }; /* 새 아바타는 바로 사람 위치를 다시 읽어 눈금·크기에 적용 */ state.who = 'me'; ui.bodyTab = 'me'; save(); render(); }); }).catch(function (err) { toast((err && err.message) || '이미지를 저장하지 못했어요.'); });
+    else if (kind === 'avatar_side' || kind === 'avatar_back') { var av = kind.slice(7); Core.shrink(fl, 2000, 0.92).then(normAvatar).then(function (b) { return blobPut(kind, b).then(function () { if (urls.ang[av]) URL.revokeObjectURL(urls.ang[av]); urls.ang[av] = URL.createObjectURL(b); state.avAngSeq = state.avAngSeq || {}; state.avAngSeq[av] = (state.avAngSeq[av] || 0) + 1; save(); render(); avSetup(av, b); }); }).catch(function (err) { toast((err && err.message) || '이미지를 저장하지 못했어요.'); }); }
+    else if (kind === 'avatar') Core.shrink(fl, 2000, 0.92).then(normAvatar).then(function (b) { return blobPut( /* 2026-11-13 A안: 표준 틀(867×1536)에 맞춰 저장 */'avatar', b).then(function () { if (urls.avatar) URL.revokeObjectURL(urls.avatar); urls.avatar = URL.createObjectURL(b); state.avSeq = (state.avSeq || 0) + 1; mySpan = { seq: -1, v: null, busy: false }; /* 새 아바타는 바로 사람 위치를 다시 읽어 눈금·크기에 적용 */ state.who = 'me'; ui.bodyTab = 'me'; save(); render(); avSetup('front', b); }); }).catch(function (err) { toast((err && err.message) || '이미지를 저장하지 못했어요.'); });
   });
   window.addEventListener('hashchange', function () { var p = pageFromHash(); if (p !== ui.page) { ui.page = p; render(); window.scrollTo(0, 0); } });
   /* 2026-11-10 다른 탭(검정·밝은 버전)이 같은 프로필을 저장하면 그 내용을 바로 다시 읽는다.
@@ -2609,6 +2924,6 @@
 
   /* ---------- 시작 ---------- */
   ui.cf = blankForm('outer'); ui.af = blankAcc();
-  if (user) { state = load(); render(); loadMedia().then(function () { render(); genResume(); }); }
+  if (user) { state = load(); render(); loadMedia().then(function () { render(); genResume(); angResume(); }); }
   else render();
 })();

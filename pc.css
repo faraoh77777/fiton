@@ -570,6 +570,27 @@ input,select{border-radius:12px}
 .prefs button{min-height:52px;border-radius:14px;border:1px solid var(--line);font-size:15px}
 .prefs button:hover{border-color:var(--pri)}
 .prefs button.on{background:var(--pri);color:var(--onPri);border-color:var(--pri);font-weight:700}
+/* 2026-11-19 스킨 선택 카드(설정): 견본 색은 그 스킨의 고정 색(skin.js), 테두리·글자는 토큰이라 세 스킨 모두 자동 */
+.skins{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.skins button{display:flex;flex-direction:column;align-items:stretch;gap:10px;padding:10px;border-radius:16px;border:2px solid var(--line);text-align:left;font-size:15px}
+.skins button:hover{border-color:var(--pri)}
+.skins button.on{border-color:var(--pri)}
+.skins .sw{position:relative;display:block;height:84px;border-radius:10px;border:1px solid var(--line);overflow:hidden}
+.skins .sw i{position:absolute;display:block}
+.skins .sw i:first-child{left:12px;top:12px;right:12px;bottom:28px;border-radius:8px;border:1px solid rgba(128,128,128,.28)}
+.skins .sw i:last-child{left:12px;bottom:10px;width:44%;height:10px;border-radius:5px}
+.skins b{font-weight:700;padding:0 2px}
+.skins em{font-style:normal;font-size:13px;color:var(--muted);padding:0 2px;margin-top:-6px}
+/* 2026-11-19 홈 위쪽 줄 스킨 드롭다운. 색 점만 그 스킨의 고정 색(skin.js), 나머지는 토큰이라 세 스킨 모두 자동 */
+.skindd{position:relative;flex:none}
+.skinbtn{display:flex;align-items:center;gap:8px;border-radius:999px;padding:0 14px;font-size:14px}
+.skinbtn svg,.skinmenu svg{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.skdot{display:block;width:18px;height:18px;border-radius:50%;border:1px solid var(--line);flex:none}
+.skinmenu{position:absolute;right:0;top:calc(100% + 6px);z-index:40;min-width:170px;display:flex;flex-direction:column;gap:2px;padding:6px;border-radius:14px;border:1px solid var(--line);background:var(--panel);box-shadow:0 14px 36px rgba(0,0,0,.28)}
+.skinmenu button{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 10px;border-radius:10px;font-size:15px;text-align:left}
+.skinmenu button span{flex:1}
+.skinmenu button:hover{background:var(--panel2)}
+.skinmenu button.on{font-weight:700}
 .setplan{flex-direction:row;flex-wrap:wrap;align-items:center;gap:14px 24px}
 .setplan .bignum{flex:1 1 260px}
 .setplan .plbtn{margin-top:0;min-height:48px}
@@ -820,7 +841,7 @@ button{font-size:14px}
    피팅룸 · 내 옷장 · 액세서리 · 입어본 기록 · 내 몸 정보를 같은 규칙으로 맞춘다. 기능(data-act·입력 id·저장)은 그대로이고 배치와 모양만 바뀐다.
    ① 제목은 위쪽 줄 ② 탭은 알약, 고른 탭은 강조색 ③ 왼쪽 본문 | 오른쪽 420px 작업 패널 ④ 주 버튼은 오른쪽 패널 맨 아래 강조색 하나 ⑤ 목록도 카드 안.
    pc.js 가 붙이는 이름: fxTab(탭 줄) · fxL(왼쪽 본문) · fxR(오른쪽 작업 패널) · fxCard(목록 카드) · fxBody(내 몸 정보 왼쪽 카드) · fxMods(기본 모델 목록).
-   색 버전 파일(pc-light.css·pc-c1.css)이 뒤에 읽히므로 앞에 .app 을 붙여 이 규칙이 이기게 했다. --grad 는 C1 버전에만 있다(없으면 강조색).
+   색 버전 파일(pc-white.css·pc-wine.css)이 뒤에 읽히므로 앞에 .app 을 붙여 이 규칙이 이기게 했다. --grad 는 C1 버전에만 있다(없으면 강조색).
    피팅룸 사진 칸(.vwrap·.vbox·.fig)과 배경 칠하기(paintStageBg·.bgc·.wide)는 손대지 않았다 — 사진 둘레에 바탕색 띠가 다시 생기지 않게. */
 /* ① 피팅룸에도 위쪽 줄이 생겼으므로 그 높이(62px)만큼 사진 카드·양쪽 패널 높이를 줄인다 */
 @media (min-width:1180px){
@@ -946,7 +967,6 @@ button{font-size:14px}
 .ruler .rtag .tag{right:2px;top:-14px;pointer-events:auto;cursor:default}
 .ruler .rtag:has(.tag:hover){border-top-color:rgba(60,60,60,.9) !important}
 /* 2026-11-13 입어본 기록: 입은 사이즈·옷 치수 */
-.lsz{margin:6px 0 0;padding:0 12px;font-size:12.5px;line-height:1.45;color:var(--muted)}.lsz b{color:var(--fg)}.lsz:last-child{padding-bottom:12px}
 
 /* 2026-11-13 옷장 새 옷 추가 창 */
 .cfmodal{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;padding:20px}
@@ -1032,3 +1052,69 @@ button{font-size:14px}
 .ck .m small{color:var(--muted);font-size:12px}
 @media (max-width:1100px){.b1 .stage{height:460px}.g6{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:640px){.hpics.b1{flex-direction:column;align-items:stretch}.b1 .stage{height:auto;width:min(100%,340px);align-self:center}.b1 .info{min-width:0}.g6{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* 2026-11-18 사용자 지시: 홈 「최근 입어본 옷」 한 줄 + 마우스 끌기/휠로 좌우 이동, 홈 전체가 한 화면에 보이게(입은 모습 창 높이를 화면 높이에 맞춤) */
+.g6,.g6sec .g6{display:flex;gap:14px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x proximity;scrollbar-width:thin;cursor:grab;padding-bottom:6px;user-select:none}
+.g6.drag{cursor:grabbing;scroll-snap-type:none}
+.g6.drag .ck{transform:none}
+.g6 .ck{flex:0 0 190px;scroll-snap-align:start}
+.g6 .ck img{-webkit-user-drag:none}
+.g6sec .ck .ph{height:130px}
+.g6sec .sh{align-items:center}
+.g6nav{margin-left:auto;display:flex;gap:6px}
+.g6nav button{width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:18px;line-height:1;cursor:pointer}
+.g6nav button:hover{background:var(--panel2)}
+.b1 .stage{height:clamp(300px,calc(100vh - 380px),600px)}
+@media (max-width:640px){.b1 .stage{height:auto}}
+.g6sec .ck .ph{height:120px}
+.g6sec .ck .m{padding:8px 10px 10px}
+.g6sec .ck .m small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.main.homemain{padding-bottom:12px}
+@media (max-height:820px) and (min-width:641px){.hleft .herotitle{font-size:clamp(28px,4.6vh,46px)}.hero2 .comp{padding-top:12px;padding-bottom:12px}}
+
+/* 2026-11-19 입어본 기록: 왼쪽 작은 그림은 그림만, 오른쪽은 큰 그림 + 옆에 입은 옷 내용 */
+.pg-history .hcard .pick{display:block;width:100%}
+.pg-history .grid3{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
+.pg-history .hdet{display:flex;flex-direction:row;gap:18px;align-items:stretch}
+.pg-history .hdet>figure{flex:1 1 55%;min-width:0;margin:0;display:flex}
+.pg-history .hdet>figure img{width:100%;height:100%;object-fit:contain}
+.pg-history .hinfo{flex:1 1 45%;min-width:200px;display:flex;flex-direction:column;gap:12px;overflow-y:auto}
+.pg-history .hinfo h2{margin:0;font-size:18px}
+.pg-history .hit{background:var(--panel2);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.pg-history .hit small{color:var(--muted);font-size:12px}
+.pg-history .hit b{font-size:16px;font-weight:700;color:var(--fg)}
+.pg-history .hinfo .acts{margin-top:auto}
+/* 2026-11-19 옷 카드 안 입은 사이즈 치수 표(항목·치수 2칸) */
+.pg-history .hit .lstb{width:100%;border-collapse:collapse;margin:2px 0;font-size:14px;background:none}
+.pg-history .hit .lstb th,.pg-history .hit .lstb td{padding:5px 0;border:0;border-top:1px solid var(--line);background:none;line-height:1.35}
+.pg-history .hit .lstb th{text-align:left;font-weight:500;color:var(--muted);word-break:keep-all}
+/* 표가 길어 칸이 스크롤돼도 「피팅룸에서 보기」·「삭제」는 아래에 고정 */
+.pg-history .hinfo .acts.hacts{position:sticky;bottom:0;background:var(--panel);padding-top:8px;flex:none}
+.pg-history .hit{flex:none}
+.pg-history .hit .lstb td{text-align:right;font-weight:700;color:var(--fg);white-space:nowrap;padding-left:10px;font-variant-numeric:tabular-nums}
+@media (max-width:1300px){.pg-history .hdet{flex-direction:column}.pg-history .hdet>figure{flex:1 1 0;min-height:0}.pg-history .hinfo{flex:none;max-height:45%}}
+.pg-history .hdet>figure img{max-height:none;min-height:0;flex:1 1 auto}
+.pg-history .hdet>figure{height:100%}
+.app .pg-history .fxR.hdet,.pg-history .fxR.hdet{flex:0 0 min(860px,52%) !important}
+/* 2026-11-19 큰 그림 모서리: 그림 크기에 맞춘 칸으로 둥글게(작은 그림 카드와 같은 16px) */
+.pg-history .hdet>figure{justify-content:center;align-items:center}
+.pg-history .hdet>figure img{width:auto;height:auto;max-width:100%;max-height:100%;aspect-ratio:auto;object-fit:contain;border-radius:16px}
+.zoom{overflow:hidden}
+.zoom .ztip{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);background:rgba(0,0,0,.55);color:#fff;font-size:13px;padding:6px 12px;border-radius:999px;pointer-events:none}
+/* 2026-11-19 사용자 지시: 내 몸 정보도 스크롤 없이 한 화면 — 앞·옆·뒤 사진은 화면 높이에 맞춰 줄이고, 오른쪽 치수 칸은 칸 안에서만 스크롤 */
+.pg-body .fxBody img.av{height:clamp(220px,calc(100vh - 530px),533px);width:auto;max-width:100%;aspect-ratio:9/16;align-self:center}
+.pg-body .fxBody .lk,.pg-body .fxBody label.btn{min-height:0}
+.pg-body .main>.fxR{max-height:calc(100vh - 290px);overflow-y:auto;align-self:flex-start}
+.pg-body .main>.fxL{max-height:calc(100vh - 290px);overflow:hidden;align-self:flex-start}
+/* 2026-11-19 사용자 지시: 피팅룸 그림(빈 칸 포함)을 가운데로 — 왼쪽 여백을 오른쪽(핏 표시 자리)과 같게, 위쪽 보기 버튼(기본 모델/내 아바타/원본과 비교)과 그림이 겹치지 않게 위 여백을 두고 그만큼 그림 높이를 줄임 */
+.vwrap .vbox{padding:56px 100px 16px 100px !important}
+.vwrap .vbox>.fig{height:calc((100% - 8px) * var(--z,1)) !important}
+/* 2026-11-19 내 몸 정보 「기본 모델」 보기: 모델 고르기 목록(.fxMods)이 왼쪽 칸 아래에서 잘리던 것 — 그 보기에서만 앞·옆·뒤 사진을 더 줄이고, 그래도 넘치면 칸 안에서 스크롤 */
+.pg-body .fxBody:has(.fxMods) img.av{height:clamp(150px,calc(100vh - 650px),533px)}
+.pg-body .main>.fxL{overflow-y:auto}
+/* 2026-11-19 사용자 지시: 총장(밑단) 파란 설명을 왼쪽에 — 오른쪽(b.r)과 같은 모양으로 왼쪽 정렬 */
+.ruler .rlen b.l{white-space:normal;text-align:left;line-height:1.45;max-width:170px;top:0;transform:translateY(-50%)}
+/* 2026-11-19 사용자 지시(배경 경계선): 크게 보기(배경색 칠한 창)도 피팅룸처럼 사진 네 가장자리를 배경과 부드럽게 섞어 테두리 선이 안 보이게 */
+.zoom.bgre>img{-webkit-mask-image:linear-gradient(to bottom,transparent,#000 4%,#000 97%,transparent),linear-gradient(to right,transparent,#000 5%,#000 95%,transparent);-webkit-mask-composite:source-in;mask-image:linear-gradient(to bottom,transparent,#000 4%,#000 97%,transparent),linear-gradient(to right,transparent,#000 5%,#000 95%,transparent);mask-composite:intersect}
+/* 2026-11-19 「아바타 세팅」 줄이 생긴 만큼 내 아바타 보기의 앞·옆·뒤 사진을 조금 줄여 칸 안 스크롤이 안 생기게(기본 모델 보기는 위 :has(.fxMods) 규칙 그대로) */
+.pg-body .fxBody:has(.avset) img.av{height:clamp(200px,calc(100vh - 565px),533px)}
