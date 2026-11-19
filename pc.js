@@ -19,9 +19,11 @@
     inner: [['vest', '조끼'], ['cardigan', '카디건'], ['knit', '니트'], ['tee', '티셔츠'], ['shirt', '셔츠'], ['blouse', '블라우스']],
     top: [['tee', '티셔츠'], ['shirt', '셔츠'], ['blouse', '블라우스'], ['knit', '니트'], ['sweat', '맨투맨·후드'], ['sleeveless', '민소매']],
     bottom: [['jeans', '청바지'], ['slacks', '슬랙스'], ['pants', '바지'], ['shorts', '반바지'], ['skirt', '치마'], ['leggings', '레깅스·트레이닝']],
-    dress: []
+    dress: [],
+    /* 2026-11-19 11차 사용자 결정(세부 탭+기본 굽): 신발도 종류로 나눈다. id 는 SHOE_H(기본 굽)·SHOE_TYPES 와 같은 값. 신발에는 용도(USES)를 붙이지 않는다 */
+    shoe: [['sneakers', '운동화'], ['pumps', '구두(힐)'], ['loafers', '로퍼'], ['boots', '부츠'], ['sandals', '샌들'], ['slippers', '슬리퍼']]
   };
-  function kindsOf(cat) { return (TYPES[cat] || []).concat(USES); }
+  function kindsOf(cat) { return cat === 'shoe' ? TYPES.shoe.slice() : (TYPES[cat] || []).concat(USES); }
   var KIND_NAME = { inner: '티·셔츠류' }; USES.forEach(function (k) { KIND_NAME[k[0]] = k[1].replace(/\(.*\)/, ''); });
   Object.keys(TYPES).forEach(function (c) { TYPES[c].forEach(function (k) { KIND_NAME[k[0]] = k[1]; }); });
   /* 이름으로 추측하는 순서: ① 특수 용도(언더웨어·한복·홈웨어…) ② 그 탭의 옷 종류 ③ 나머지 용도(아웃도어·트레이닝·세트·정장) */
@@ -31,7 +33,9 @@
     outer: [['padding', /패딩|구스|덕다운|다운\s?(점퍼|자켓|재킷|코트)|푸퍼/], ['coat', /코트|트렌치|무스탕|coat/i], ['jacket', /자켓|재킷|블레이저|라이더|야상|jacket|blazer/i], ['jumper', /점퍼|집업|바람막이|블루종|아노락/], ['cardigan', /카디건|가디건|cardigan/i], ['vest', /조끼|베스트(?!셀러)|vest/i]],
     inner: [['vest', /조끼|베스트(?!셀러)|vest/i], ['cardigan', /카디건|가디건|cardigan/i], ['blouse', /블라우스/], ['tee', /티셔츠|반팔티|긴팔티|면티|폴라티|목폴라|tee\b/i], ['shirt', /셔츠|남방/], ['knit', /니트|스웨터|knit/i]],
     top: [['sleeveless', /민소매|나시|슬리브리스|탱크탑/], ['sweat', /맨투맨|후드티|후디|스웨트|hoodie/i], ['blouse', /블라우스/], ['tee', /티셔츠|반팔티|긴팔티|면티|폴라티|목폴라|tee\b/i], ['shirt', /셔츠|남방/], ['knit', /니트|스웨터|knit/i]],
-    bottom: [['skirt', /스커트|치마|skirt/i], ['shorts', /반바지|쇼츠|숏팬츠|[3-5]부|버뮤다|shorts/i], ['leggings', /레깅스|조거|트레이닝|츄리닝/], ['jeans', /청바지|데님|jeans/i], ['slacks', /슬랙스|정장\s?바지/], ['pants', /바지|팬츠|pants/i]]
+    bottom: [['skirt', /스커트|치마|skirt/i], ['shorts', /반바지|쇼츠|숏팬츠|[3-5]부|버뮤다|shorts/i], ['leggings', /레깅스|조거|트레이닝|츄리닝/], ['jeans', /청바지|데님|jeans/i], ['slacks', /슬랙스|정장\s?바지/], ['pants', /바지|팬츠|pants/i]],
+    /* 신발: 예전 wearShoeH 이름 추측과 같은 순서(부츠→운동화→샌들/슬리퍼→로퍼→구두) */
+    shoe: [['boots', /부츠|boot/i], ['sneakers', /운동화|스니커|sneaker/i], ['slippers', /슬리퍼|룸슈즈|실내화|slipper/i], ['sandals', /샌들|sandal/i], ['loafers', /로퍼|loafer/i], ['pumps', /구두|힐|펌프|pump|heel/i]]
   };
   var DRESS_KINDS = /^(maternity|hanbok|swim|dance|outdoor|costume|home|sport|two)$/; /* 원피스는 정장·언더웨어 추측은 하지 않는다 */
   /* 옛 추측(2026-11-19 이전). 저장된 값이 이것과 같으면 자동으로 붙은 값이라 새 추측으로 한 번 바꾼다(kindFix) */
@@ -46,15 +50,22 @@
   /* 2026-11-13 이름에 겉에 입는 옷 단어가 있는데 분류가 상의면 저장할 때 한 번 묻는다(겉옷은 상의 위에 겹쳐 입혀진다) */
   var OUTER_WORDS = /재킷|자켓|블레이저|코트|트렌치|점퍼|패딩|카디건|가디건|집업|야상|무스탕|바람막이/;
   function guessKind(name, cat) {
-    if (cat === 'shoe') return '';
-    var t = String(name || ''), i, pass = function (list) { for (i = 0; i < list.length; i++) if (list[i][1].test(t)) { if (cat === 'dress' && !DRESS_KINDS.test(list[i][0])) continue; return list[i][0]; } return ''; };
+    var t = String(name || ''), i;
+    if (cat === 'shoe') { for (i = 0; i < TYPE_GUESS.shoe.length; i++) if (TYPE_GUESS.shoe[i][1].test(t)) return TYPE_GUESS.shoe[i][0]; return ''; }
+    var pass = function (list) { for (i = 0; i < list.length; i++) if (list[i][1].test(t)) { if (cat === 'dress' && !DRESS_KINDS.test(list[i][0])) continue; return list[i][0]; } return ''; };
     return pass(USE_FIRST) || pass(TYPE_GUESS[cat] || []) || pass(USE_LAST);
   }
   /* 옷장에 이미 있는 옷의 세부 종류를 새 기준으로 한 번 맞춘다. 비어 있거나 옛 추측과 같은 값(=자동으로 붙은 값)만 바꾸고, 직접 고른 값은 그대로 둔다 */
   function kindFix(s) {
-    if (s.kindV >= 2 || !Array.isArray(s.closet)) return false;
-    s.closet.forEach(function (x) { if (!x || x.cat === 'shoe') return; var k = x.kind || ''; if (!k || k === guessKindOld(x.name, x.cat)) x.kind = guessKind(x.name, x.cat); });
-    s.kindV = 2; return true;
+    if (!Array.isArray(s.closet)) return false;
+    var ch = false;
+    if (!(s.kindV >= 2)) {
+      s.closet.forEach(function (x) { if (!x || x.cat === 'shoe') return; var k = x.kind || ''; if (!k || k === guessKindOld(x.name, x.cat)) x.kind = guessKind(x.name, x.cat); });
+      s.kindV = 2; ch = true;
+    }
+    /* 2026-11-19 11차: 신발 종류가 생겨 비어 있는 신발만 이름으로 한 번 채운다(직접 고른 값은 그대로) */
+    if (s.kindV < 3) { s.closet.forEach(function (x) { if (x && x.cat === 'shoe' && !x.kind) x.kind = guessKind(x.name, 'shoe'); }); s.kindV = 3; ch = true; }
+    return ch;
   }
   var GGENDER = { female: '여성용', male: '남성용', unisex: '공용' };
   var PREFS = [['tight', '타이트'], ['fit', '정핏'], ['loose', '여유'], ['over', '오버핏']];
@@ -341,11 +352,13 @@
   function tryShoeTypeId() { var cur = state.tryShoe || ''; return cur.indexOf('type:') === 0 ? cur.slice(5) : 'pumps'; }
   function wearsBoots() { var w = wearShoe(); if (w && w.id) return /부츠|boot/i.test(w.name || ''); return tryShoeTypeId() === 'boots'; }
   /* 2026-11-16 신발 굽 높이(cm): 옷장 신발에 넣은 굽(mm)이 있으면 그 값, 없으면 신발 종류별 기본값. 바지가 바닥에 끌리는 기준에 쓴다 */
-  var SHOE_H = { pumps: 5, sneakers: 2.5, loafers: 2.5, sandals: 1.5, boots: 4 };
+  var SHOE_H = { pumps: 5, sneakers: 2.5, loafers: 2.5, sandals: 1.5, slippers: 1.5, boots: 4 };
   function wearShoeH() {
     var w = wearShoe();
     if (w && w.id) {
+      /* 2026-11-19 11차: 순서 = 입력한 굽 → 고른 신발 종류의 기본 굽 → 이름으로 추측 */
       if (E.num(w.heel)) return Math.round(w.heel) / 10;
+      if (w.kind && SHOE_H[w.kind] != null) return SHOE_H[w.kind];
       return /부츠|boot/i.test(w.name || '') ? 4 : /운동화|스니커|sneaker/i.test(w.name || '') ? 2.5 : /샌들|슬리퍼|sandal/i.test(w.name || '') ? 1.5 : /로퍼|loafer/i.test(w.name || '') ? 2.5 : /구두|힐|펌프|pump|heel/i.test(w.name || '') ? 5 : 3;
     }
     var t = tryShoeTypeId(); return SHOE_H[t] != null ? SHOE_H[t] : 3;
@@ -2046,7 +2059,7 @@
       (f.cat === 'shoe' || !linkReadOn() ? '' : '<div class="dz' + (f.detailDone ? ' done' : '') + '" id="dzdetail" tabindex="0" data-dz="detail"><b>③ 상세 이미지 (선택)</b><span>' + h(f.detailMsg || '') + (f.detailMsg ? '' : '소재·혼용률이 있는 상세 캡처를 끌어다 놓거나 <kbd>Ctrl</kbd> + <kbd>V</kbd>. 원단 선택을 자동으로 채워요.') + '</span><div class="dzacts" style="justify-content:flex-start;margin-top:6px"><label class="fbtn" title="사진 파일 선택" style="border:0;background:none;min-height:30px;padding:0 6px;font-size:17px;line-height:1"><span aria-hidden="true">+</span><input type="file" accept="image/*" data-file="detailCap" aria-label="상세 이미지 파일 선택"></label></div></div>') +
       '<label for="pkind">' + (sh ? '종류 (신발)' : '옷 종류') + '<select id="pkind" data-chg="cfCat">' + CAT_ORDER.map(function (c) { return '<option value="' + c + '"' + (f.cat === c ? ' selected' : '') + '>' + CATS[c] + '</option>'; }).join('') + '</select></label>' +
       (sh ? '' : '<p class="hint">' + ({ outer: '겉옷: 재킷·코트·카디건처럼 맨 겉에 입는 옷', inner: '이너: 상의 위·겉옷 안쪽에 겹쳐 입는 조끼·니트 베스트 등', top: '상의: 티셔츠·셔츠·블라우스·니트', bottom: '하의: 바지·치마', dress: '원피스: 원피스·드레스' }[f.cat] || '') + '</p>') +
-      (f.cat === 'shoe' ? '' : '<label for="pkindk">세부 종류 (선택)<select id="pkindk" data-chg="cfKind"><option value="">자동으로 정하기</option>' + kindsOf(f.cat).map(function (k) { return '<option value="' + k[0] + '"' + (f.kind === k[0] ? ' selected' : '') + '>' + h(k[1]) + '</option>'; }).join('') + '</select></label>') +
+      ('<label for="pkindk">' + (sh ? '신발 종류 (선택, 굽을 안 적으면 종류별 기본 굽)' : '세부 종류 (선택)') + '<select id="pkindk" data-chg="cfKind"><option value="">자동으로 정하기</option>' + kindsOf(f.cat).map(function (k) { return '<option value="' + k[0] + '"' + (f.kind === k[0] ? ' selected' : '') + '>' + h(k[1]) + '</option>'; }).join('') + '</select></label>') +
       /* 2026-11-12 사용자 결정(1번): 원단 4종(핏 계산 fit-config·서버 입히기 문장이 이미 아는 값만) 고르는 칸 */
       (f.cat === 'shoe' ? '' : '<label for="pfab">원단 (선택)<select id="pfab" data-chg="cfFab">' + Object.keys(cfgNow().fabric).map(function (k) { return '<option value="' + k + '"' + ((f.fabric || 'normal') === k ? ' selected' : '') + '>' + h(cfgNow().fabric[k].label + (k === 'normal' ? ' (모르면 그대로)' : '')) + '</option>'; }).join('') + '</select></label><p class="hint">' + (f.material ? '상품 페이지 소재: ' + h(f.material) + ' · ' : '') + '스판·니트는 늘어나서 조금 작아도 덜 끼고, 데님은 안 늘어나 더 끼게 계산해요.</p>') +
       '<label for="pname">' + (sh ? '신발 이름' : '옷 이름') + '<input id="pname" type="text" data-cf="name" value="' + h(f.name) + '" maxlength="60"></label>' +
@@ -2090,8 +2103,9 @@
   /* ---------- 액세서리 ---------- */
   function viewAccessory() {
     var tab = ui.accTab, f = ui.af, list = state.accs.filter(function (x) { return tab === 'all' || (ACC_TYPES[x.type] || {}).part === tab; }), accs = selAccs();
-    return '<main class="main mflex"><div class="col fxL" style="flex:3 1 560px"><div class="tabs fxTab" role="tablist" aria-label="착용 부위">' +
-      ACC_TABS.map(function (t) { return '<button type="button" role="tab" aria-selected="' + (tab === t[0]) + '" class="' + (tab === t[0] ? 'on' : '') + '" data-act="accTab" data-v="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div><div class="fxCard"><div class="grid4">' +
+    /* 2026-11-19 11차: 옷장과 같게 착용 부위 탭 줄을 카드(fxCard) 안 맨 위로 옮겨 오른쪽 칸과 윗선을 맞춘다 */
+    return '<main class="main mflex"><div class="col fxL" style="flex:3 1 560px"><div class="fxCard"><div class="cfhead"><div class="tabs fxTab" role="tablist" aria-label="착용 부위">' +
+      ACC_TABS.map(function (t) { return '<button type="button" role="tab" aria-selected="' + (tab === t[0]) + '" class="' + (tab === t[0] ? 'on' : '') + '" data-act="accTab" data-v="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div></div><div class="grid4">' +
       (list.length ? list.map(function (it) {
         var on = state.accSel.indexOf(it.id) >= 0, t = ACC_TYPES[it.type] || {}, sub = [it.type, priceText(it.price) || it.price || (t.small ? '크게 보기로 확인' : '전신에서 잘 보여요')].join(' · ');
         return '<div class="tile acc' + (on ? ' on' : '') + '"><button type="button" class="pick" aria-pressed="' + on + '" data-act="accToggle" data-id="' + h(it.id) + '">' + (it.photo ? '<img src="' + h(it.photo) + '" alt="">' : '<span class="noimg" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="' + (t.icon || '') + '"></path></svg></span>') + (on ? '<span class="chk">고름</span>' : '') + '<span class="tb"><b>' + h(it.name) + '</b><span>' + h(sub) + '</span></span></button><div class="bf">' + buyArea(it, 'a') + '<button type="button" class="lk" data-act="accEdit" data-id="' + h(it.id) + '">수정</button><button type="button" class="lk" data-act="accDel" data-id="' + h(it.id) + '">삭제</button></div></div>';
@@ -2867,7 +2881,7 @@
         if (hn != null && (!(hn >= 0) || hn > 200)) { f.err = '굽 높이는 0~200 mm 사이 숫자로 넣어 주세요.'; toast(f.err, 3500); render(); return; }
         if (hn == null) delete rec.heel; else rec.heel = hn;
       } else delete rec.heel;
-      rec.kind = f.cat === 'shoe' ? '' : (f.kind || guessKind(rec.name, f.cat) || '');
+      rec.kind = f.kind || guessKind(rec.name, f.cat) || ''; /* 2026-11-19 11차: 신발도 종류 저장 */
       rec.fabric = f.cat === 'shoe' ? 'normal' : (cfgNow().fabric[f.fabric] ? f.fabric : 'normal');
       if (rec.kind === 'under' && state.sel[rec.cat] && state.sel[rec.cat].id === rec.id) delete state.sel[rec.cat];
       if (old) state.closet = state.closet.map(function (x) { return x.id === rec.id ? rec : x; }); else state.closet.push(rec);
