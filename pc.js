@@ -85,7 +85,7 @@
     { id: 'male', name: '기본 남성', g: 'male', h: 174, w: 70, m: [95, 44, 79, 95, 56, 60, 80, 26, 260], img: 'assets/avatar_male.jpg?v=t' }
   ].concat(PRESETS.map(function (x) { return { id: x.id, name: x.name, g: x.g, h: x.h, w: x.w, m: x.m, img: 'assets/avatars/' + x.id + '.png', preset: true }; }))
     /* 2026-11-19 얼굴 사진 1장으로 만든 기본 모델(FASHN model-swap + edit). 앞·옆·뒷모습 사진이 모두 있다(ang). 치수는 키 171·몸무게 70 기준 가정치 */
-    .concat([{ id: 'cool', name: '멋진남자', g: 'male', h: 171, w: 70, m: [96, 44, 81, 95, 56, 59, 78, 26, 258], img: 'assets/avatars/cool.jpg?v=a', preset: true, ang: { side: 'assets/avatars/cool_side.jpg?v=a', back: 'assets/avatars/cool_back.jpg?v=a' } }]);
+    .concat([{ id: 'cool', name: '앞옆뒤남성' /* 2026-11-19 최종 검토 8차(블라인드C 15): 「멋진남자」만 튀던 이름 → 다른 모델처럼 「…남성」, 앞·옆·뒤 사진이 다 있는 모델 */, g: 'male', h: 171, w: 70, m: [96, 44, 81, 95, 56, 59, 78, 26, 258], img: 'assets/avatars/cool.jpg?v=a', preset: true, ang: { side: 'assets/avatars/cool_side.jpg?v=a', back: 'assets/avatars/cool_back.jpg?v=a' } }]);
   var SHOE_TYPES =[['pumps', '구두 (기본)'], ['sneakers', '운동화'], ['loafers', '로퍼'], ['sandals', '샌들'], ['boots', '부츠']];
   var ACC_TYPES = {
     '모자': { part: 'head', top: '3%', left: '44%', icon: 'M8 5h8l2 9H6zM3 14h18l-1 3H4z' },
@@ -2017,12 +2017,14 @@
   function formTable(f) {
     var t = f.table;
     return '<p class="hint" id="tbasis" style="font-size:13px">' + h(basisText(f)) + '</p><div style="overflow-x:auto"><table class="imgt"><thead><tr><th scope="col">사이즈</th>' + t.head.map(function (x, ci) {
-      return '<th scope="col"><button type="button" class="thx" data-act="colDel" data-i="' + ci + '" aria-label="' + h(x) + ' 항목 삭제" title="항목 삭제">✕</button><textarea rows="2" autocomplete="off" spellcheck="false" id="th' + ci + '" data-th="' + ci + '" title="' + h(x) + '" aria-label="항목 이름">' + h(x) + '</textarea><small class="tu" id="tu' + ci + '">' + (t.keys[ci] || !String(x).trim() ? '' : '계산 안 씀') + '</small></th>';
+      /* 2026-11-19 최종 검토 8차(블라인드C 4): ✕ 만 있어 뜻이 불분명 → 「✕ 삭제」, 주황 「계산 안 씀」 → 「핏 계산 제외」 + 마우스 설명 */
+      return '<th scope="col"><button type="button" class="thx" data-act="colDel" data-i="' + ci + '" aria-label="' + h(x) + ' 항목 삭제" title="이 항목(열)을 표에서 지워요">✕ 삭제</button><textarea rows="2" autocomplete="off" spellcheck="false" id="th' + ci + '" data-th="' + ci + '" title="' + h(x) + '" aria-label="항목 이름">' + h(x) + '</textarea><small class="tu" id="tu' + ci + '" title="' + TU_TIP + '">' + (t.keys[ci] || !String(x).trim() ? '' : TU_TXT) + '</small></th>';
     }).join('') + '<th></th></tr></thead><tbody>' +
       t.rows.map(function (r, i) { return '<tr><td><input type="text" id="sl' + i + '" data-sl="' + i + '" value="' + h(r[0]) + '" aria-label="사이즈 이름"></td>' + t.head.map(function (x, ci) { return '<td><input type="text" inputmode="decimal" autocomplete="off" id="sf' + i + '_' + ci + '" data-sf="' + i + ':' + ci + '" value="' + h(r[ci + 1] == null ? '' : r[ci + 1]) + '" aria-label="' + h(r[0] + ' ' + x) + '"></td>'; }).join('') + '<td><button type="button" class="rm" style="min-width:32px;min-height:32px;padding:0" data-act="sizeDel" data-i="' + i + '" aria-label="사이즈 삭제">✕</button></td></tr>'; }).join('') +
       '</tbody></table></div><div class="lkacts" style="justify-content:flex-start"><button type="button" class="lk" data-act="sizeAdd">+ 사이즈 추가</button><button type="button" class="lk" data-act="colAdd">+ 항목 추가</button></div>' +
-      '<p class="hint" style="font-size:13px">항목 이름과 숫자는 사이즈표에 적힌 그대로 넣어요. 「계산 안 씀」 항목은 표에만 남고 핏 계산에는 쓰지 않아요.</p>';
+      '<p class="hint" style="font-size:13px">항목 이름과 숫자는 사이즈표에 적힌 그대로 넣어요. 항목 이름 아래 주황색 「' + TU_TXT + '」는 이름이 가슴·허리·총장 같은 계산용 치수와 맞지 않아 표에만 남고 핏 계산에는 쓰지 않는다는 뜻이에요(이름을 고치면 계산에 쓸 수 있어요). 이름 위 「✕ 삭제」는 그 항목을 표에서 지워요.</p>';
   }
+  var TU_TXT = '핏 계산 제외', TU_TIP = '이 항목 이름은 핏 계산에 쓰는 치수(가슴·허리·총장 등)와 맞지 않아 표에만 남아요. 이름을 고치면 계산에 쓸 수 있어요.';
   /* 항목 이름을 고쳤을 때: 그 이름으로 핏 계산에 쓸 칸을 다시 찾는다(같은 칸이면 AI 가 정한 환산은 그대로) */
   function headKey(ci) {
     var f = ui.cf, t = f.table; if (!t || t.head[ci] == null) return;
@@ -2030,7 +2032,7 @@
     if (!t.k0) { t.k0 = t.keys.slice(); t.c0 = t.conv.slice(); } /* 처음(AI 가 읽었을 때·저장돼 있던) 칸과 환산: 이름을 고쳤다가 같은 칸으로 돌아오면 그 환산을 다시 쓴다 */
     var r = FitNotes.tblResolve(t.head[ci], f.cat, f.measureType, taken, FIELDS[f.cat]);
     if (r) { t.conv[ci] = r.conv || (r.key === t.k0[ci] ? t.c0[ci] : null); t.keys[ci] = r.key; } else { t.keys[ci] = null; t.conv[ci] = null; }
-    var e = document.getElementById('tu' + ci); if (e) e.textContent = t.keys[ci] || !String(t.head[ci]).trim() ? '' : '계산 안 씀';
+    var e = document.getElementById('tu' + ci); if (e) e.textContent = t.keys[ci] || !String(t.head[ci]).trim() ? '' : TU_TXT;
     var b = document.getElementById('tbasis'); if (b) b.textContent = basisText(f);
   }
   function closetForm(modal) {
@@ -2076,7 +2078,7 @@
   }
   /* 2026-11-13 옷장: 새 옷은 창으로 추가, 옷을 누르면 입력한 값이 오른쪽에 보인다 */
   function closetPlaceholder() {
-    return '<aside class="pan fxR" style="flex:1 1 340px" aria-label="입력한 값"><h2>입력한 값</h2><p class="hint">옷을 누르면 입어볼 옷으로 골라지고, 입력한 사이즈표·이름·가격이 여기에 보여요. 다시 누르면 빠져요. 값은 여기서 바로 고칠 수 있어요.</p><button type="button" class="save" data-act="cfNew">' + (ui.closetCat === 'shoe' ? '+ 새 신발 추가' : '+ 새 옷 추가') + '</button></aside>';
+    return '<aside class="pan fxR" style="flex:1 1 340px" aria-label="입력한 값"><h2>입력한 값</h2><p class="hint">옷을 누르면 입어볼 옷으로 골라지고, 입력한 사이즈표·이름·가격이 여기에 보여요. 다시 누르면 빠져요. 값은 여기서 바로 고칠 수 있어요.</p><div class="cfempty" aria-hidden="true"><b>옷 카드를 누르면 여기에 보여요</b><span>그 옷의 사이즈표·이름·가격을 여기서 보고 바로 고칠 수 있어요</span></div><button type="button" class="save" data-act="cfNew">' + (ui.closetCat === 'shoe' ? '+ 새 신발 추가' : '+ 새 옷 추가') + '</button></aside>';
   }
   function cfLoad(it) {
     ui.cf = Object.assign(blankForm(it.cat), JSON.parse(JSON.stringify(it)));
@@ -2176,7 +2178,8 @@
       '<div style="grid-column:1 / -1;display:grid;grid-template-columns:repeat(3,minmax(0,300px));gap:14px">' + ['front'].concat(ANGS).map(function (av) {
         var f = av === 'front', u = f ? urls.avatar : urls.ang[av], src = f ? (u || (p.gender === 'male' ? 'assets/avatar_male.jpg?v=t' : 'assets/avatar_default.jpg?v=t')) : u;
         return '<div style="display:flex;flex-direction:column;gap:8px;min-width:0">' + (src ? '<img class="av zoomimg" role="button" tabindex="0" data-act="bodyZoom" title="눌러서 크게 보기" src="' + h(src) + '" alt="' + (f && !u ? '기본 캐릭터 전신' : '내 아바타 ' + ANG_NAME[av]) + '" style="max-width:none">' : '<div class="av" style="max-width:none;border:1px dashed var(--line);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:14px">' + ANG_NAME[av] + ' 없음</div>') +
-          '<label class="btn" style="display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--fg);font-size:15px;font-weight:700">' + ANG_NAME[av] + ' 올리기<input type="file" class="fhid" accept="image/*" data-file="' + (f ? 'avatar' : 'avatar_' + av) + '" aria-label="' + ANG_NAME[av] + ' 이미지 파일 선택"></label>' + (u ? (f ? '<button type="button" class="lk" data-act="avatarDel">' : '<button type="button" class="lk" data-act="avatarAngDel" data-v="' + av + '">') + ANG_NAME[av] + ' 지우기</button>' : '') + '</div>';
+          /* 2026-11-19 최종 검토 8차(블라인드C 12): 올리기·지우기를 같은 높이 한 줄로, 사진이 있으면 「바꾸기」 */
+          '<div class="avbtns"><label class="btn" style="display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--fg);font-size:15px;font-weight:700">' + ANG_NAME[av] + (u ? ' 바꾸기' : ' 올리기') + '<input type="file" class="fhid" accept="image/*" data-file="' + (f ? 'avatar' : 'avatar_' + av) + '" aria-label="' + ANG_NAME[av] + ' 이미지 파일 선택"></label>' + (u ? (f ? '<button type="button" class="lk" data-act="avatarDel">' : '<button type="button" class="lk" data-act="avatarAngDel" data-v="' + av + '">') + '지우기</button>' : '') + '</div></div>';
       }).join('') + '</div>' + avSetupHtml() + '<p class="sub" style="grid-column:1 / -1">' + (urls.avatar ? '앞모습은 직접 올린 내 아바타 사진이에요.' : '앞모습 정면 전신 이미지를 올려 주세요. 올리지 않으면 기본 캐릭터 사진에 내 치수로 입혀 드려요.') + ' 앞모습은 정면 전신, 몸선이 보이는 나시·반바지 차림, 단색 배경 사진이 가장 잘 맞아요. 옆모습·뒷모습은 선택이에요. 올려 두면 옷을 입힐 때 옆·뒤도 골라서 만들 수 있어요(앞 사진과 같은 옷차림·배경의 전신 사진).' + (urls.avatar ? '' : ' 옆·뒤는 앞모습 사진을 먼저 올려야 쓰여요.') + '</p></section>' +
       '<section class="pan fxR" style="flex:2 1 520px" aria-label="내 치수"><h2>내 치수</h2><p class="sub">성별, 키, 몸무게만 넣어도 시작할 수 있어요.</p><div class="segtoggle" role="group" aria-label="성별"><button type="button" class="' + (p.gender === 'male' ? 'on' : '') + '" data-act="bGender" data-v="male">남성</button><button type="button" class="' + (p.gender !== 'male' ? 'on' : '') + '" data-act="bGender" data-v="female">여성</button></div>' +
       '<div class="g2"><label for="h">키<span class="in"><input id="h" type="number" value="' + h(p.height) + '"><small>cm</small></span></label><label for="w">몸무게<span class="in"><input id="w" type="number" value="' + h(p.weight) + '"><small>kg</small></span></label></div>' +
@@ -2335,7 +2338,7 @@
     var vs = ['front'].concat(ANGS).filter(function (v) { return v === 'front' ? urls.avatar : urls.ang[v]; }); if (!vs.length) return '';
     var warn = [], parts = vs.map(function (v) { var b = avBgOk(v); if (b && b.warn) b.warn.forEach(function (t) { if (warn.indexOf(t) < 0) warn.push(t); }); return ANG_NAME[v] + ' ' + (b ? '✓' : avSetBusy[v] === 2 ? '읽기 실패' : '세팅 중…'); });
     return '<div class="avset" style="grid-column:1 / -1;display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;font-size:13px"><b>아바타 세팅 · 배경색 맞춤</b><span>' + parts.join(' · ') + '</span>' +
-      '<button type="button" class="lk" data-act="avSetupRe" style="font-size:13px;padding:2px 10px">다시 하기</button>' + (warn.length ? '<span style="flex-basis:100%;color:var(--muted)">' + warn.map(h).join(' ') + '</span>' : '') + '</div>';
+      '<button type="button" class="lk" data-act="avSetupRe" style="font-size:13px;padding:2px 10px" title="올린 사진의 배경색을 다시 읽어 피팅룸 배경을 맞춰요(사진은 그대로)">배경색 다시 맞추기</button>' /* 2026-11-19 최종 검토 8차(블라인드C 12): 「다시 하기」 모호 */ + (warn.length ? '<span style="flex-basis:100%;color:var(--muted)">' + warn.map(h).join(' ') + '</span>' : '') + '</div>';
   }
   /* 2026-11-19 아바타 만들기(별도 기능 avatar-make.js): 방법 1 = 기본 체형 + 얼굴 사진(서버 avatar 함수), 방법 2 = 내 전신 사진. 만든 그림은 아래 avatarFront(예전 「앞모습 올리기」와 같은 경로)로 저장한다.
      기본 체형 목록은 BASES 중 실사 전신 사진(기본 여성·남성)만. 실제 인물 얼굴(cool)·연령대 그림(preset)은 뺀다. 체형을 늘리면 BASES 와 서버 avatar/index.ts 의 BASES 에 같은 id 로 추가 */

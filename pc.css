@@ -1224,3 +1224,33 @@ button{font-size:14px}
 @media (min-width:1180px){
 .rpanel,.fitside,.fitside>.fitcard,.pg-body .main>.fxL,.pg-body .main>.fxR,.pg-history .hinfo,.pg-history .col>.grid3,.pg-history .fxCard>.grid3{scrollbar-width:thin;scrollbar-color:var(--muted) transparent}
 }
+
+/* ==================== 2026-11-19 최종 검토 8차 (블라인드C 4·12·13) ==================== */
+/* 4: 열 이름 위 「✕ 삭제」를 글자로 보이게(작은 회색) */
+.pg-closet .pan table.imgt .thx{font-size:11px;font-weight:600;white-space:nowrap}
+.pg-closet .pan table.imgt .tu{cursor:help}
+/* 12: 내 아바타 올리기(바꾸기)·지우기를 같은 높이 한 줄로 — 납작하던 버튼을 40px로, 두 줄로 쌓이던 것보다 세로 자리는 덜 씀 */
+.avbtns{display:flex;gap:8px}
+.avbtns>*{flex:1 1 0;min-width:0}
+.pg-body .fxBody .avbtns>label.btn,.pg-body .fxBody .avbtns>.lk{min-height:40px;padding:0 8px;white-space:nowrap}
+.avbtns>.lk{flex:0 0 76px;border-style:solid;font-size:14px}
+.avbtns>.lk:hover{color:var(--danger,var(--fg))}
+/* 13: 옷장 오른쪽 「입력한 값」 빈 칸 안내(넓은 창에서만 보임) */
+.cfempty{display:none}
+@media (min-width:1700px) and (min-height:900px){
+/* 옷장: 연 옷이 없을 때 빈 칸 가운데 점선 안내 상자 */
+.pg-closet .fxR .cfempty{display:flex;flex:1 1 auto;flex-direction:column;align-items:center;justify-content:center;gap:8px;margin:18px 0;border:1px dashed var(--line);border-radius:16px;color:var(--muted);font-size:15px;text-align:center;padding:24px;line-height:1.5}
+.pg-closet .fxR .cfempty b{color:var(--fg);font-size:17px}
+.pg-closet .fxR:has(.cfempty){display:flex;flex-direction:column}
+/* 입어본 기록: 작은 그림을 크게(한 줄 4장 정도) */
+.pg-history .grid3{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
+/* 요금제: 카드를 키움(위쪽 정렬 그대로) */
+.planmain .plans{gap:22px}
+.planmain .plan{padding:30px;gap:20px}
+.planmain .plprice{font-size:28px}
+.planmain .pllimit{padding:18px 20px}
+.planmain .pllimit b{font-size:48px}
+.planmain .pllimit span{font-size:16px}
+.planmain .plan ul{font-size:16px;gap:12px}
+.planmain .plbtn{min-height:58px;font-size:18px}
+}
