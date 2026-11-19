@@ -10,18 +10,51 @@
   var BASE_CFG = JSON.parse(JSON.stringify(window.FIT_CONFIG));
   var CATS = { outer: '겉옷', inner: '이너', top: '상의', bottom: '하의', dress: '원피스', shoe: '신발' };
   var CAT_ORDER = ['outer', 'inner', 'top', 'bottom', 'dress', 'shoe'];
-  /* 용도 태그(kind): 옷장을 보기 좋게 나누는 값. 입히기·핏·서버 요청은 cat(겉옷·상의·하의…)만 쓰고 kind 는 쓰지 않는다. 언더웨어만 입히기에서 뺀다 */
-  var KINDS = [['suit', '정장'], ['inner', '이너(티·드레스셔츠)'], ['home', '홈웨어'], ['sport', '트레이닝·요가'], ['outdoor', '아웃도어(등산·골프·스키)'], ['swim', '수영·비치'], ['dance', '댄스·발레'], ['costume', '유니폼·코스튬'], ['maternity', '임산부'], ['hanbok', '한복'], ['two', '투피스·세트'], ['under', '언더웨어']];
-  var KIND_NAME = {}; KINDS.forEach(function (k) { KIND_NAME[k[0]] = k[1].replace(/\(.*\)/, ''); });
-  var KIND_GUESS = [['under', /속옷|언더웨어|팬티|브라|런닝|내의|보정|스타킹|양말/], ['maternity', /임산부|임부|수유복|maternity/i], ['hanbok', /한복|저고리|수의|당의/], ['swim', /수영|비키니|래쉬|래시|비치웨어|스윔|모노키니|swim/i], ['dance', /댄스|발레|에어로빅|레오타드|무용/], ['outdoor', /등산|골프|스키복|스노보드|보드복|아웃도어|트레킹|고어텍스|바람막이|캠핑/], ['costume', /유니폼|코스튬|코스프레|교복|작업복|근무복/], ['home', /잠옷|파자마|홈웨어|라운지|수면|극세사/], ['sport', /트레이닝|츄리닝|운동|조거|요가|레깅스|저지|스포츠|러닝|기능성/], ['two', /투피스|세트|셋업|set/i], ['suit', /정장|수트|슈트|블레이저|자켓|재킷|슬랙스/], ['inner', /티셔츠|반팔|드레스셔츠|와이셔츠|셔츠|나시|민소매|이너|히트텍/]];
-  var DRESS_KINDS = /^(maternity|hanbok|swim|dance|outdoor|costume|home|sport|two)$/; /* 원피스는 정장·이너·언더웨어 추측은 하지 않는다 */
+  /* 세부 종류(kind): 옷장을 보기 좋게 나누는 값. 입히기·핏·서버 요청은 cat(겉옷·상의·하의…)만 쓰고 kind 는 쓰지 않는다. 언더웨어만 입히기에서 뺀다.
+     2026-11-19 사용자 지시(종류가 탭과 안 맞음): 탭(cat)마다 그 탭에 맞는 옷 종류(TYPES)를 따로 두고, 그 뒤에 용도(USES)를 붙인다. 옛 용도 「이너(티·드레스셔츠)」는 탭 「이너」와 이름이 겹쳐 없앴다(옛 값은 KIND_NAME 에만 남김) */
+  var USES = [['suit', '정장'], ['home', '홈웨어'], ['sport', '트레이닝·요가'], ['outdoor', '아웃도어(등산·골프·스키)'], ['swim', '수영·비치'], ['dance', '댄스·발레'], ['costume', '유니폼·코스튬'], ['maternity', '임산부'], ['hanbok', '한복'], ['two', '투피스·세트'], ['under', '언더웨어']];
+  var KINDS = USES; /* 홈 화면 용도 버튼(옷 종류를 고르기 전이라 용도만) */
+  var TYPES = {
+    outer: [['coat', '코트'], ['jacket', '재킷'], ['padding', '패딩'], ['jumper', '점퍼·집업'], ['cardigan', '카디건'], ['vest', '조끼']],
+    inner: [['vest', '조끼'], ['cardigan', '카디건'], ['knit', '니트'], ['tee', '티셔츠'], ['shirt', '셔츠'], ['blouse', '블라우스']],
+    top: [['tee', '티셔츠'], ['shirt', '셔츠'], ['blouse', '블라우스'], ['knit', '니트'], ['sweat', '맨투맨·후드'], ['sleeveless', '민소매']],
+    bottom: [['jeans', '청바지'], ['slacks', '슬랙스'], ['pants', '바지'], ['shorts', '반바지'], ['skirt', '치마'], ['leggings', '레깅스·트레이닝']],
+    dress: []
+  };
+  function kindsOf(cat) { return (TYPES[cat] || []).concat(USES); }
+  var KIND_NAME = { inner: '티·셔츠류' }; USES.forEach(function (k) { KIND_NAME[k[0]] = k[1].replace(/\(.*\)/, ''); });
+  Object.keys(TYPES).forEach(function (c) { TYPES[c].forEach(function (k) { KIND_NAME[k[0]] = k[1]; }); });
+  /* 이름으로 추측하는 순서: ① 특수 용도(언더웨어·한복·홈웨어…) ② 그 탭의 옷 종류 ③ 나머지 용도(아웃도어·트레이닝·세트·정장) */
+  var USE_FIRST = [['under', /속옷|언더웨어|팬티|브라(?![운우이질])|브래지어|런닝(?!화)|내의|보정\s?속옷|스타킹|양말/], ['maternity', /임산부|임부|수유복|maternity/i], ['hanbok', /한복|저고리|수의|당의/], ['swim', /수영|비키니|래쉬|래시|비치웨어|스윔|모노키니|swim/i], ['dance', /댄스|발레|에어로빅|레오타드|무용/], ['costume', /유니폼|코스튬|코스프레|교복|작업복|근무복/], ['home', /잠옷|파자마|홈웨어|라운지|수면|극세사/]];
+  var USE_LAST = [['outdoor', /등산|골프|스키복|스노보드|보드복|아웃도어|트레킹|고어텍스|바람막이|캠핑/], ['sport', /트레이닝|츄리닝|운동|조거|요가|레깅스|저지|스포츠|러닝|기능성/], ['two', /투피스|세트|셋업|\bset\b/i], ['suit', /정장|수트|슈트|블레이저|자켓|재킷|슬랙스/]];
+  var TYPE_GUESS = {
+    outer: [['padding', /패딩|구스|덕다운|다운\s?(점퍼|자켓|재킷|코트)|푸퍼/], ['coat', /코트|트렌치|무스탕|coat/i], ['jacket', /자켓|재킷|블레이저|라이더|야상|jacket|blazer/i], ['jumper', /점퍼|집업|바람막이|블루종|아노락/], ['cardigan', /카디건|가디건|cardigan/i], ['vest', /조끼|베스트(?!셀러)|vest/i]],
+    inner: [['vest', /조끼|베스트(?!셀러)|vest/i], ['cardigan', /카디건|가디건|cardigan/i], ['blouse', /블라우스/], ['tee', /티셔츠|반팔티|긴팔티|면티|폴라티|목폴라|tee\b/i], ['shirt', /셔츠|남방/], ['knit', /니트|스웨터|knit/i]],
+    top: [['sleeveless', /민소매|나시|슬리브리스|탱크탑/], ['sweat', /맨투맨|후드티|후디|스웨트|hoodie/i], ['blouse', /블라우스/], ['tee', /티셔츠|반팔티|긴팔티|면티|폴라티|목폴라|tee\b/i], ['shirt', /셔츠|남방/], ['knit', /니트|스웨터|knit/i]],
+    bottom: [['skirt', /스커트|치마|skirt/i], ['shorts', /반바지|쇼츠|숏팬츠|[3-5]부|버뮤다|shorts/i], ['leggings', /레깅스|조거|트레이닝|츄리닝/], ['jeans', /청바지|데님|jeans/i], ['slacks', /슬랙스|정장\s?바지/], ['pants', /바지|팬츠|pants/i]]
+  };
+  var DRESS_KINDS = /^(maternity|hanbok|swim|dance|outdoor|costume|home|sport|two)$/; /* 원피스는 정장·언더웨어 추측은 하지 않는다 */
+  /* 옛 추측(2026-11-19 이전). 저장된 값이 이것과 같으면 자동으로 붙은 값이라 새 추측으로 한 번 바꾼다(kindFix) */
+  var OLD_GUESS = [['under', /속옷|언더웨어|팬티|브라|런닝|내의|보정|스타킹|양말/], ['maternity', /임산부|임부|수유복|maternity/i], ['hanbok', /한복|저고리|수의|당의/], ['swim', /수영|비키니|래쉬|래시|비치웨어|스윔|모노키니|swim/i], ['dance', /댄스|발레|에어로빅|레오타드|무용/], ['outdoor', /등산|골프|스키복|스노보드|보드복|아웃도어|트레킹|고어텍스|바람막이|캠핑/], ['costume', /유니폼|코스튬|코스프레|교복|작업복|근무복/], ['home', /잠옷|파자마|홈웨어|라운지|수면|극세사/], ['sport', /트레이닝|츄리닝|운동|조거|요가|레깅스|저지|스포츠|러닝|기능성/], ['two', /투피스|세트|셋업|set/i], ['suit', /정장|수트|슈트|블레이저|자켓|재킷|슬랙스/], ['inner', /티셔츠|반팔|드레스셔츠|와이셔츠|셔츠|나시|민소매|이너|히트텍/]];
+  var OLD_DRESS = /^(maternity|hanbok|swim|dance|outdoor|costume|home|sport|two)$/;
+  function guessKindOld(name, cat) {
+    if (cat === 'shoe') return '';
+    var t = String(name || '');
+    for (var i = 0; i < OLD_GUESS.length; i++) if (OLD_GUESS[i][1].test(t)) { if (cat === 'dress' && !OLD_DRESS.test(OLD_GUESS[i][0])) continue; return OLD_GUESS[i][0]; }
+    return '';
+  }
   /* 2026-11-13 이름에 겉에 입는 옷 단어가 있는데 분류가 상의면 저장할 때 한 번 묻는다(겉옷은 상의 위에 겹쳐 입혀진다) */
   var OUTER_WORDS = /재킷|자켓|블레이저|코트|트렌치|점퍼|패딩|카디건|가디건|집업|야상|무스탕|바람막이/;
   function guessKind(name, cat) {
     if (cat === 'shoe') return '';
-    var t = String(name || '');
-    for (var i = 0; i < KIND_GUESS.length; i++) if (KIND_GUESS[i][1].test(t)) { if (cat === 'dress' && !DRESS_KINDS.test(KIND_GUESS[i][0])) continue; return KIND_GUESS[i][0]; }
-    return '';
+    var t = String(name || ''), i, pass = function (list) { for (i = 0; i < list.length; i++) if (list[i][1].test(t)) { if (cat === 'dress' && !DRESS_KINDS.test(list[i][0])) continue; return list[i][0]; } return ''; };
+    return pass(USE_FIRST) || pass(TYPE_GUESS[cat] || []) || pass(USE_LAST);
+  }
+  /* 옷장에 이미 있는 옷의 세부 종류를 새 기준으로 한 번 맞춘다. 비어 있거나 옛 추측과 같은 값(=자동으로 붙은 값)만 바꾸고, 직접 고른 값은 그대로 둔다 */
+  function kindFix(s) {
+    if (s.kindV >= 2 || !Array.isArray(s.closet)) return false;
+    s.closet.forEach(function (x) { if (!x || x.cat === 'shoe') return; var k = x.kind || ''; if (!k || k === guessKindOld(x.name, x.cat)) x.kind = guessKind(x.name, x.cat); });
+    s.kindV = 2; return true;
   }
   var GGENDER = { female: '여성용', male: '남성용', unisex: '공용' };
   var PREFS = [['tight', '타이트'], ['fit', '정핏'], ['loose', '여유'], ['over', '오버핏']];
@@ -116,6 +149,7 @@
     try { var raw = localStorage.getItem(KEY + ':' + user.id); if (raw) s = Object.assign(s, JSON.parse(raw)); } catch (e) { /* 메모리로만 동작 */ }
     if (!Array.isArray(s.accs)) s.accs = [];
     if (!Array.isArray(s.accSel)) s.accSel = [];
+    kindFix(s); /* 2026-11-19 세부 종류 새 기준(저장은 다음 저장 때 같이) */
     return s;
   }
   function save() { if (!user) return; try { localStorage.setItem(KEY + ':' + user.id, JSON.stringify(state)); } catch (e) { toast('저장 공간이 부족해 저장하지 못했어요.'); } }
@@ -2001,22 +2035,24 @@
       (f.cat === 'shoe' || !linkReadOn() ? '' : '<div class="dz' + (f.detailDone ? ' done' : '') + '" id="dzdetail" tabindex="0" data-dz="detail"><b>③ 상세 이미지 (선택)</b><span>' + h(f.detailMsg || '') + (f.detailMsg ? '' : '소재·혼용률이 있는 상세 캡처를 끌어다 놓거나 <kbd>Ctrl</kbd> + <kbd>V</kbd>. 원단 선택을 자동으로 채워요.') + '</span><div class="dzacts" style="justify-content:flex-start;margin-top:6px"><label class="fbtn" title="사진 파일 선택" style="border:0;background:none;min-height:30px;padding:0 6px;font-size:17px;line-height:1"><span aria-hidden="true">+</span><input type="file" accept="image/*" data-file="detailCap" aria-label="상세 이미지 파일 선택"></label></div></div>') +
       '<label for="pkind">' + (sh ? '종류 (신발)' : '옷 종류') + '<select id="pkind" data-chg="cfCat">' + CAT_ORDER.map(function (c) { return '<option value="' + c + '"' + (f.cat === c ? ' selected' : '') + '>' + CATS[c] + '</option>'; }).join('') + '</select></label>' +
       (sh ? '' : '<p class="hint">' + ({ outer: '겉옷: 재킷·코트·카디건처럼 맨 겉에 입는 옷', inner: '이너: 상의 위·겉옷 안쪽에 겹쳐 입는 조끼·니트 베스트 등', top: '상의: 티셔츠·셔츠·블라우스·니트', bottom: '하의: 바지·치마', dress: '원피스: 원피스·드레스' }[f.cat] || '') + '</p>') +
-      (f.cat === 'shoe' ? '' : '<label for="pkindk">용도 (선택)<select id="pkindk" data-chg="cfKind"><option value="">자동으로 정하기</option>' + KINDS.map(function (k) { return '<option value="' + k[0] + '"' + (f.kind === k[0] ? ' selected' : '') + '>' + h(k[1]) + '</option>'; }).join('') + '</select></label>') +
+      (f.cat === 'shoe' ? '' : '<label for="pkindk">세부 종류 (선택)<select id="pkindk" data-chg="cfKind"><option value="">자동으로 정하기</option>' + kindsOf(f.cat).map(function (k) { return '<option value="' + k[0] + '"' + (f.kind === k[0] ? ' selected' : '') + '>' + h(k[1]) + '</option>'; }).join('') + '</select></label>') +
       /* 2026-11-12 사용자 결정(1번): 원단 4종(핏 계산 fit-config·서버 입히기 문장이 이미 아는 값만) 고르는 칸 */
       (f.cat === 'shoe' ? '' : '<label for="pfab">원단 (선택)<select id="pfab" data-chg="cfFab">' + Object.keys(cfgNow().fabric).map(function (k) { return '<option value="' + k + '"' + ((f.fabric || 'normal') === k ? ' selected' : '') + '>' + h(cfgNow().fabric[k].label + (k === 'normal' ? ' (모르면 그대로)' : '')) + '</option>'; }).join('') + '</select></label><p class="hint">' + (f.material ? '상품 페이지 소재: ' + h(f.material) + ' · ' : '') + '스판·니트는 늘어나서 조금 작아도 덜 끼고, 데님은 안 늘어나 더 끼게 계산해요.</p>') +
       '<label for="pname">' + (sh ? '신발 이름' : '옷 이름') + '<input id="pname" type="text" data-cf="name" value="' + h(f.name) + '" maxlength="60"></label>' +
       '<label for="pshort">짧은 이름 (화면 표시용, 비우면 자동)<input id="pshort" type="text" data-cf="short" value="' + h(f.short || '') + '" placeholder="' + h(shortName({ name: f.name, cat: f.cat })) + '" maxlength="14"></label>' +
       (sh ? '<label for="pheel">굽 높이 (mm, 선택)<input id="pheel" type="text" inputmode="decimal" autocomplete="off" data-cf="heel" placeholder="예: 70 (운동화 20~30, 구두 50~90)" value="' + h(f.heel == null ? '' : f.heel) + '" maxlength="3"></label>' : '') + '<label for="pprice">가격<input id="pprice" type="text" data-cf="price" value="' + h(f.price) + '"></label><label for="purl">상품 링크 (선택)<input id="purl" type="url" data-cf="url" placeholder="https://..." value="' + h(f.url) + '"></label>' +
       (linkReadOn() ? '<button type="button" class="lk" data-act="linkRead"' + (f.linkBusy ? ' disabled' : '') + '>' + (f.linkBusy ? '읽는 중…' : '링크에서 이름·가격 가져오기') + '</button>' : '') +
+      /* 2026-11-19 쿠팡·스마트스토어처럼 링크로 못 읽는 곳: 상품 화면 캡처에서 이름·가격(사진은 저장 안 함) */
+      '<div class="dz' + (f.infoDone ? ' done' : '') + '" id="dzinfo" tabindex="0" data-dz="info"><b>상품 화면 캡처로 이름·가격 채우기</b><span data-ocr="info">' + h(f.infoMsg || '') + (f.infoMsg ? '' : '링크로 안 읽히면(쿠팡·스마트스토어 등) 상품명과 가격이 보이게 캡처해 끌어다 놓거나 이 칸을 누른 뒤 <kbd>Ctrl</kbd> + <kbd>V</kbd>. 캡처는 옷 사진으로 저장하지 않아요.') + '</span><div class="dzacts" style="justify-content:flex-start;margin-top:6px"><label class="fbtn" title="사진 파일 선택" style="border:0;background:none;min-height:30px;padding:0 6px;font-size:17px;line-height:1"><span aria-hidden="true">+</span><input type="file" accept="image/*" data-file="infoCap" aria-label="상품 화면 캡처 파일 선택"></label></div></div>' +
       '<p class="hint">상품 주소를 넣으면 ' + (sh ? '신발' : '옷') + ' 카드에 구매하기가 생겨요.</p>' + (f.err ? '<p class="gone" role="alert">' + h(f.err) + '</p>' : '') + (f.saved ? '<p class="ok" role="status">저장했어요.</p>' : '') +
       '<button type="button" class="save" data-act="cfSave">' + (f.id ? '수정 저장' : sh ? '신발장에 저장' : '옷장에 저장') + '</button>' + (f.id ? '<div class="lkacts"><button type="button" class="lk" data-act="cfCancel">닫기</button><button type="button" class="lk" data-act="delItem" data-id="' + h(f.id) + '" style="color:var(--errText)">' + (sh ? '신발 삭제' : '옷 삭제') + '</button></div>' : '') + '</aside>' + (modal ? '</div></div>' : '');
   }
   function viewCloset() {
     var modalOn = !ui.cf.id && (ui.cfModal || !!(ui.cf.photo || ui.cf.name || ui.cf.sizeDone)); if (ui.cf.id) ui.cfModal = false;
     var cat = ui.closetCat, all = state.closet.filter(function (x) { return x.cat === cat; });
-    var kc = {}; all.forEach(function (x) { if (x.kind) kc[x.kind] = (kc[x.kind] || 0) + 1; });
+    var kc = {}; all.forEach(function (x) { if (x.kind && KIND_NAME[x.kind]) kc[x.kind] = (kc[x.kind] || 0) + 1; });
     var kindNow = ui.closetKind !== 'all' && kc[ui.closetKind] ? ui.closetKind : 'all', list = all.filter(function (x) { return kindNow === 'all' || x.kind === kindNow; });
-    var kindChips = Object.keys(kc).length ? '<div class="kchips" role="group" aria-label="용도로 걸러 보기"><button type="button" class="' + (kindNow === 'all' ? 'on' : '') + '" aria-pressed="' + (kindNow === 'all') + '" data-act="closetKind" data-v="all">전체 ' + all.length + '</button>' + KINDS.filter(function (k) { return kc[k[0]]; }).map(function (k) { return '<button type="button" class="' + (kindNow === k[0] ? 'on' : '') + '" aria-pressed="' + (kindNow === k[0]) + '" data-act="closetKind" data-v="' + k[0] + '">' + KIND_NAME[k[0]] + ' ' + kc[k[0]] + '</button>'; }).join('') + '</div>' : '';
+    var kindChips = Object.keys(kc).length ? '<div class="kchips" role="group" aria-label="세부 종류로 걸러 보기"><button type="button" class="' + (kindNow === 'all' ? 'on' : '') + '" aria-pressed="' + (kindNow === 'all') + '" data-act="closetKind" data-v="all">전체 ' + all.length + '</button>' + kindsOf(cat).concat(Object.keys(kc).filter(function (k) { return KIND_NAME[k] && !kindsOf(cat).some(function (x) { return x[0] === k; }); }).map(function (k) { return [k, KIND_NAME[k]]; })).filter(function (k) { return kc[k[0]]; }).map(function (k) { return '<button type="button" class="' + (kindNow === k[0] ? 'on' : '') + '" aria-pressed="' + (kindNow === k[0]) + '" data-act="closetKind" data-v="' + k[0] + '">' + KIND_NAME[k[0]] + ' ' + kc[k[0]] + '</button>'; }).join('') + '</div>' : '';
     var chips = CAT_ORDER.filter(got).map(function (c) { var it = got(c), s = state.sel[c], r = evalOne(it, s.size); return '<button type="button" class="pc" aria-label="' + h(it.name) + ' 빼기" data-act="unsel" data-cat="' + c + '"><small>' + CATS[c] + '</small>' + h(it.name) + ' ' + h(s.size || (r && r.chosen) || '') + ' ×</button>'; }).join(''), n = CAT_ORDER.filter(got).length;
     /* 2026-11-12 A안: 목록(용도 칩·옷 카드·고른 옷 줄·안내)을 카드(fxCard) 하나로 감싼다. 탭은 카드 위 */
     return '<main class="main mflex"><div class="col fxL" style="flex:3 1 560px"><div class="tabs fxTab" role="tablist" aria-label="옷 종류">' +
@@ -2126,7 +2162,7 @@
         '<div class="g3">' + ro('성별', b.g === 'male' ? '남성' : '여성', '') + ro('키', b.h, 'cm') + ro('몸무게', b.w, 'kg') + '</div><h2>자세한 치수</h2><div class="g3">' +
         MFIELDS.map(function (f, i) { return ro(f[1], b.m[i], f[2]); }).join('') + '</div><div class="callout">내 몸에 맞는 사이즈를 보려면 위에서 「내 아바타」를 골라 내 치수를 넣어 주세요.</div></section></main>';
     }
-    return '<main class="main mflex">' + head + '<section class="pan fxL fxBody" style="flex:1 1 340px" aria-label="내 아바타"><h2>내 아바타</h2>' +
+    return '<main class="main mflex">' + head + '<section class="pan fxL fxBody" style="flex:1 1 340px" aria-label="내 아바타">' + avMakeHead() +
       /* 2026-11-18 앞·옆·뒷모습 3장을 앞모습 큰 사진과 같은 크기(.av, 9:16)로 나란히. fxBody 2칸 배치 대신 가로 전체(grid-column 1/-1)를 씀 */
       '<div style="grid-column:1 / -1;display:grid;grid-template-columns:repeat(3,minmax(0,300px));gap:14px">' + ['front'].concat(ANGS).map(function (av) {
         var f = av === 'front', u = f ? urls.avatar : urls.ang[av], src = f ? (u || (p.gender === 'male' ? 'assets/avatar_male.jpg?v=t' : 'assets/avatar_default.jpg?v=t')) : u;
@@ -2292,6 +2328,11 @@
     return '<div class="avset" style="grid-column:1 / -1;display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;font-size:13px"><b>아바타 세팅 · 배경색 맞춤</b><span>' + parts.join(' · ') + '</span>' +
       '<button type="button" class="lk" data-act="avSetupRe" style="font-size:13px;padding:2px 10px">다시 하기</button>' + (warn.length ? '<span style="flex-basis:100%;color:var(--muted)">' + warn.map(h).join(' ') + '</span>' : '') + '</div>';
   }
+  /* 2026-11-19 아바타 만들기(별도 기능 avatar-make.js): 방법 1 = 기본 체형 + 얼굴 사진(서버 avatar 함수), 방법 2 = 내 전신 사진. 만든 그림은 아래 avatarFront(예전 「앞모습 올리기」와 같은 경로)로 저장한다.
+     기본 체형 목록은 BASES 중 실사 전신 사진(기본 여성·남성)만. 실제 인물 얼굴(cool)·연령대 그림(preset)은 뺀다. 체형을 늘리면 BASES 와 서버 avatar/index.ts 의 BASES 에 같은 id 로 추가 */
+  function avMakeBases() { return BASES.filter(function (b) { return !b.preset; }).map(function (b) { return { id: b.id, name: b.name, g: b.g, h: b.h, w: b.w, img: b.img }; }); }
+  function avMakeHead() { return '<h2' + (window.AvatarMake ? ' style="display:flex;align-items:center;justify-content:space-between;gap:10px">내 아바타<button type="button" class="lk" data-act="avMake" style="min-height:30px;padding:0 12px;font-size:14px;border-style:solid;border-color:var(--pri);color:var(--pri)">아바타 만들기</button>' : '>내 아바타') + '</h2>'; }
+  function avatarFront(fl) { return Core.shrink(fl, 2000, 0.92).then(normAvatar).then(function (b) { return blobPut( /* 2026-11-13 A안: 표준 틀(867×1536)에 맞춰 저장 */'avatar', b).then(function () { if (urls.avatar) URL.revokeObjectURL(urls.avatar); urls.avatar = URL.createObjectURL(b); state.avSeq = (state.avSeq || 0) + 1; mySpan = { seq: -1, v: null, busy: false }; /* 새 아바타는 바로 사람 위치를 다시 읽어 눈금·크기에 적용 */ state.who = 'me'; ui.bodyTab = 'me'; save(); render(); avSetup('front', b); }); }).catch(function (err) { toast((err && err.message) || '이미지를 저장하지 못했어요.'); }); }
   function colsFor(img, cb) {
     if (myPic()) { /* 아바타 세팅 저장값: 앞모습은 내 아바타, 옆·뒷모습은 그 방향 내 사진(입힌 옆·뒤 그림도 그 사진 배경에 맞춰져 있음) */
       var v = img.hasAttribute('data-motion') ? '' : ui.angle, sv = v && avBgOk(v), sc = sv && AvatarSetup.toCols(sv);
@@ -2474,6 +2515,65 @@
       f.sizeDone = true; f.sizeMsg = '자동으로 읽었어요. 값이 맞는지 확인해 주세요.' + (r.bad && r.bad.length ? ' 의심되는 칸: ' + r.bad.join(', ') : ''); render();
     }).catch(function (err) { if (ui.cf === f) { f.sizeMsg = (err && err.message) || '글자를 읽지 못했어요.'; render(); } });
   }
+  /* 2026-11-19 상품 화면 캡처 → 이름·가격. 글자 인식 결과의 잡글(아이콘·사진 부분)을 걸러 상품명 줄과 판매가를 고른다.
+     sizeocr.js parseProduct 는 폰 앱(shorts.js)도 쓰므로 그대로 두고 PC 는 이것을 쓴다 */
+  var PN_NOISE = /적립|쿠폰|배송|도착|만족|상품평|리뷰|후기|평점|별점|판매자|장바구니|구매|결제|혜택|색상|사이즈|수량|옵션|선택|할인|최대|무이자|할부|카드|문의|공유|알림|브랜드관|로켓|품절|원산지|제조|고객|로그인|검색|카테고리|더보기|보러가기|이상/;
+  var PN_CLOTH = /청바지|데님|팬츠|바지|슬랙스|레깅스|조거|스커트|치마|원피스|드레스|코트|자켓|재킷|점퍼|패딩|다운|야상|블레이저|가디건|카디건|니트|스웨터|티셔츠|셔츠|남방|블라우스|맨투맨|후드|조끼|트레이닝|셋업|세트|운동화|스니커즈|구두|로퍼|부츠|샌들|슬리퍼|여성|남성|여자|남자|오버핏|와이드|스판|기모|반팔|긴팔/;
+  function prodParse(text) {
+    var segs = [];
+    String(text || '').split(/\r?\n/).forEach(function (l, li) {
+      l.split(/\s{3,}|\s[|¦]\s/).forEach(function (s) {
+        s = s.replace(/^[^가-힣A-Za-z0-9\[(]+/, '').replace(/[^가-힣A-Za-z0-9\])]+$/, '').replace(/\s+/g, ' ').trim();
+        if (s) segs.push({ s: s, li: li });
+      });
+    });
+    /* 이름: 글자 비율이 높고 잡말(배송·적립 등)이 없는 조각. 옷 낱말이 있는 조각을 먼저, 그다음 길이·위쪽 순 */
+    var best = null;
+    segs.forEach(function (g) {
+      var s = g.s, ns = s.replace(/\s+/g, ''), ko = (s.match(/[가-힣]/g) || []).length, lt = (s.match(/[가-힣A-Za-z]/g) || []).length;
+      var cl = PN_CLOTH.test(s), nz = PN_NOISE.test(s); /* 상품명에도 「무료배송」「세트 할인」이 붙을 수 있어 옷 낱말이 있으면 점수만 깎는다 */
+      if (ns.length < 6 || s.length > 90 || /[>›»]/.test(s) || (nz && !cl)) return;
+      if (lt < ns.length * 0.6 || (ko < 4 && lt < 8)) return;
+      var words = s.split(' ').filter(function (w) { return /[가-힣]{2,}|[A-Za-z]{3,}/.test(w); }).length;
+      if (words < 2) return;
+      var sc = lt + (cl ? 40 : 0) - (nz ? 30 : 0) + words * 2 - g.li * 0.3;
+      if (!best || sc > best.sc) best = { s: s, sc: sc, cloth: cl };
+    });
+    var name = best && (best.cloth || best.sc >= 20) ? best.s.slice(0, 60) : '';
+    /* 가격: ① 「할인율% 바로 뒤」 금액 ② 없으면 맨 위에서 처음 금액이 나오는 조각의 작은 값(판매가가 보통 맨 위·정가보다 작음).
+       금액 = 천 단위 쉼표 숫자(큰 글씨의 「원」은 x·8 로 깨지기 쉬워 원이 없어도 받음) 또는 「원」이 붙은 4자리 이상 숫자.
+       적립·쿠폰·할인액·배송비·회원가·카드 혜택 조각은 뺀다 */
+    var pPct = null, pTop = null;
+    segs.some(function (g) {
+      var t = g.s.replace(/\s*([,.])\s*(?=\d)/g, '$1').replace(/(\d)\s+원/g, '$1원'), re = /(\d{1,3}(?:[,.]\d{3})+)|(\d{4,8})원/g, m, ns = [];
+      if (/적립|쿠폰|캐시|포인트|할인|배송|도서산간|제주|이상|무이자|할부|개월|상품평|리뷰|만족|회원가|카드|결제|즉시|혜택|최대|명/.test(t)) return false;
+      while ((m = re.exec(t))) {
+        var n = Number((m[1] || m[2]).replace(/[,.]/g, ''));
+        if (!(n >= 1000 && n <= 50000000)) continue;
+        if (/%/.test(t.slice(0, m.index))) { pPct = n; return true; }
+        ns.push(n);
+      }
+      if (ns.length && pTop == null) pTop = Math.min.apply(null, ns);
+      return false;
+    });
+    var price = pPct != null ? pPct : pTop;
+    return { name: name, price: price };
+  }
+  function infoCap(file) {
+    var f = ui.cf; if (!f) return;
+    if (!window.SizeOcr) { f.infoMsg = '글자 인식을 쓸 수 없어요. 이름·가격을 직접 넣어 주세요.'; render(); return; }
+    f.infoMsg = '상품 이름·가격을 읽는 중입니다.'; f.infoDone = false; render();
+    SizeOcr.recognize(file, function (s, p) { if (p != null && ui.cf === f) { f.infoMsg = '상품 이름·가격을 읽는 중… ' + Math.round(p * 100) + '%'; ocrMsg('info', f.infoMsg); } }).then(function (text) {
+      if (ui.cf !== f) return;
+      var r = prodParse(text), got = [];
+      /* 사용자가 일부러 넣은 캡처라 읽은 값으로 바꾼다(링크 읽기와 달리 이미 있는 값도) */
+      if (r.name) { f.name = r.name; got.push('이름'); }
+      if (r.price) { f.price = r.price.toLocaleString('ko-KR') + '원'; got.push('가격'); }
+      f.infoDone = got.length > 0; f.saved = false;
+      f.infoMsg = got.length ? got.join('·') + '을 채웠어요. 글자가 틀릴 수 있으니 확인해 주세요.' + (got.length < 2 ? ' ' + (r.name ? '가격' : '이름') + '은 찾지 못했어요.' : '') : '이름·가격을 찾지 못했어요. 상품명과 가격이 또렷하게 보이게 다시 캡처하거나 직접 넣어 주세요.';
+      render();
+    }).catch(function () { if (ui.cf === f) { f.infoMsg = '이름·가격을 읽지 못했어요. 직접 넣어 주세요.'; render(); } });
+  }
   function closetPhoto(file) {
     var f = ui.cf;
     Promise.all([Core.shrink(file, 240, 0.8).then(Core.blobToDataUrl), Core.shrink(file, 1280, 0.88)]).then(function (a) { f.photo = a[0]; f.big = a[1]; f.saved = false; if (ui.cf === f) render(); }).catch(function (err) { f.err = (err && err.message) || '사진을 읽지 못했어요.'; render(); });
@@ -2481,16 +2581,16 @@
     f.photoMsg = '상품 이름·가격을 읽는 중입니다.';
     SizeOcr.recognize(file, function (s, p) { if (p != null && ui.cf === f) { f.photoMsg = '상품 이름·가격을 읽는 중… ' + Math.round(p * 100) + '%'; ocrMsg('photo', f.photoMsg); } }).then(function (text) {
       if (ui.cf !== f) return;
-      var r = SizeOcr.parseProduct(text), ok = false;
+      var r = prodParse(text), ok = false;
       if (r.name && !f.name) { f.name = r.name; ok = true; }
-      if (r.price != null && !f.price) { f.price = String(r.price); ok = true; }
+      if (r.price != null && !f.price) { f.price = r.price.toLocaleString('ko-KR') + '원'; ok = true; }
       f.photoMsg = ok ? '이름·가격을 읽어 채웠어요. 맞는지 확인해 주세요.' : '이름·가격을 읽지 못했어요. 아래에 직접 넣어 주세요.'; render();
     }).catch(function () { if (ui.cf === f) { f.photoMsg = '이름·가격을 읽지 못했어요. 아래에 직접 넣어 주세요.'; render(); } });
   }
   function takeImage(file, dz) {
     if (!user || !file || !/^image\//.test(file.type)) return;
     var d = dz || (ui.page === 'accessory' ? 'acc' : ui.page === 'closet' ? 'photo' : 'home');
-    if (d === 'acc') setAccPhoto(file); else if (d === 'size') sizeCap(file); else if (d === 'detail') detailCap(file); else if (d === 'photo') closetPhoto(file); else homeFile(file);
+    if (d === 'acc') setAccPhoto(file); else if (d === 'size') sizeCap(file); else if (d === 'detail') detailCap(file); else if (d === 'info') infoCap(file); else if (d === 'photo') closetPhoto(file); else homeFile(file);
   }
   document.addEventListener('paste', function (e) {
     var items = (e.clipboardData && e.clipboardData.items) || [];
@@ -2586,7 +2686,7 @@
       if (pin !== pin2) return lgErr('PIN 확인이 일치하지 않습니다.');
       var salt = Math.random().toString(36).slice(2, 10), g = val('lggender') || 'female', hh = val('lgh'), ww = val('lgw');
       var u = { id: 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), nick: nick, salt: salt, pin: Core.pinHash(salt, pin), created: Date.now() };
-      users.push(u); Core.writeUsers(users); user = u; state = blankState();
+      users.push(u); Core.writeUsers(users); user = u; state = blankState(); state.kindV = 2;
       state.profile.gender = g; state.profile.height = hh; state.profile.weight = ww;
       save(); enterApp();
     },
@@ -2604,6 +2704,16 @@
     },
     angle: function (el) { ui.angle = el.dataset.v; render(); },
     genView: function (el) { var gv = el.dataset.v; state.genViews = state.genViews || { front: true }; state.genViews[gv] = !state.genViews[gv]; save(); render(); },
+    avMake: function () {
+      if (!window.AvatarMake) return;
+      AvatarMake.open({ bases: avMakeBases(), gender: state.profile.gender === 'male' ? 'male' : 'female', cfg: Core.genEnabled() ? window.TRYON_CFG : null, device: Core.deviceId(), seg: segLoad, hasAvatar: !!urls.avatar,
+        onDone: function (blob, info) { var q = state.avSeq || 0, had = urls.ang.side || urls.ang.back;
+          /* 만들기 창에서 고른 기본 체형의 성별이 프로필 성별과 다르면, 저장에 성공한 뒤 프로필 성별을 그 체형에 맞춘다(옷 입히기·옷 기본 성별·추천이 아바타와 어긋나지 않게). 키·몸무게·치수는 그대로. */
+          var bb = info && info.method === 'base' && BASES.filter(function (b) { return b.id === info.base; })[0], ng = bb && (bb.g === 'male' ? 'male' : 'female'), gch = ng && ng !== (state.profile.gender === 'male' ? 'male' : 'female');
+          avatarFront(blob).then(function () { if ((state.avSeq || 0) === q) return;
+            if (gch) { state.profile.gender = ng; save(); render(); }
+            toast((had ? '내 아바타 앞모습을 바꿨어요. 옆·뒷모습은 예전 사진 그대로라서, 새 앞모습과 다르면 다시 올리거나 지워 주세요.' : '내 아바타 앞모습을 저장했어요.') + (gch ? ' 고른 체형에 맞춰 내 치수의 성별을 ' + (ng === 'male' ? '남성' : '여성') + '으로 바꿨어요.' : ''), had || gch ? 9000 : 4500); }); } });
+    },
     avSetupRe: function () { state.avBg = {}; avSetBusy = {}; save(); avSetupAuto(); render(); toast('아바타 세팅을 다시 하고 있어요.'); },
     avatarAngDel: function (el) { var av = el.dataset.v; if (ANGS.indexOf(av) < 0 || !confirm('내 아바타 ' + ANG_NAME[av] + ' 사진을 지울까요?')) return; if (urls.ang[av]) URL.revokeObjectURL(urls.ang[av]); urls.ang[av] = null; state.avAngSeq = state.avAngSeq || {}; state.avAngSeq[av] = (state.avAngSeq[av] || 0) + 1; save(); blobDel('avatar_' + av).catch(function () {}); render(); },
     zoom: function (el) { var i = ZOOMS.indexOf(ui.zoom), d = el.dataset.v; ui.zoom = d === '1' ? 1 : ZOOMS[Math.max(0, Math.min(ZOOMS.length - 1, i + (d === '+' ? 1 : -1)))]; render(); },
@@ -2703,7 +2813,7 @@
           }
           f.saved = false;
           toast(got.length ? got.join('·') + '을(를) 채웠어요. 내용이 맞는지 확인해 주세요.' : '비어 있는 칸이 없어서 바꾸지 않았어요.', 3500); render();
-        }).catch(function (e) { if (ui.cf !== f) return; f.linkBusy = false; f.err = (e && e.message) || '링크를 읽지 못했어요.'; render(); });
+        }).catch(function (e) { if (ui.cf !== f) return; f.linkBusy = false; var em = (e && e.message) || '링크를 읽지 못했어요.'; f.err = /\((403|429)\)/.test(em) ? '이 쇼핑몰은 자동으로 읽지 못하게 막아 두었어요. 바로 아래 칸에 상품 화면 캡처를 붙여넣으면 이름·가격을 채워요.' : em; render(); });
     },
     cfNew: function () { ui.cf = blankForm(ui.closetCat); ui.cfModal = true; render(); },
     cfCancel: function () { ui.cfModal = false; ui.cf = blankForm(ui.closetCat); render(); },
@@ -2881,6 +2991,7 @@
     if (c === 'cfCat') {
       var f = ui.cf, was = f.cat === 'shoe', now = t.value === 'shoe';
       f.cat = t.value;
+      if (f.kind && !kindsOf(f.cat).some(function (k) { return k[0] === f.kind; })) f.kind = '';
       if (was !== now) { f.sizes = defaultSizes(t.value); f.measureType = now ? '' : 'flat'; f.table = mkTable(f.cat, 'flat', f.sizes); f.capRaw = null; }
       else if (f.table) {
         /* AI 로 읽은 표면 같은 글을 새 옷 종류로 다시 푼다(단면/둘레·인치 판단까지 새로).
@@ -2901,10 +3012,11 @@
     if (kind === 'quick') homeFile(fl);
     else if (kind === 'sizeCap') sizeCap(fl);
     else if (kind === 'detailCap') detailCap(fl);
+    else if (kind === 'infoCap') infoCap(fl);
     else if (kind === 'photo') closetPhoto(fl);
     else if (kind === 'accPhoto') setAccPhoto(fl);
     else if (kind === 'avatar_side' || kind === 'avatar_back') { var av = kind.slice(7); Core.shrink(fl, 2000, 0.92).then(normAvatar).then(function (b) { return blobPut(kind, b).then(function () { if (urls.ang[av]) URL.revokeObjectURL(urls.ang[av]); urls.ang[av] = URL.createObjectURL(b); state.avAngSeq = state.avAngSeq || {}; state.avAngSeq[av] = (state.avAngSeq[av] || 0) + 1; save(); render(); avSetup(av, b); }); }).catch(function (err) { toast((err && err.message) || '이미지를 저장하지 못했어요.'); }); }
-    else if (kind === 'avatar') Core.shrink(fl, 2000, 0.92).then(normAvatar).then(function (b) { return blobPut( /* 2026-11-13 A안: 표준 틀(867×1536)에 맞춰 저장 */'avatar', b).then(function () { if (urls.avatar) URL.revokeObjectURL(urls.avatar); urls.avatar = URL.createObjectURL(b); state.avSeq = (state.avSeq || 0) + 1; mySpan = { seq: -1, v: null, busy: false }; /* 새 아바타는 바로 사람 위치를 다시 읽어 눈금·크기에 적용 */ state.who = 'me'; ui.bodyTab = 'me'; save(); render(); avSetup('front', b); }); }).catch(function (err) { toast((err && err.message) || '이미지를 저장하지 못했어요.'); });
+    else if (kind === 'avatar') avatarFront(fl);
   });
   window.addEventListener('hashchange', function () { var p = pageFromHash(); if (p !== ui.page) { ui.page = p; render(); window.scrollTo(0, 0); } });
   /* 2026-11-10 다른 탭(검정·밝은 버전)이 같은 프로필을 저장하면 그 내용을 바로 다시 읽는다.

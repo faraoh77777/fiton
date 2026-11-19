@@ -1118,3 +1118,7 @@ button{font-size:14px}
 .zoom.bgre>img{-webkit-mask-image:linear-gradient(to bottom,transparent,#000 4%,#000 97%,transparent),linear-gradient(to right,transparent,#000 5%,#000 95%,transparent);-webkit-mask-composite:source-in;mask-image:linear-gradient(to bottom,transparent,#000 4%,#000 97%,transparent),linear-gradient(to right,transparent,#000 5%,#000 95%,transparent);mask-composite:intersect}
 /* 2026-11-19 「아바타 세팅」 줄이 생긴 만큼 내 아바타 보기의 앞·옆·뒤 사진을 조금 줄여 칸 안 스크롤이 안 생기게(기본 모델 보기는 위 :has(.fxMods) 규칙 그대로) */
 .pg-body .fxBody:has(.avset) img.av{height:clamp(200px,calc(100vh - 565px),533px)}
+/* 2026-11-19 사용자 지시: 옆·뒤 사진이 없는 기본 모델(연령대 모델)도 같게 — 「옆모습 없음」·「뒷모습 없음」 빈 칸(div.av)이 300×533 그대로라 모델 목록이 아래로 밀리던 것. 빈 칸도 사진과 같은 높이로 줄이고, 기본 모델 보기는 왼쪽 칸이 7px 넘치던 만큼 사진을 10px 더 줄임 */
+.pg-body .fxBody div.av{height:clamp(220px,calc(100vh - 530px),533px);width:auto;max-width:100%;aspect-ratio:9/16;align-self:center}
+.pg-body .fxBody:has(.fxMods) img.av,.pg-body .fxBody:has(.fxMods) div.av{height:clamp(150px,calc(100vh - 660px),533px)}
+.pg-body .fxBody:has(.avset) div.av{height:clamp(200px,calc(100vh - 565px),533px)}
