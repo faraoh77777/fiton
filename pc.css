@@ -1122,3 +1122,73 @@ button{font-size:14px}
 .pg-body .fxBody div.av{height:clamp(220px,calc(100vh - 530px),533px);width:auto;max-width:100%;aspect-ratio:9/16;align-self:center}
 .pg-body .fxBody:has(.fxMods) img.av,.pg-body .fxBody:has(.fxMods) div.av{height:clamp(150px,calc(100vh - 660px),533px)}
 .pg-body .fxBody:has(.avset) div.av{height:clamp(200px,calc(100vh - 565px),533px)}
+/* 2026-11-19 최종 검토: 내 옷장 — 낮은 화면(1366×768 등)에서 고른 옷 칩이 3줄로 쌓여 옷 목록이 200px까지 줄던 것. 칩은 한 줄로 두고 넘치면 옆으로 밀어 보기, 안내문은 조금 작게 */
+@media (max-height:900px){
+.pg-closet .fxCard .picked{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}
+.pg-closet .fxCard .picked>*{flex:none;white-space:nowrap}
+.pg-closet .fxCard>.hint{font-size:13px;line-height:1.5}
+}
+/* 2026-11-19 최종 검토: 피팅룸 보기 탭이 밝은 스킨에서 거의 안 보이던 것(흐림 .38) — 덜 흐리게 */
+.vwrap>.vtabs{opacity:.75}
+/* 2026-11-19 최종 검토: 너무 작은 글자(11px) — 옆 메뉴·사진 위 이름 작은 줄을 12px로 */
+.side .nv,.side .left{font-size:12px}
+.vwrap>.vname small{font-size:12px}
+/* 2026-11-19 최종 검토: 내 몸 정보 기본 모델 치수(읽기 전용)가 고칠 수 있는 칸처럼 보이던 것 — 바탕 없이 점선 테두리 */
+/* 2026-11-19 최종 검토: 피팅룸 핏 스타일 4개를 한 줄로 — 2줄일 때 아래 줄(Loose·Oversized)이 고정된 「가상 피팅 시작」 칸에 반쯤 가려 보이던 것 */
+.fitside .fstyle{grid-template-columns:repeat(4,minmax(0,1fr))}
+.fitside .fstyle button{min-height:50px;padding:0 2px;font-size:14px;letter-spacing:-.02em}
+.fitside .fstyle button small{font-size:12px}
+.pg-body input[readonly]{background:transparent !important;border-style:dashed !important;cursor:default}
+
+/* ==================== 2026-11-19 최종 검토 2차 ==================== */
+/* H2: 1180~1799 창에서 사이즈 비교 카드가 사진 아래로 밀려 페이지 전체가 세로 스크롤되던 것 → 오른쪽 칸(핏 분석 아래)으로 옮긴다. 사진 크기는 그대로. 1800 이상은 사진 오른쪽 칸(szin), 1180 미만은 예전처럼 아래 카드 */
+.szside{display:none}
+@media (min-width:1180px) and (max-width:1799px){
+.fitgrid{grid-template-areas:"panel viewer side";row-gap:0}
+.fitgrid.rpoff{grid-template-areas:"viewer side"}
+.fitgrid>.sizecmp{display:none}
+.fitside>.szside{display:flex;flex-direction:column;gap:10px;min-width:0}
+.szside .szt{display:flex;flex-direction:column;gap:2px;min-width:0}
+.szside .szt b{font-size:16px}
+.szside .szt small{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.szside .szlist{display:flex;flex-direction:column;gap:8px}
+.szside .szc{padding:10px 12px;gap:6px}
+.szside .szc.on{padding:9px 11px}
+.szside .szc dl{grid-template-columns:auto 1fr auto 1fr;font-size:13px;gap:2px 8px}
+.szside .szh .chip{margin-left:auto}
+.szside .szh b{font-size:18px}
+}
+/* M9: 요금제 「이 플랜 선택」·설정 「요금제 보기」만 글자색 반전(흰/검정) 버튼이라 다른 화면 주 버튼(내 옷장 저장 등 .save)과 달랐던 것 → 같은 강조색·높이 50·모서리 14·글자 17 */
+.plbtn:not([aria-pressed="true"]){background:var(--grad,var(--pri));border-color:transparent;color:var(--onPri)}
+.plbtn:not([aria-pressed="true"]):hover{background:var(--priDark)}
+.plbtn,.setplan .plbtn{min-height:50px;font-size:17px}
+
+/* ==================== 2026-11-19 최종 검토 3차 (블라인드B 새 발견 9개, 사용자 승인 권장안) ==================== */
+/* 1: 오른쪽 칸 아래 고정된 「가상 피팅 시작」 카드가 위 내용(핏 스타일·안내)을 덮어도 티가 안 나던 것 → 카드 위에 바탕색 페이드를 깔아 "아래에 더 있음"을 보여 준다 */
+@media (min-width:1180px){
+.fitside .runcard::before{content:"";position:absolute;left:0;right:0;top:-34px;height:34px;background:linear-gradient(to bottom,transparent,var(--ink));pointer-events:none}
+}
+/* 2: 1366 등 1440 미만 창에서 옷장 오른쪽 칸(입력한 값)이 넓어 옷 목록이 좁던 것 → 오른쪽 칸 340px. 사이즈 표는 넘치면 칸 안에서 옆으로 밀어 본다(새 옷 추가 창은 그대로) */
+@media (min-width:1180px) and (max-width:1439px){
+.pg-closet .main>.pan.fxR{flex:0 0 340px !important;min-width:0 !important}
+}
+/* 4: 옷장 탭에서 고른 표시를 숫자 대신 체크 */
+.fxTab .tabchk{margin-left:4px;font-weight:800}
+/* 6: 피팅룸 사진 위 보기 탭(기본 모델·내 아바타·원본과 비교) 글자가 작고 흐리던 것 */
+.vwrap>.vtabs{opacity:1}
+.vwrap>.vtabs button{min-height:32px;padding:0 11px;font-size:14px}
+/* 7: 키 눈금 라벨 10px → 12px */
+.ruler .rl b{font-size:12px}
+/* 8: 원본과 비교 — 입은 모습이 없을 때 빈 자리 상자(사진과 같은 크기) */
+.fig.cmpv .cmpph{aspect-ratio:9/16;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:12px;text-align:center;border:2px dashed var(--line);border-radius:12px;background:var(--panel2);color:var(--muted)}
+.fig.cmpv .cmpph span{font-weight:700;color:var(--fg);font-size:15px}
+.fig.cmpv .cmpph small{font-size:13px;line-height:1.4}
+.vwrap>.vbox.cmpbox>.fig.cmpv .cmpph{height:auto;width:min(calc((100cqh - 34px) * 9 / 16),calc((100cqw - 10px) / 2))}
+/* 3: 내 몸 정보(기본 모델 보기) 1440×900·1366×768에서 모델 고르기 목록 둘째 줄이 칸 아래로 잘리던 것 → 낮은 화면에서는 모델 목록을 한 줄(작은 칸)로. 페이지 스크롤 없는 한 화면 유지 */
+@media (min-width:1180px) and (max-height:950px){
+.pg-body .fxBody .fxMods{grid-template-columns:repeat(auto-fill,minmax(62px,1fr)) !important;gap:6px !important}
+.pg-body .fxBody .fxMods>button{font-size:12px !important;padding:3px !important;line-height:1.25;word-break:keep-all}
+}
+
+/* 2026-11-19 최종 검토 4차: 옷장 수정 칸 사이즈표의 사이즈 이름 칸(72px)이 좁아 「2XL(99)」「3XL(100)」 끝이 잘리던 것 → 88px */
+.pg-closet .pan table.imgt th:first-child,.pg-closet .pan table.imgt td:first-child{width:88px;min-width:88px}
