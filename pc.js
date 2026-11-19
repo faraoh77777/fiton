@@ -1695,15 +1695,16 @@
   function viewHome() {
     /* 2026-11-10 목업(Main.dc.html): 왼쪽 글+입력 상자, 오른쪽 사진 2장(원본·입은 모습) */
     var hl = histList().reverse() /* 2026-11-14 홈 그림은 입어본 기록에서(최근 것부터). 기록이 없으면 예전 샘플 코디 */, list = stylesIn(), p = ui.pend, hc = ui.homeCat, st0 = list[0] || FD.styles[0] || null, base = isMale() ? 'assets/avatar_male_home.jpg?v=b' : 'assets/avatar_default.jpg?v=t';
-    var kpills = KINDS.map(function (k) { return '<button type="button" class="pill kp' + (ui.homeKind === k[0] ? ' on' : '') + '" aria-pressed="' + (ui.homeKind === k[0]) + '" data-act="homeKind" data-v="' + k[0] + '">' + h(KIND_NAME[k[0]]) + '</button>'; }).join('');
+    /* 2026-11-19 사용자 지시(홈과 옷장 옷 종류 안 맞음): 홈 세부 종류 = 옷장과 같은 kindsOf(고른 종류). 종류를 먼저 고르면 나오고, 사진이 있으면 세부 종류를 누르거나 「건너뛰기」를 눌러야 입혀 본다 */
+    var kOn = hc && hc !== 'shoe' && hc !== 'acc', kpills = kOn ? kindsOf(hc).map(function (k) { return '<button type="button" class="pill kp' + (ui.homeKind === k[0] ? ' on' : '') + '" aria-pressed="' + (ui.homeKind === k[0]) + '" data-act="homeKind" data-v="' + k[0] + '">' + h(KIND_NAME[k[0]]) + '</button>'; }).join('') + (p ? '<button type="button" class="pill kp" data-act="homeGo">건너뛰기</button>' : '') : '';
     var pills = ['outer', 'inner', 'top', 'bottom', 'dress', 'shoe'].map(function (c) { return '<button type="button" class="pill' + (hc === c ? ' on' : '') + '" data-act="homeCat" data-cat="' + c + '">' + CATS[c] + '</button>'; }).join('') +
       (accOn() ? '<button type="button" class="pill' + (hc === 'acc' ? ' on' : '') + '" data-act="homeCat" data-cat="acc">액세서리</button>' : '');
-    var drop = p ? '<img src="' + p.url + '" alt="넣은 옷 사진" style="width:56px;height:56px;object-fit:cover;border-radius:10px"><span>사진을 넣었어요. 아래에서 옷 종류를 눌러 주세요.</span><button type="button" class="lk" data-act="pendClear" style="margin-left:auto;flex:none">사진 빼기</button>'
+    var drop = p ? '<img src="' + p.url + '" alt="넣은 옷 사진" style="width:56px;height:56px;object-fit:cover;border-radius:10px"><span>' + (p && kOn ? '세부 종류를 누르거나 「건너뛰기」를 눌러 주세요.' : '사진을 넣었어요. 아래에서 옷 종류를 눌러 주세요.') + '</span><button type="button" class="lk" data-act="pendClear" style="margin-left:auto;flex:none">사진 빼기</button>'
       : '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"></rect><circle cx="9" cy="10" r="2"></circle><path d="M21 16l-5-5-8 9"></path></svg><span>옷 사진을 여기에 끌어다 놓거나 <kbd>Ctrl</kbd> + <kbd>V</kbd> 로 붙여넣으세요</span>';
     return '<main class="main homemain"><section class="hero2" aria-label="옷 사진 넣기"><div class="hleft">' +
       '<div class="season">올 ' + seasonName() + ' 유행할 패션</div><h2 class="herotitle">입어보고 사는 온라인 쇼핑,<br><em>내 몸에 먼저 입혀 보세요</em></h2><p class="herosub">옷 사진 한 장이면 AI가 내 치수로 입혀 보고, 맞는 사이즈까지 알려 드려요.</p>' +
-      '<div class="comp" data-dz="home"><div class="drop">' + drop + '</div><div class="krow" role="group" aria-label="용도 (선택)"><small>용도 (선택)</small>' + kpills + '</div><div class="crow' + (p ? ' ask' : '') + '">' + pills +
-      '<label class="go" style="display:inline-flex;align-items:center;flex-direction:row;justify-content:center;font-size:20px;line-height:1;padding:0 20px;color:var(--onPri);cursor:pointer" title="옷 사진 파일 선택"><span aria-hidden="true">+</span><input type="file" class="fhid" accept="image/*" data-file="quick" aria-label="옷 사진 파일 선택"></label></div></div>' +
+      '<div class="comp" data-dz="home"><div class="drop">' + drop + '</div><div class="crow' + (p && !kOn ? ' ask' : '') + '">' + pills +
+      '<label class="go" style="display:inline-flex;align-items:center;flex-direction:row;justify-content:center;font-size:20px;line-height:1;padding:0 20px;color:var(--onPri);cursor:pointer" title="옷 사진 파일 선택"><span aria-hidden="true">+</span><input type="file" class="fhid" accept="image/*" data-file="quick" aria-label="옷 사진 파일 선택"></label></div>' + (kOn ? '<div class="krow" role="group" aria-label="' + CATS[hc] + ' 세부 종류 (선택)"><small>' + CATS[hc] + ' 세부 종류 (선택)</small>' + kpills + '</div>' : '') + '</div>' +
       '<div class="steps"><span><b>1</b>옷 사진 넣기</span><span><b>2</b>옷 종류 누르기</span><span><b>3</b>내 아바타로 확인</span></div></div>' +
       /* 2026-11-18 홈 B안(v14): 입어본 기록이 있으면 위 = 세로 9:16 슬라이드 + 옆 글(옷 이름·추천 사이즈·피팅룸 버튼), 아래 = 「최근 입어본 옷」 옷 부분 확대 카드. 기록이 없으면 예전 그대로(샘플 코디·원본) */
       (hl[0] ? homeHeroB(hl) : '<div class="hpics' + (st0 && st0.modelImage && styleForMe(st0) ? '' : ' one') + '">' + (st0 && st0.modelImage && styleForMe(st0) ? '<div class="hpic"><img src="' + h(st0.modelImage) + '" alt="' + h(st0.title) + ' 입은 모습"><span class="on">입은 모습</span></div>' : '<div class="hpic"><img src="' + base + '" alt="기본 캐릭터 전신"><span>원본</span></div>') + '</div>') + '</section>' + /* 2026-11-14 홈의 「원본」 그림 삭제(입은 모습만). 입은 모습 그림이 하나도 없을 때만 원본을 보여 줌 */
@@ -2690,8 +2691,15 @@
       state.profile.gender = g; state.profile.height = hh; state.profile.weight = ww;
       save(); enterApp();
     },
-    homeKind: function (el) { ui.homeKind = ui.homeKind === el.dataset.v ? '' : el.dataset.v; render(); },
-    homeCat: function (el) { var c = el.dataset.cat; if (ui.pend) { routeHome(c); return; } ui.homeCat = ui.homeCat === c ? null : c; render(); },
+    homeKind: function (el) { if (ui.pend && ui.homeCat) { ui.homeKind = el.dataset.v; routeHome(ui.homeCat); return; } ui.homeKind = ui.homeKind === el.dataset.v ? '' : el.dataset.v; render(); },
+    homeGo: function () { if (!ui.homeCat) return; ui.homeKind = ''; routeHome(ui.homeCat); },
+    homeCat: function (el) {
+      var c = el.dataset.cat, kn = c !== 'shoe' && c !== 'acc';
+      if (ui.pend && !kn) { routeHome(c); return; }
+      ui.homeCat = ui.pend ? c : (ui.homeCat === c ? null : c);
+      if (!ui.homeCat || !kindsOf(ui.homeCat).some(function (k) { return k[0] === ui.homeKind; })) ui.homeKind = '';
+      render();
+    },
     pendClear: function () { pendClear(); render(); },
     styleTry: function (el) { var st = FD.styles.filter(function (s) { return s.id === el.dataset.id; })[0]; if (!st) return; importStyle(st); ui.left = 'clothes'; ui.view = styleForMe(st) ? 'model' : 'me'; ui.fitTab = null; go('fitting'); },
     left: function (el) { ui.left = el.dataset.v; ui.accFull = false; render(); },
