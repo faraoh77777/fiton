@@ -20,6 +20,16 @@ const MAX_FACE_B64 = 1_500_000; // 얼굴 사진 base64 길이 상한(약 1MB, �
 const BASES: Record<string, { file: string; who: string }> = {
   female: { file: "assets/avatar_default.jpg", who: "a young Korean woman" },
   male: { file: "assets/avatar_male.jpg", who: "a young Korean man" },
+  // 2026-11-19 13차(사용자 승인): 기본 모델 11개 전부. 앱 사진 f10~m40.png 는 배경이 투명해 서버용은 흰 배경 JPG 로 올림
+  f10: { file: "assets/avatars/f10.jpg", who: "a Korean woman in her late teens" },
+  f20: { file: "assets/avatars/f20.jpg", who: "a Korean woman in her twenties" },
+  f30: { file: "assets/avatars/f30.jpg", who: "a Korean woman in her thirties" },
+  f40: { file: "assets/avatars/f40.jpg", who: "a Korean woman in her forties" },
+  m10: { file: "assets/avatars/m10.jpg", who: "a Korean man in his late teens" },
+  m20: { file: "assets/avatars/m20.jpg", who: "a Korean man in his twenties" },
+  m30: { file: "assets/avatars/m30.jpg", who: "a Korean man in his thirties" },
+  m40: { file: "assets/avatars/m40.jpg", who: "a Korean man in his forties" },
+  cool: { file: "assets/avatars/cool.jpg", who: "a Korean man" },
 };
 function swapPrompt(who: string) {
   return "Full-body studio photo of " + who + ". Use the face and the hairstyle of the face reference person: same face shape, eyes, nose, mouth, skin tone and hair. " +

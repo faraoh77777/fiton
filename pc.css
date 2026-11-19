@@ -1286,3 +1286,15 @@ button{font-size:14px}
 .pg-body .fxBody:has(.avset) img.av,.pg-body .fxBody:has(.avset) div.av{height:clamp(200px,calc(100vh - 477px),533px)}
 .pg-body .fxBody:has(.fxMods) img.av,.pg-body .fxBody:has(.fxMods) div.av{height:clamp(150px,calc(100vh - 660px),533px)} /* 기본 모델 보기는 모델 목록이 2줄이라 사진 크기 예전 그대로 */
 }
+/* 2026-11-19 14차 사용자 지시: 「기본 모델」·「내 아바타」 탭을 「입어볼 캐릭터」 제목 아래 줄로(왼쪽 맞춤). 머리 카드가 높아진 만큼 아래 두 카드 높이와 치수 칸 간격을 줄여 1366×768 에서도 스크롤 0 */
+.pg-body .bhead{flex-direction:column;align-items:flex-start;gap:8px;padding:12px 18px}
+.pg-body .bhead>.segtoggle{width:340px;max-width:100%}
+.pg-body .bhead>.segtoggle button{min-height:40px}
+/* 14차(후보 A): 「아바타 만들기」 버튼은 머리 카드 오른쪽 끝, 세로 가운데 */
+.pg-body .bhead{position:relative}
+.pg-body .bhead>.bmake{position:absolute;right:18px;top:50%;transform:translateY(-50%);min-height:40px;padding:0 14px;font-size:14px;border-style:solid;border-color:var(--pri);color:var(--pri)}
+@media (min-width:861px){
+.pg-body .main>.fxR,.pg-body .main>.fxL{height:calc(100vh - 225px);max-height:calc(100vh - 225px)}
+.pg-body .main>.fxR{gap:6px}
+.pg-body .main>.fxR .g3,.pg-body .main>.fxR .g2{row-gap:6px}
+}

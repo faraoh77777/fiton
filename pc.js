@@ -350,7 +350,8 @@
     return shoeChoices().filter(function (x) { return x.id === cur.slice(7); })[0] || null;
   }
   function tryShoeTypeId() { var cur = state.tryShoe || ''; return cur.indexOf('type:') === 0 ? cur.slice(5) : 'pumps'; }
-  function wearsBoots() { var w = wearShoe(); if (w && w.id) return /부츠|boot/i.test(w.name || ''); return tryShoeTypeId() === 'boots'; }
+  /* 2026-11-19 13차: 옷장 신발에 신발 종류(kind)가 있으면 그것으로 판단(굽 높이 wearShoeH 와 같은 기준), 없으면 예전처럼 이름으로 */
+  function wearsBoots() { var w = wearShoe(); if (w && w.id) return w.kind ? w.kind === 'boots' : /부츠|boot/i.test(w.name || ''); return tryShoeTypeId() === 'boots'; }
   /* 2026-11-16 신발 굽 높이(cm): 옷장 신발에 넣은 굽(mm)이 있으면 그 값, 없으면 신발 종류별 기본값. 바지가 바닥에 끌리는 기준에 쓴다 */
   var SHOE_H = { pumps: 5, sneakers: 2.5, loafers: 2.5, sandals: 1.5, slippers: 1.5, boots: 4 };
   function wearShoeH() {
@@ -2172,7 +2173,7 @@
     /* 2026-11-12 「기본 모델」·「내 아바타」 두 탭. 탭은 보기만 바꾸고, 「사용 중」 표시가 붙은 쪽으로 입어본다(기본 모델은 모델을 누르면, 내 아바타는 내 치수를 「저장」하면 바뀜. 「…로 입어보기」 버튼은 없앰) */
     var p = state.profile, m = p.m || {}, w = who(), tab = ui.bodyTab === 'base' || ui.bodyTab === 'me' ? ui.bodyTab : w, b = baseModel();
     var head = '<section class="pan bhead" style="flex:1 1 100%" aria-label="입어볼 캐릭터 선택"><h2>입어볼 캐릭터</h2>' + /* 2026-11-19 12차 사용자 지시: 「지금 입어보는 캐릭터 …」 안내 문구 삭제(탭의 「· 사용 중」 표시로 충분) */
-      '<div class="segtoggle fxTab" role="group" aria-label="캐릭터 종류">' + [['base', '기본 모델'], ['me', '내 아바타']].map(function (t) { return '<button type="button" class="' + (tab === t[0] ? 'on' : '') + '" aria-pressed="' + (tab === t[0]) + '" data-act="bTab" data-v="' + t[0] + '">' + t[1] + (w === t[0] ? ' · 사용 중' : '') + '</button>'; }).join('') + '</div></section>';
+      '<div class="segtoggle fxTab" role="group" aria-label="캐릭터 종류">' + [['base', '기본 모델'], ['me', '내 아바타']].map(function (t) { return '<button type="button" class="' + (tab === t[0] ? 'on' : '') + '" aria-pressed="' + (tab === t[0]) + '" data-act="bTab" data-v="' + t[0] + '">' + t[1] + (w === t[0] ? ' · 사용 중' : '') + '</button>'; }).join('') + '</div>' + (tab === 'me' ? avMakeHead() : '') + '</section>';
     if (tab === 'base') {
       var ro = function (label, val, unit) { return '<label>' + label + '<span class="in"><input type="text" value="' + h(val) + '" readonly aria-readonly="true" tabindex="-1" style="opacity:.85">' + (unit ? '<small>' + unit + '</small>' : '') + '</span></label>'; };
       return '<main class="main mflex">' + head + '<section class="pan fxL fxBody" style="flex:1 1 340px" aria-label="기본 모델">' + /* 2026-11-19 12차 사용자 지시: 위 탭 「기본 모델」과 겹치는 카드 제목 삭제 */
@@ -2187,7 +2188,7 @@
         '<div class="g3">' + ro('성별', b.g === 'male' ? '남성' : '여성', '') + ro('키', b.h, 'cm') + ro('몸무게', b.w, 'kg') + '</div><h2>자세한 치수</h2><div class="g3">' +
         MFIELDS.map(function (f, i) { return ro(f[1], b.m[i], f[2]); }).join('') + '</div><div class="callout">내 사이즈는 「내 아바타」에서 내 치수로 봐요.</div></section></main>';
     }
-    return '<main class="main mflex">' + head + '<section class="pan fxL fxBody" style="flex:1 1 340px" aria-label="내 아바타">' + avMakeHead() +
+    return '<main class="main mflex">' + head + '<section class="pan fxL fxBody" style="flex:1 1 340px" aria-label="내 아바타">' +
       /* 2026-11-18 앞·옆·뒷모습 3장을 앞모습 큰 사진과 같은 크기(.av, 9:16)로 나란히. fxBody 2칸 배치 대신 가로 전체(grid-column 1/-1)를 씀 */
       '<div style="grid-column:1 / -1;display:grid;grid-template-columns:repeat(3,minmax(0,300px));gap:14px">' + ['front'].concat(ANGS).map(function (av) {
         var f = av === 'front', u = f ? urls.avatar : urls.ang[av], src = f ? (u || (p.gender === 'male' ? 'assets/avatar_male.jpg?v=t' : 'assets/avatar_default.jpg?v=t')) : u;
@@ -2356,9 +2357,12 @@
   }
   /* 2026-11-19 아바타 만들기(별도 기능 avatar-make.js): 방법 1 = 기본 체형 + 얼굴 사진(서버 avatar 함수), 방법 2 = 내 전신 사진. 만든 그림은 아래 avatarFront(예전 「앞모습 올리기」와 같은 경로)로 저장한다.
      기본 체형 목록은 BASES 중 실사 전신 사진(기본 여성·남성)만. 실제 인물 얼굴(cool)·연령대 그림(preset)은 뺀다. 체형을 늘리면 BASES 와 서버 avatar/index.ts 의 BASES 에 같은 id 로 추가 */
-  function avMakeBases() { return BASES.filter(function (b) { return !b.preset; }).map(function (b) { return { id: b.id, name: b.name, g: b.g, h: b.h, w: b.w, img: b.img }; }); }
-  function avMakeHead() { return '<h2' + (window.AvatarMake ? ' style="display:flex;align-items:center;justify-content:space-between;gap:10px">내 아바타<button type="button" class="lk" data-act="avMake" style="min-height:30px;padding:0 12px;font-size:14px;border-style:solid;border-color:var(--pri);color:var(--pri)">아바타 만들기</button>' : '>내 아바타') + '</h2>'; }
-  function avatarFront(fl) { return Core.shrink(fl, 2000, 0.92).then(normAvatar).then(function (b) { return blobPut( /* 2026-11-13 A안: 표준 틀(867×1536)에 맞춰 저장 */'avatar', b).then(function () { if (urls.avatar) URL.revokeObjectURL(urls.avatar); urls.avatar = URL.createObjectURL(b); state.avSeq = (state.avSeq || 0) + 1; mySpan = { seq: -1, v: null, busy: false }; /* 새 아바타는 바로 사람 위치를 다시 읽어 눈금·크기에 적용 */ state.who = 'me'; ui.bodyTab = 'me'; save(); render(); avSetup('front', b); }); }).catch(function (err) { toast((err && err.message) || '이미지를 저장하지 못했어요.'); }); }
+  /* 2026-11-19 13차(사용자 승인): 아바타 만들기 체형 = 기본 모델 11개 전부(서버 avatar BASES 와 id 같음) */
+  function avMakeBases() { return BASES.map(function (b) { return { id: b.id, name: b.name, g: b.g, h: b.h, w: b.w, img: b.img }; }); }
+  /* 2026-11-19 13차: 카드 제목 「내 아바타」는 위 탭과 겹쳐 지움(사용자 승인). 아바타 만들기 버튼만 남김 */
+  /* 2026-11-19 14차 사용자 지시(후보 A): 「아바타 만들기」 버튼을 내 아바타 카드 맨 위에서 「입어볼 캐릭터」 머리 카드 오른쪽 끝으로 옮김(내 아바타 탭에서만). 카드 맨 위 제목 줄은 없앰 */
+  function avMakeHead() { return window.AvatarMake ? '<button type="button" class="lk bmake" data-act="avMake">아바타 만들기</button>' : ''; }
+  function avatarFront(fl) { return Core.shrink(fl, 2000, 0.92).then(normAvatar).then(function (b) { return blobPut( /* 2026-11-13 A안: 표준 틀(867×1536)에 맞춰 저장 */'avatar', b).then(function () { if (urls.avatar) URL.revokeObjectURL(urls.avatar); urls.avatar = URL.createObjectURL(b); state.avSeq = (state.avSeq || 0) + 1; mySpan = { seq: -1, v: null, busy: false }; /* 새 아바타는 바로 사람 위치를 다시 읽어 눈금·크기에 적용 */ state.who = 'me'; ui.bodyTab = 'me'; ui.view = 'me'; /* 13차: 피팅룸 보기 탭 강조도 내 아바타로 */ save(); render(); avSetup('front', b); }); }).catch(function (err) { toast((err && err.message) || '이미지를 저장하지 못했어요.'); }); }
   function colsFor(img, cb) {
     if (myPic()) { /* 아바타 세팅 저장값: 앞모습은 내 아바타, 옆·뒷모습은 그 방향 내 사진(입힌 옆·뒤 그림도 그 사진 배경에 맞춰져 있음) */
       var v = img.hasAttribute('data-motion') ? '' : ui.angle, sv = v && avBgOk(v), sc = sv && AvatarSetup.toCols(sv);
