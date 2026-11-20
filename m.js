@@ -10,6 +10,9 @@
    · 2026-11-20 5단계: 옷장 카드를 누르면 「입어보기 · 고치기 · 구매 · 지우기」(목업 D1), 기록 크게 보기에 「홈에서 보기 · 지우기 · 구매하기」(7단계에 「다시 입기」→「홈에서 보기」, PC 「피팅룸에서 보기」에 맞춤)(목업 D3).
      고치기는 「옷 확인」 화면을 PC editItem(cfLoad)·cfSave 그대로 써서 고치고, 지우기는 PC delItem·histDel·dropTryon 그대로(사진·입은 모습 함께 지움).
    · 2026-11-20 6단계: 내 아바타 = PC 와 같은 앞·옆·뒤 사진 올리기·지우기(normAvatar 표준 틀·avSetup 배경색) + 아바타 만들기(PC 와 같은 avatar-make.js 창, avMake 그대로).
+   · 2026-11-21 홈/피팅룸 나누기(목업 fiton-mobile-설계\v1_홈피팅룸분리): 홈 = 최근 입은 모습 보기만(옷 이름·사이즈·핏 한 줄 + 기록 보기·피팅룸에서 입어보기).
+     예전 홈의 옷 칸 6개·방향·입어보기·입은 모습·핏 서랍·구매·실패 안내·쓸어 내리기는 그대로 「피팅룸」(#fit, viewFit)으로 옮김. 아래 가운데 ＋ = 피팅룸.
+     옷 넣기 창(B2)은 피팅룸 옷 칸의 「새 옷 넣기」·빈 피팅룸 버튼·옷장 위 「＋ 옷 넣기」에서 연다. 옷장·기록·옷 저장·입히기가 끝나면 피팅룸으로(PC 와 같음).
    · 아직 안 하는 것: 액세서리(사용자 지시로 끔, PC 도 tryon-config acc:false)·기록 날짜별 묶기(사용자 지시로 뺌). 그 버튼들은 「다음 단계에서 연결돼요」 안내만 띄운다. */
 (function () {
   'use strict';
@@ -133,7 +136,7 @@
   /* ▲ */
   /* 화면 상태(저장하지 않음). onb: 가입 직후 처음 실행 단계(0 = 아님, 1 = 내 치수 넣기, 2 = 입어볼 모델 고르기)
      au: 첫 화면의 로그인·회원가입 창(mode: '' = 영상만, login, signup, reset, sent, confirm, newpw) / imp: 이 기기에 있던 프로필 자료 가져오기(''·'ask'·'pin') / wait: 서버에서 불러오는 동안 보일 글 */
-  var MPAGES = ['home', 'closet', 'history', 'me', 'plan', 'set'];
+  var MPAGES = ['home', 'fit', 'closet', 'history', 'me', 'plan', 'set'];
   /* cf: 「옷 확인」(목업 B3)에 넣고 있는 옷 = PC 옷장 입력 칸과 같은 모양(blankForm). null 이면 그 화면이 아님. 모바일만 쓰는 값: catAuto(이름으로 종류를 골라도 됨)·catHit(이름으로 골랐음)·catName·readCat(읽기 시작할 때의 종류)·tOpen(표 고치기 열림) */
   /* 4단계: pick = 옷 고르기 창(C2)에 연 종류 · slotsOpen = 입은 모습이 있어도 옷 칸을 펼침 · buy = 구매 링크 창 · genWait = 입히는 중 표시(이름·사이즈·안내·시작 시각).
      fit = 핏 서랍(C5) 열림 · fitSz = 그 안의 사이즈 비교 펼침 · fitTab = 핏을 보는 옷 종류(PC 와 같은 이름).
@@ -1306,8 +1309,8 @@
     angNext();
   }
   /* ▲ */
-  /* pc.js 1451~1464행(genFinish)의 저장·상태 처리는 그대로. 다른 점: 피팅룸 대신 홈으로(옷 확인을 쓰는 중이면 옮기지 않음), 완성 연출(revealShow) 대신 안내 글,
-     실패는 홈 서랍의 실패 칸(C7)에 보이므로 홈에서는 안내 글을 겹쳐 띄우지 않는다 */
+  /* pc.js 1451~1464행(genFinish)의 저장·상태 처리는 그대로. 다른 점: 피팅룸으로 옮김(옷 확인을 쓰는 중이면 옮기지 않음), 완성 연출(revealShow) 대신 안내 글,
+     실패는 피팅룸 서랍의 실패 칸(C7)에 보이므로 피팅룸에서는 안내 글을 겹쳐 띄우지 않는다 */
   function genFinish(id, ok, msg, ms) {
     genPending = null;
     setTimeout(angNext, 0);
@@ -1316,9 +1319,9 @@
     ui.genErr = ok ? null : (msg || '알 수 없는 이유로 실패했어요. 잠시 뒤 다시 시도해 주세요.');
     if (ok) {
       lookItems(id).forEach(selectItem); save(); ui.view = curView(); ui.slotsOpen = false; ui.pick = null; ui.angle = 'front';
-      if (ui.page !== 'home' && !ui.cf) go('home');
+      if (ui.page !== 'fit' && !ui.cf) go('fit');
     }
-    if (msg && (ok || ui.page !== 'home' || ui.cf)) toast(msg, ms || (ok ? 4000 : 0));
+    if (msg && (ok || ui.page !== 'fit' || ui.cf)) toast(msg, ms || (ok ? 4000 : 0));
     render();
   }
   /* ▼ pc.js 1465~1476행 그대로 */
@@ -1445,18 +1448,19 @@
   /* ---------- 공통 틀 ---------- */
   var LOGO = '<div class="logo">FIT<i>ON</i></div>';
   var IC = ['<path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"></path>', '<rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M12 3v18M9 11v2M15 11v2"></path>', null, '<circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path>', '<circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4 4-6 8-6s8 2 8 6"></path>'];
-  var TABS = [['home', '홈'], ['closet', '옷장'], ['plus', '옷 넣기'], ['history', '기록'], ['me', '내 정보']];
+  var TABS = [['home', '홈'], ['closet', '옷장'], ['fit', '피팅룸'], ['history', '기록'], ['me', '내 정보']];
   var SVG = { alb: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M3 16l5-5 4 4 3-3 6 6"></path><circle cx="9" cy="9" r="1.5"></circle></svg>', cam: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>', pst: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="4" width="12" height="17" rx="2"></rect><path d="M9 4V3h6v1M9 10h6M9 14h6"></path></svg>' };
   function bgUrl(u) { return 'background-image:url(&quot;' + h(String(u).replace(/["\\\n\r]/g, encodeURIComponent)) + '&quot;)'; }
   function tabsHtml() {
     var cur = ui.page === 'plan' || ui.page === 'set' ? 'me' : ui.page; /* 요금제·설정은 「내 정보」 안의 화면 */
     return '<nav class="tabs" aria-label="주 메뉴">' + TABS.map(function (t, i) {
-      if (t[0] === 'plus') return '<button type="button" class="plus' + (ui.plus ? ' open' : '') + '" data-act="plus" aria-expanded="' + !!ui.plus + '" aria-label="옷 넣기"><i aria-hidden="true">＋</i>' + t[1] + '</button>';
       var on = cur === t[0] && !ui.plus;
+      /* 2026-11-21: 가운데 ＋ = 피팅룸(예전 「옷 넣기」). 옷 넣기 창은 피팅룸·옷장 안 버튼에서 */
+      if (t[0] === 'fit') return '<button type="button" class="plus' + (on ? ' on' : '') + '" data-act="go" data-page="fit"' + (on ? ' aria-current="page"' : '') + ' aria-label="피팅룸"><i aria-hidden="true">＋</i>' + t[1] + '</button>';
       return '<button type="button" class="' + (on ? 'on' : '') + '" data-act="go" data-page="' + t[0] + '"' + (on ? ' aria-current="page"' : '') + '><svg viewBox="0 0 24 24" aria-hidden="true">' + IC[i] + '</svg>' + t[1] + '</button>';
     }).join('') + '</nav>';
   }
-  /* 가운데 ＋ 를 누르면 뜨는 창(목업 B2). 고르면 「옷 확인」(B3)으로 */
+  /* 옷 넣기 창(목업 B2): 피팅룸 옷 칸의 「새 옷 넣기」·빈 피팅룸·옷장 위 「＋ 옷 넣기」에서 연다. 고르면 「옷 확인」(B3)으로 */
   function plusHtml() {
     if (!ui.plus) return '';
     return '<div class="dim" data-act="plusClose"></div><div class="pop" role="dialog" aria-label="옷 사진 넣기"><h2>옷 사진 넣기</h2><p class="p">옷 사진이나 쇼핑 화면 캡처를 넣으면 종류·이름·가격·사이즈 표를 읽어요</p>' +
@@ -1665,9 +1669,42 @@
   /* 7단계 사용자 지시: AI 옷 입기는 참고용이라는 안내. C4 입은 모습에 짧은 한 줄, 핏 서랍 맨 아래에 전체 문구(PC 「추정 결과이며 실제 착용감을 보장하지 않습니다」 대신) */
   var AI_SHORT = 'AI로 만든 그림이라 참고용이에요. 실제 옷과 다를 수 있어요.';
   var AI_NOTE = 'FITON의 AI 옷 입기는 AI로 만든 그림이라 참고용이에요. 실제 옷의 색·핏·길이·질감과 다를 수 있어요. 사이즈 추천은 입력한 치수와 옷 실측표로 계산한 추정이라 착용감을 보장하지 않아요. 구매 전에 쇼핑몰의 상품 정보를 꼭 확인해 주세요.';
+  /* 위 줄 오른쪽: 지금 입어보는 쪽·남은 횟수(홈·피팅룸 같이) */
+  function topPills() {
+    var w = who(), leftSay = unlimited() ? '이번 달 남은 횟수 제한 없음(시험 중)' : '이번 달 남은 횟수 ' + planNow().limit + '회 중 ' + tryLeft() + '회'; /* pc.js 1577행과 같은 문구 */
+    return '<div class="pills"><button type="button" class="pill who" data-act="go" data-page="me" aria-label="지금 입어보는 쪽 ' + (w === 'base' ? '기본 모델 ' + h(baseModel().name) : '내 아바타') + ', 바꾸기">' + (w === 'base' ? '기본 모델' : '내 아바타') + ' ▾</button>' +
+      '<button type="button" class="pill" data-act="go" data-page="plan" aria-label="' + leftSay + ', 요금제 보기">남은 <b>' + leftText() + '</b></button></div>';
+  }
+  /* 2026-11-21 홈(목업 v1 1번): 보기만 하는 화면. 지금 고른 옷으로 입은 모습(피팅룸과 같은 wornNow)이 있으면 그것, 없으면 마지막으로 입힌 그림(state.wearLast, 지금 캐릭터로 만든 것만).
+     핏 한 줄은 그 그림이 지금 고른 옷의 그림일 때만(핏 계산은 고른 옷·사이즈 기준이라). 옷 고르기·입히기·핏 자세히·구매는 피팅룸에서 */
+  function homeShow() {
+    var wn = wornNow(); if (wn) return { key: wn.key, url: homePic().url, name: wn.name, now: true };
+    var l = state.wearLast; if (l && tryonOk(l) && lookItems(l).length) return { key: l, url: urls.tryon[l], name: lookName(l), now: false };
+    return null;
+  }
   function viewHome() {
-    var w = who(), hp = homePic(), pic = hp.url, n = state.closet.length, set = wearSet(), wn = hp.worn, sheet;
-    var leftSay = unlimited() ? '이번 달 남은 횟수 제한 없음(시험 중)' : '이번 달 남은 횟수 ' + planNow().limit + '회 중 ' + tryLeft() + '회'; /* pc.js 1577행과 같은 문구 */
+    var hs = homeShow(), pic = hs ? hs.url : avatarShow(), sheet;
+    var alt = hs ? hs.name + ' 입은 모습' : (who() === 'base' ? baseModel().name + ' 기본 모델' : '내 아바타') + ' 전신';
+    if (genPending) {
+      sheet = '<p class="wline" role="status">' + h(lookName(genPending) || '옷') + '을(를) 입히고 있어요. 다 되면 피팅룸에서 보여 드려요.</p><div class="row"><button type="button" class="btn ghost sm" data-act="go" data-page="history">기록 보기</button><button type="button" class="btn sm" data-act="go" data-page="fit">피팅룸에서 보기</button></div>';
+    } else if (hs) {
+      var ms = madeSizes(hs.key), its = lookItems(hs.key), multi = its.length > 1, line = '';
+      if (ms) line = its.map(function (x) { return (multi ? CATS[x.cat] + ' ' : '') + (ms[x.id] || '?'); }).join(', ');
+      var fitLine = '';
+      if (hs.now) { try { var fr = fitResults(); if (fr.results.length) { var vd = fitVerdict(fr); fitLine = '<p class="hfit">핏 <span class="chip ' + vd.cls + '">' + h(vd.st) + '</span></p>'; } } catch (e) {} }
+      sheet = '<p class="hname">' + h(hs.name) + (line ? ' · 사이즈 ' + h(line) : '') + '</p>' + fitLine +
+        '<div class="row"><button type="button" class="btn ghost" data-act="go" data-page="history">기록 보기</button><button type="button" class="btn" data-act="go" data-page="fit">피팅룸에서 입어보기</button></div><p class="ainote">' + AI_SHORT + '</p>';
+    } else {
+      sheet = '<p class="big">' + (histList().length ? '피팅룸에서 옷을 입어 보세요' : '아직 입어본 옷이 없어요') + '</p><p class="p">옷 사진이나 쇼핑 화면 캡처 1장이면 입어볼 수 있어요</p><button type="button" class="btn" data-act="go" data-page="fit">' + (histList().length ? '피팅룸에서 입어보기' : '피팅룸에서 첫 옷 입어보기') + '</button>';
+    }
+    return '<header class="top">' + LOGO + topPills() + '</header>' +
+      '<div class="stage"><div class="bg" style="' + bgUrl(pic) + '"></div><div class="ph" role="img" aria-label="' + h(alt) + '" style="' + bgUrl(pic) + '"></div><button type="button" class="zoombtn" data-act="homeZoom">⤢ 크게 보기</button>' +
+      (hs ? '<span class="madeby">최근 입은 모습</span>' : '') + '</div>' +
+      '<div class="sheet home">' + sheet + '</div>' + plusHtml() + tabsHtml();
+  }
+  /* 피팅룸(예전 홈의 C1~C7 그대로): 옷 칸 6개·방향·입어보기·입은 모습·핏 서랍·구매·실패 안내 */
+  function viewFit() {
+    var hp = homePic(), pic = hp.url, n = state.closet.length, set = wearSet(), wn = hp.worn, sheet;
     if (genPending) {
       /* C3 입히는 중 */
       var g = ui.genWait || { name: lookName(genPending), size: '', notes: null, resume: true, t0: Date.now() };
@@ -1704,8 +1741,7 @@
         '<button type="button" class="btn" data-act="wear"' + (angBusy ? ' disabled' : '') + '>' + (set.length ? (wn ? '다시 입어보기' : '입어보기') + (genViews().length ? ' · ' + genViews().length + '회 사용' : ' · 방향을 골라 주세요') : '입어보기') + '</button>' +
         (wn ? '<button type="button" class="lk" data-act="slotsClose">입은 모습 보기</button>' : '');
     }
-    return '<header class="top">' + LOGO + '<div class="pills"><button type="button" class="pill who" data-act="go" data-page="me" aria-label="지금 입어보는 쪽 ' + (w === 'base' ? '기본 모델 ' + h(baseModel().name) : '내 아바타') + ', 바꾸기">' + (w === 'base' ? '기본 모델' : '내 아바타') + ' ▾</button>' +
-      '<button type="button" class="pill" data-act="go" data-page="plan" aria-label="' + leftSay + ', 요금제 보기">남은 <b>' + leftText() + '</b></button></div></header>' +
+    return '<header class="top"><h1>피팅룸</h1>' + topPills() + '</header>' +
       '<div class="stage' + (wn && !ui.slotsOpen && ui.fit && !genPending && !ui.genErr ? ' sm' : '') + '"><div class="bg" style="' + bgUrl(pic) + '"></div><div class="ph" role="img" aria-label="' + h(hp.alt) + '" style="' + bgUrl(pic) + '"></div><button type="button" class="zoombtn" data-act="homeZoom">⤢ 크게 보기</button>' +
       (wn && !genPending ? '<span class="madeby">입은 모습</span>' : '') + '</div>' +
       '<div class="sheet"><div class="grab" aria-hidden="true"></div>' + sheet + '</div>' + pickHtml() + buyHtml() + plusHtml() + tabsHtml();
@@ -1737,7 +1773,7 @@
     var id = h(it.id), u = safeUrl(it.url), pr = priceText(it.price), what = it.cat === 'shoe' ? '신발' : '옷';
     return '<div class="dim" data-act="itmClose"></div><div class="pop itm" role="dialog" aria-label="' + h(it.name) + '"><div class="pkh"><h2>' + h(shortName(it)) + '</h2><button type="button" class="x" data-act="itmClose">닫기 ✕</button></div>' +
       '<div class="itmtop"><div class="im">' + (it.photo ? '<img src="' + h(it.photo) + '" alt="" class="' + posOf(it) + '">' : '<span aria-hidden="true">' + SHIRT + '</span>') + '</div><div><b>' + h(it.name) + '</b><small>' + h(CATS[it.cat]) + (pr ? ' · ' + pr : '') + '</small></div></div>' +
-      '<button type="button" class="pick" data-act="itmWear" data-id="' + id + '">입어보기<small>' + (it.kind === 'under' ? '사이즈 확인용' : '홈 옷 칸에 넣기') + '</small></button>' +
+      '<button type="button" class="pick" data-act="itmWear" data-id="' + id + '">입어보기<small>' + (it.kind === 'under' ? '사이즈 확인용' : '피팅룸 옷 칸에 넣기') + '</small></button>' +
       '<button type="button" class="pick" data-act="editItem" data-id="' + id + '">고치기<small>이름·사이즈 표·사진</small></button>' +
       (u ? '<a class="pick" href="' + h(u) + '" target="_blank" rel="noopener noreferrer">구매<small>쇼핑몰 열기 ›</small></a>' : '<button type="button" class="pick" data-act="editItem" data-id="' + id + '">구매 링크 넣기<small>링크가 없어요</small></button>') +
       '<button type="button" class="pick del" data-act="delItem" data-id="' + id + '">지우기<small>' + what + '으로 만든 입은 모습도 함께</small></button></div>';
@@ -1755,8 +1791,8 @@
       var pr = priceText(it.price);
       return '<button type="button" class="g' + (on ? ' sel' : '') + '" data-act="itmOpen" data-id="' + h(it.id) + '" aria-label="' + h(it.name) + ' — 입어보기·고치기·구매·지우기"><div class="im">' + (it.photo ? '<img src="' + h(it.photo) + '" alt="" loading="lazy" class="' + posOf(it) + '">' : '<span aria-hidden="true">' + SHIRT + '</span>') + (on ? '<span class="tag">고름</span>' : '') + (it.kind && KIND_NAME[it.kind] ? '<span class="tag r">' + KIND_NAME[it.kind] + '</span>' : '') + '</div><p>' + h(it.name) + '</p><small>' + h(sub) + (pr ? (sub ? ' · ' : '') + pr : '') + '</small></button>';
     }).join('') + '</div>'
-      : '<div class="empty"><svg viewBox="0 0 24 24" aria-hidden="true">' + IC[1] + '</svg><b>' + (total ? CATS[cat] + '이(가) 아직 없어요' : '옷장이 비어 있어요') + '</b><span>옷은 아래 가운데 ＋ 로 넣어요.</span></div>';
-    return '<header class="top"><h1>내 옷장</h1><span class="pill st">옷 ' + total + '벌</span></header><main class="body">' + chips + cards + '</main>' + itmHtml() + plusHtml() + tabsHtml();
+      : '<div class="empty"><svg viewBox="0 0 24 24" aria-hidden="true">' + IC[1] + '</svg><b>' + (total ? CATS[cat] + '이(가) 아직 없어요' : '옷장이 비어 있어요') + '</b><span>옷은 위의 「＋ 옷 넣기」로 넣어요.</span></div>';
+    return '<header class="top"><h1>내 옷장 <small class="cnt">' + total + '벌</small></h1><button type="button" class="pill addb" data-act="plus">＋ 옷 넣기</button></header><main class="body">' + chips + cards + '</main>' + itmHtml() + plusHtml() + tabsHtml();
   }
 
   /* ---------- 입어본 기록 (보기만. 목업 D2·D3. 저장된 기록에는 날짜가 없어 날짜로 묶지 않는다) ---------- */
@@ -1778,7 +1814,7 @@
 
   /* 기록 크게 보기(D3) 아래 버튼. wear = pc.js 2950행 histShow 와 같은 옷 고르기(횟수 안 씀, 그 입은 모습을 홈에 보임) — PC 는 피팅룸으로 가므로 홈으로 가게 손으로 씀.
      del = PC histDel 그대로(묻고 지움) · buy = 그 기록의 옷 구매 링크 창 */
-  var VACTS = '<div class="row vacts"><button type="button" class="btn ghost sm" data-v="a:wear">홈에서 보기</button><button type="button" class="btn ghost sm" data-v="a:del">지우기</button><button type="button" class="btn sm" data-v="a:buy">구매하기</button></div>';
+  var VACTS = '<div class="row vacts"><button type="button" class="btn ghost sm" data-v="a:wear">피팅룸에서 보기</button><button type="button" class="btn ghost sm" data-v="a:del">지우기</button><button type="button" class="btn sm" data-v="a:buy">구매하기</button></div>';
   function histAct(v, e) {
     var key = e.key;
     if (v === 'del') { var n = histList().length; ACT.histDel({ dataset: { id: key } }); return histList().length < n ? 'drop' : ''; }
@@ -1786,8 +1822,8 @@
     if (v !== 'wear') return '';
     var its = lookItems(key); if (!its.length) return '';
     var hc = its.map(function (x) { return x.cat; }); Object.keys(state.sel).forEach(function (c) { if (hc.indexOf(c) < 0) delete state.sel[c]; }); its.forEach(selectItem); state.wearLast = key; save(); ui.view = curView();
-    closeViewer(); go('home'); ui.slotsOpen = false; ui.genErr = null; ui.angle = 'front'; render();
-    if (urls.tryon[key] && !tryonOk(key)) toast('이 입은 모습은 지금과 다른 캐릭터로 만든 것이라 홈에는 보이지 않아요. 입어본 기록에서는 계속 볼 수 있어요.', 6000);
+    closeViewer(); go('fit'); ui.slotsOpen = false; ui.genErr = null; ui.angle = 'front'; render();
+    if (urls.tryon[key] && !tryonOk(key)) toast('이 입은 모습은 지금과 다른 캐릭터로 만든 것이라 피팅룸에는 보이지 않아요. 입어본 기록에서는 계속 볼 수 있어요.', 6000);
     return '';
   }
   /* 옷 고치기: 불러온 때와 값이 같은지(닫을 때 바뀐 게 있을 때만 묻기) */
@@ -2190,7 +2226,7 @@
     var cf = ui.cf;
     if (cf && cf.catAuto && !cf.tEdit && cf.name && cf.catName !== cf.name) { cf.catName = cf.name; var gc = guessCat(cf.name); if (gc) { cf.catHit = true; if (gc !== cf.cat) { cfCatTo(gc); return; } } }
     var p = ui.page, key = cf ? 'add' : ui.onb ? 'onb' + ui.onb : p + (p === 'me' && ui.meEdit ? ':edit' : '');
-    var inner = cf ? viewAdd() : ui.onb === 1 ? viewOnbBody() : ui.onb === 2 ? viewOnbModel() : p === 'closet' ? viewCloset() : p === 'history' ? viewHistory() : p === 'me' ? viewMe() : p === 'plan' ? viewPlan() : p === 'set' ? viewSettings() : viewHome();
+    var inner = cf ? viewAdd() : ui.onb === 1 ? viewOnbBody() : ui.onb === 2 ? viewOnbModel() : p === 'closet' ? viewCloset() : p === 'history' ? viewHistory() : p === 'me' ? viewMe() : p === 'plan' ? viewPlan() : p === 'set' ? viewSettings() : p === 'fit' ? viewFit() : viewHome();
     var ae = document.activeElement, keep = ae && app.contains(ae) && ae.id, sel = null, scr = null, b0 = app.querySelector('.body'), c0 = app.querySelector('.chips'), f0 = app.querySelector('.fitd');
     try { sel = keep && ae.selectionStart; } catch (e) {}
     if (ui.vkey === key) scr = [b0 ? b0.scrollTop : 0, c0 ? c0.scrollLeft : 0, f0 ? f0.scrollTop : 0];
@@ -2313,7 +2349,7 @@
       if (!ui.cf || !ui.cf.saved) return;
       var it = item(ui.cf.id), tryNow = el.dataset.v === 'try';
       if (tryNow && it && it.kind !== 'under') { selectItem(it); save(); ui.slotsOpen = true; ui.genErr = null; }
-      go(tryNow ? 'home' : 'closet');
+      go(tryNow ? 'fit' : 'closet');
       var ts = document.querySelectorAll('.toast'), msg = !tryNow ? '' : it && it.kind === 'under' ? '옷장에 저장했어요. 언더웨어는 사이즈 확인용이라 입어보기에는 쓰지 않아요.' : '옷장에 저장하고 입어볼 옷으로 골랐어요. 아래 「입어보기」를 누르면 입혀 드려요.';
       if (msg && ts.length) ts[ts.length - 1].textContent = msg;
     },
@@ -2365,7 +2401,7 @@
     plus: function () { ui.plus = !ui.plus; render(); },
     plusClose: function () { ui.plus = false; render(); },
     closetCat: function (el) { if (CATS[el.dataset.cat]) { ui.closetCat = el.dataset.cat; ui.vkey = ''; render(); } },
-    homeZoom: function () { var hp = homePic(); openViewer([{ url: hp.url, alt: hp.alt }], 0); },
+    homeZoom: function () { var hp = homePic(), hs = ui.page === 'home' ? homeShow() : null; if (ui.page === 'home') hp = hs ? { url: hs.url, alt: hs.name + ' 입은 모습' } : { url: avatarShow(), alt: hp.alt }; openViewer([{ url: hp.url, alt: hp.alt }], 0); },
     /* 4단계 입어보기 (C1·C2·C4·C7). 입히기는 PC 와 같은 wearAll(앞모습만) */
     wear: function () { ui.genErr = null; ui.fit = false; ui.fitSz = false; ui.angle = 'front'; wearAll(); }, /* 고른 방향(state.genViews)마다 1회 — PC 와 같음 */
     /* 만들 방향 켜고 끄기: 사진이 없는 방향은 PC 처럼 고를 수 없고 이유(angWhy)를 알려 줌 */
@@ -2418,7 +2454,7 @@
     itmWear: function (el) {
       var it = item(el.dataset.id); if (!it) return;
       if (it.kind === 'under') { toast('언더웨어는 사이즈 확인용으로만 저장돼요. 입어보기에는 쓰지 않아요.', 4000); return; }
-      selectItem(it); save(); go('home'); ui.slotsOpen = true; ui.genErr = null; render();
+      selectItem(it); save(); go('fit'); ui.slotsOpen = true; ui.genErr = null; render();
       toast('입어볼 옷으로 골랐어요. 아래 「입어보기」를 누르면 입혀 드려요.', 3500);
     },
     /* 고치기 = pc.js 2824행 editItem 과 같이 cfLoad 로 불러와 「옷 확인」 화면에서 고침. 이름으로 종류 바꾸기·처음 사진 AI 읽기는 하지 않음 */
@@ -2571,11 +2607,11 @@
     var el = e.target.closest('[data-act]');
     if (el && ACT[el.dataset.act]) ACT[el.dataset.act](el);
   });
-  /* 홈 아래 칸(손잡이 줄이 있는 칸)을 손가락으로 쓸기. 아래로: 핏 서랍이면 접고, 입은 모습이 있는데 옷 칸을 펼친 상태면 입은 모습으로, 옷 고르기면 한 줄로 내림. 위로: 내린 옷 칸을 다시 펼침.
+  /* 피팅룸 아래 칸(손잡이 줄이 있는 칸, 예전 홈)을 손가락으로 쓸기. 아래로: 핏 서랍이면 접고, 입은 모습이 있는데 옷 칸을 펼친 상태면 입은 모습으로, 옷 고르기면 한 줄로 내림. 위로: 내린 옷 칸을 다시 펼침.
      칸 안에서 따로 넘겨 보는 곳(핏 내용·실패 이유)에서 시작한 쓸기는 그곳의 넘기기라 건드리지 않는다. 화면은 손을 뗄 때 한 번만 바뀐다(끌려오는 움직임 없음) */
   var sw = null, swAt = 0;
   function sheetSwipe(down) {
-    if (!user || !state || ui.page !== 'home' || ui.cf || ui.onb || ui.imp || ui.wait || genPending || ui.genErr || !state.closet.length) return false;
+    if (!user || !state || ui.page !== 'fit' || ui.cf || ui.onb || ui.imp || ui.wait || genPending || ui.genErr || !state.closet.length) return false;
     var wn = homePic().worn;
     if (!down) { if (ui.low && !(wn && ui.slotsOpen)) { ui.low = false; render(); return true; } return false; }
     if (wn && !ui.slotsOpen) { if (ui.fit) { ACT.fitClose(); return true; } if (ui.low) return false; ui.low = true; render(); return true; }

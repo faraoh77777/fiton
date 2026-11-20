@@ -309,12 +309,12 @@ button.lk{text-decoration:none}
 .fitd .verdict b{font-size:20px;line-height:1.3;font-weight:800}
 .fitd .muted,.fitd .note{font-size:13px;color:var(--muted);line-height:1.55}
 .fitd .note b{color:var(--fg)}
-.fitd span.chip{min-height:0;padding:3px 10px;font-size:13px;font-weight:700;border-radius:99px;border:1px solid transparent}
-.fitd .chip.s-ok{color:#7FD6A6;background:rgba(92,192,138,.12)}
-.fitd .chip.s-tight{color:var(--errText);background:rgba(255,122,133,.12)}
-.fitd .chip.s-loose{color:#8FBDF0;background:rgba(106,165,230,.14)}
-.fitd .chip.s-check{color:var(--tight);background:rgba(255,180,84,.12)}
-.fitd .chip.s-none{color:var(--muted);background:var(--panel2)}
+.fitd span.chip,.hfit span.chip{min-height:0;padding:3px 10px;font-size:13px;font-weight:700;border-radius:99px;border:1px solid transparent}
+.fitd .chip.s-ok,.hfit .chip.s-ok{color:#7FD6A6;background:rgba(92,192,138,.12)}
+.fitd .chip.s-tight,.hfit .chip.s-tight{color:var(--errText);background:rgba(255,122,133,.12)}
+.fitd .chip.s-loose,.hfit .chip.s-loose{color:#8FBDF0;background:rgba(106,165,230,.14)}
+.fitd .chip.s-check,.hfit .chip.s-check{color:var(--tight);background:rgba(255,180,84,.12)}
+.fitd .chip.s-none,.hfit .chip.s-none{color:var(--muted);background:var(--panel2)}
 .fitd .scale{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px;font-size:13px;color:var(--muted);text-align:center}
 .fitd .part{display:flex;flex-direction:column;gap:6px}
 .fitd .part .ph{display:flex;justify-content:space-between;gap:8px;font-size:14px}
@@ -355,3 +355,10 @@ button.lk{text-decoration:none}
 input[data-am-size]{height:44px}
 /* 7단계: AI 참고용 안내 한 줄(입은 모습) */
 .sheet .ainote{font-size:13px;color:var(--muted);text-align:center;line-height:1.5;margin-top:-6px}
+/* 2026-11-21 홈/피팅룸 나누기: 홈 아래 칸(이름·사이즈·핏 한 줄), 가운데 ＋ = 피팅룸(지금 화면이면 테두리), 옷장 위 「＋ 옷 넣기」 */
+.sheet.home{padding-top:16px;padding-bottom:30px} /* 맨 아래 AI 안내 줄이 가운데 ＋ 에 가리지 않게 */
+.sheet .hname{font-size:15px;color:var(--fg);text-align:center;line-height:1.5}
+.sheet .hfit{font-size:14px;color:var(--muted);text-align:center;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:-4px}
+.tabs .plus.on i{box-shadow:0 0 0 2px var(--pri)}
+.top h1 .cnt{font-size:13px;color:var(--muted);font-weight:400;margin-left:4px}
+.pill.addb{color:var(--pri);border-color:var(--pri);font-size:14px}
