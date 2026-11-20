@@ -5,7 +5,9 @@
    · 2026-11-20 3단계: 옷 넣기(앨범·카메라·붙여넣기) → 옷 확인(이름·가격·종류·사이즈 표·구매 링크) → 옷장에 저장. 읽기·저장은 PC 옷장 입력 칸(ui.cf)과 같은 코드(closetPhoto·sizeCap·cfSave)를 그대로 쓴다.
    · 2026-11-20 4단계(1차): 홈 옷 칸 6개(겉옷·이너·상의·하의·원피스·신발) → 옷장에서 고르기(C2) → 입히기(C3, 앞모습만) → 입은 모습(C4) · 실패 안내(C7).
      입히기·결과 정리(얼굴 되돌리기·아바타 모습 비교·옷만 합치기·배경)는 pc.js 의 wearAll·genPoll 을 그대로 쓰고, 화면 쪽(대기·완료·실패 표시)만 모바일로 새로 짰다(waitStart·waitEnd·genFinish).
-   · 아직 안 하는 것: 핏 서랍(C5)·옆/뒷모습·액세서리·아바타 만들기·옷장/기록 수정. 그 버튼들은 「다음 단계에서 연결돼요」 안내만 띄운다. */
+   · 2026-11-20 4단계(2차): C4 의 「핏 자세히」 → 핏 서랍(C5). 판정·부위별 등급·사이즈 비교는 PC 피팅룸 핏 칸(viewFitting)의 계산·문구를 그대로 쓰고, 서랍 모양만 모바일로(fitSheet).
+   · 2026-11-20 4단계(3차): 옆·뒷모습. C1 방향 버튼 = 만들 방향(PC genViews, 방향마다 1회), C4 방향 버튼 = 만든 그림 보기. 만들기는 PC wearAll·angNext 그대로.
+   · 아직 안 하는 것:·액세서리·아바타 만들기·옷장/기록 수정. 그 버튼들은 「다음 단계에서 연결돼요」 안내만 띄운다. */
 (function () {
   'use strict';
 
@@ -131,9 +133,10 @@
   var MPAGES = ['home', 'closet', 'history', 'me', 'plan', 'set'];
   /* cf: 「옷 확인」(목업 B3)에 넣고 있는 옷 = PC 옷장 입력 칸과 같은 모양(blankForm). null 이면 그 화면이 아님. 모바일만 쓰는 값: catAuto(이름으로 종류를 골라도 됨)·catHit(이름으로 골랐음)·catName·readCat(읽기 시작할 때의 종류)·tOpen(표 고치기 열림) */
   /* 4단계: pick = 옷 고르기 창(C2)에 연 종류 · slotsOpen = 입은 모습이 있어도 옷 칸을 펼침 · buy = 구매 링크 창 · genWait = 입히는 중 표시(이름·사이즈·안내·시작 시각).
+     fit = 핏 서랍(C5) 열림 · fitSz = 그 안의 사이즈 비교 펼침 · fitTab = 핏을 보는 옷 종류(PC 와 같은 이름).
      view·angle·genErr·genSizes 는 PC 입히기 코드(wearAll·genPoll·angDone)가 쓰는 값이라 PC 와 같은 이름·같은 처음 값 */
   var ui = { page: pageFromHash(), bodyTab: null, closetCat: 'outer', meEdit: false, plus: false, cf: null, onb: 0, onbBase: null, mediaReady: false, vkey: '',
-    view: 'me', angle: 'front', genErr: null, genSizes: {}, pick: null, slotsOpen: false, buy: false, genWait: null,
+    view: 'me', angle: 'front', genErr: null, genSizes: {}, pick: null, slotsOpen: false, buy: false, genWait: null, fitTab: null, fit: false, fitSz: false,
     au: { mode: '', err: '', busy: false, email: '', agree: false, note: '' }, imp: '', wait: '',
     lg: { mode: 'list', id: null, err: '', fails: 0, until: 0 } };
   var SOON = '다음 단계에서 연결돼요';
@@ -253,7 +256,7 @@
   /* ▲ */
   /* pc.js 249~250행(pageFromHash·go)을 모바일 화면 목록에 맞게 고침. 다른 화면으로 가면 저장 안 한 「옷 확인」은 버린다 */
   function pageFromHash() { var p = (location.hash || '').replace('#', ''); return MPAGES.indexOf(p) >= 0 ? p : 'home'; }
-  function go(p) { ui.page = p; ui.plus = false; ui.meEdit = false; ui.cf = null; ui.pick = null; ui.buy = false; if (location.hash !== '#' + p) location.hash = '#' + p; render(); }
+  function go(p) { ui.page = p; ui.plus = false; ui.meEdit = false; ui.cf = null; ui.pick = null; ui.buy = false; ui.fit = false; ui.fitSz = false; if (location.hash !== '#' + p) location.hash = '#' + p; render(); }
   /* ▼ pc.js 251~257행 그대로 */
   function exclusiveSel(cat) {
     /* 2026-11-12 사용자 결정: 원피스 위에 상의(종류 제한 없음)를 겹쳐 입을 수 있다. 원피스와 하의만 서로 바꿔 끼운다 */
@@ -607,6 +610,65 @@
   function curSize(it) { var s = state.sel[it.cat], f; return (s && s.id === it.id && s.size) || (((f = fitHint(it)) && f.size) || ''); }
   /* 입은 그림을 만들 때 쓴 사이즈(2026-11-10부터 기록). 예전 그림은 기록이 없다 */
   function madeSizes(key) { return (state.lookSize && state.lookSize[key]) || null; }
+  /* ▲ */
+  /* 핏 서랍(C5)에 쓰는 PC 피팅룸 핏 칸의 판정·이름·표 계산 */
+  /* ▼ pc.js 140행 그대로 */
+  var GIDX = { tightBad: 0, tight: 1, fit: 2, loose: 3, over: 4 };
+  /* ▲ */
+  /* ▼ pc.js 196행 그대로 */
+  function sgn(n) { return (n >= 0 ? '+' : '') + n; }
+  /* ▲ */
+  /* ▼ pc.js 1808~1809행 그대로 */
+  var FSTYLE = [['tight', 'Slim', '타이트'], ['fit', 'Regular', '정핏'], ['loose', 'Loose', '여유'], ['over', 'Oversized', '오버핏']];
+  var CMP_COLS = { outer: ['shoulder', 'chest', 'sleeve', 'length'], inner: ['shoulder', 'chest', 'sleeve', 'length'], top: ['shoulder', 'chest', 'sleeve', 'length'], bottom: ['waist', 'hip', 'thigh', 'inseam', 'length'], dress: ['shoulder', 'chest', 'waist', 'sleeve', 'length'], shoe: ['inner'] };
+  /* ▲ */
+  /* ▼ pc.js 1811~1814행 그대로 */
+  function fieldLabel(it, k) {
+    var f = (FIELDS[it.cat] || []).filter(function (x) { return x[0] === k; })[0], t = f ? f[1] : k;
+    return it.measureType === 'circ' ? t.replace('단면', '둘레') : t;
+  }
+  /* ▲ */
+  /* ▼ pc.js 1818~1826행 그대로 */
+  function imgCols(it) {
+    if (!it || it.cat === 'shoe' || !window.FitNotes || !FitNotes.okTable || !FitNotes.okTable(it.table)) return null;
+    var t; try { t = FitNotes.tblSync(it, FIELDS[it.cat]); } catch (e) { return null; }
+    var o = { name: {}, conv: {}, ci: {}, rows: {} };
+    t.keys.forEach(function (k, i) { var nm = String(t.head[i] == null ? '' : t.head[i]).trim(); if (k && nm && o.ci[k] == null) { o.ci[k] = i; o.name[k] = nm; o.conv[k] = t.conv[i]; } });
+    t.rows.forEach(function (r) { var l = String(r[0]); if (!(l in o.rows)) o.rows[l] = r; });
+    return o;
+  }
+  function partName(ic, p) { return (ic && ic.name[p.key]) || p.label; }
+  /* ▲ */
+  /* ▼ pc.js 1829~1834행 그대로 */
+  function cmpCell(ic, it, row, k, n, unit) {
+    if (!ic || ic.ci[k] == null) return [fieldLabel(it, k), n + unit];
+    var r = ic.rows[String(row.label)], cell = r ? String(r[ic.ci[k] + 1] == null ? '' : r[ic.ci[k] + 1]).trim() : '', cv = ic.conv[k];
+    if (!cell) return [ic.name[k], n + unit];
+    return [ic.name[k], !cv || cv[0] === 1 || cv[0] === 2 ? cell + unit : cell + ' (' + n + unit + ')'];
+  }
+  /* ▲ */
+  /* ▼ pc.js 1836~1842행 그대로 */
+  function sizeState(e) {
+    if (!E.num(prof().height) || !e || !e.parts || !e.parts.length) return ['s-none', '측정 정보 부족'];
+    var tight = e.parts.some(isTight), loose = e.parts.some(isLoose);
+    return tight ? ['s-tight', '쪼일 수 있음'] : loose ? ['s-loose', '오버핏일 수 있음'] : /* 2026-11-19 최종 검토 3차 용어 통일: 판정 근거가 핏 등급 「쪼임」·「오버핏」이라 같은 이름으로(「타이트」·「여유」는 그보다 한 칸 안쪽 등급 이름이라 섞여 보였음) */ e.labelEst ? ['s-check', '확인 필요'] : ['s-ok', '적합'];
+  }
+  function isTight(p) { return p.kind === 'circ' ? p.gradeIdx === 0 : p.gradeKey === 'tightBad'; }
+  function isLoose(p) { return p.kind === 'circ' ? p.gradeIdx === 4 : p.gradeKey === 'over'; }
+  /* ▲ */
+  /* ▼ pc.js 1866~1877행 그대로 */
+  function fitVerdict(fr) {
+    var res = fr.results, out = { cls: 's-none', st: '측정 정보 부족', b: '옷을 골라 주세요', why: '왼쪽에서 입어볼 옷을 담으면 결과가 나옵니다.' };
+    if (!res.length) return out;
+    var cur = res.filter(function (r) { return r.current; }), tight = [], loose = [];
+    cur.forEach(function (r) { var ic = imgCols(r.garment); r.current.parts.forEach(function (p) { if (isTight(p)) tight.push(r.garment.name + ' ' + partName(ic, p)); else if (isLoose(p)) loose.push(r.garment.name + ' ' + partName(ic, p)); }); });
+    if (!E.num(prof().height)) return { cls: 's-none', st: '측정 정보 부족', b: '내 몸 정보가 필요해요', why: '키와 몸무게를 넣으면 핏을 계산해 드려요.' };
+    if (!cur.length || !cur.some(function (r) { return r.current.parts && r.current.parts.length; })) return { cls: 's-none', st: '측정 정보 부족', b: '실측값이 필요해요', why: '내 옷장에서 사이즈표를 넣어 주세요.' };
+    if (tight.length) return { cls: 's-tight', st: '쪼일 수 있음', b: '조금 작아요', why: tight.join(', ') + ' 부분이 작아요.' };
+    if (loose.length) return { cls: 's-loose', st: '오버핏일 수 있음', b: '조금 커요', why: loose.join(', ') + ' 부분이 많이 남아요.' };
+    if (cur.some(function (r) { return r.current.labelEst; })) return { cls: 's-check', st: '확인 필요', b: '맞을 것 같아요', why: '실측표가 없는 옷은 표준 치수로 추정했어요. 실측표를 넣으면 정확해져요.' };
+    return { cls: 's-ok', st: '적합', b: '잘 맞아요', why: fr.note || '고른 옷 모두 몸에 맞아요.' };
+  }
   /* ▲ */
 
   /* ---------- 입히기 (PC 와 같은 서버 요청·같은 결과 정리. 화면 쪽 waitStart·waitEnd·genFinish 만 아래에 모바일로) ---------- */
@@ -1186,10 +1248,10 @@
     genPending = null;
     setTimeout(angNext, 0);
     try { localStorage.removeItem(GEN_KEY()); } catch (e) {}
-    waitEnd();
+    waitEnd(); ui.fit = false; ui.fitSz = false;
     ui.genErr = ok ? null : (msg || '알 수 없는 이유로 실패했어요. 잠시 뒤 다시 시도해 주세요.');
     if (ok) {
-      lookItems(id).forEach(selectItem); save(); ui.view = curView(); ui.slotsOpen = false; ui.pick = null;
+      lookItems(id).forEach(selectItem); save(); ui.view = curView(); ui.slotsOpen = false; ui.pick = null; ui.angle = 'front';
       if (ui.page !== 'home' && !ui.cf) go('home');
     }
     if (msg && (ok || ui.page !== 'home' || ui.cf)) toast(msg, ms || (ok ? 4000 : 0));
@@ -1273,10 +1335,10 @@
   function enterApp() {
     ui.lg = { mode: 'list', id: null, err: '', fails: 0, until: 0 }; ui.mediaReady = false;
     clearUrls(); render();
-    loadMedia().then(function () { ui.mediaReady = true; render(); genResume(); });
+    loadMedia().then(function () { ui.mediaReady = true; render(); genResume(); angResume(); }); /* PC enterApp 과 같이 옆·뒤 만들기도 이어받음 */
   }
   /* 로그아웃·로그인 만료: 기다리던 입히기는 이 화면에서 멈춘다(기기에 남은 기록 fit-gen-pending 은 그대로 두어 다시 로그인하면 6분 안이면 이어받음) */
-  function genStop() { genPending = null; angBusy = null; waitEnd(); ui.genErr = null; ui.pick = null; ui.slotsOpen = false; ui.buy = false; }
+  function genStop() { genPending = null; angBusy = null; waitEnd(); ui.genErr = null; ui.pick = null; ui.slotsOpen = false; ui.buy = false; ui.fit = false; ui.fitSz = false; }
   /* ---------- 계정: 로그인한 뒤 서버 내용 받기 ---------- */
   function mediaAgain() { var uid = user && user.id; return loadMedia().then(function () { if (user && user.id === uid) { ui.mediaReady = true; syncDraw(); } }); }
   function pullBlobs() { Sync.blobSync(true).catch(function () {}); } /* 다 받으면 Sync.on 의 blobs 가 불린다 */
@@ -1463,7 +1525,7 @@
   /* ---------- 홈 (목업 B1·C1: 전신이 다 보이는 사진 칸 + 아래 서랍) ---------- */
   var POS_BG = { 'p-top': ';background-position:50% 28%', 'p-low': ';background-position:50% 72%', 'p-foot': ';background-position:50% 100%', 'p-mid': ';background-position:50% 45%' }; /* 옷 칸 사진 위치: 옷장 카드(posOf)와 같은 값 */
   /* 홈 사진 칸에 보일 그림: 지금 고른 옷 조합으로 지금 캐릭터에 만든 입은 모습(wornNow = PC 피팅룸과 같은 기준)이 있으면 그것, 없으면 캐릭터 그대로 */
-  function homePic() { var wn = wornNow(); return wn ? { url: wn.url, alt: wn.name + ' 입은 모습', worn: wn } : { url: avatarShow(), alt: (who() === 'base' ? baseModel().name + ' 기본 모델' : '내 아바타') + ' 전신', worn: null }; }
+  function homePic() { var wn = wornNow(), av = wn ? homeAng(wn) : 'front'; if (av !== 'front') return { url: urls.angTry[av][wn.key], alt: wn.name + ' 입은 ' + ANG_NAME[av], worn: wn }; return wn ? { url: wn.url, alt: wn.name + ' 입은 모습', worn: wn } :{ url: avatarShow(), alt: (who() === 'base' ? baseModel().name + ' 기본 모델' : '내 아바타') + ' 전신', worn: null }; }
   var SLOT_CATS = ['outer', 'inner', 'top', 'bottom', 'dress', 'shoe'];
   function slotsHtml() {
     return '<div class="slots s6">' + SLOT_CATS.map(function (c) {
@@ -1472,10 +1534,17 @@
       return '<button type="button" class="slot' + (it ? ' has' : '') + '" data-act="slotPick" data-cat="' + c + '" aria-label="' + lab + '">' + (it ? '' : '＋') + '<span>' + CATS[c] + '</span></button>';
     }).join('') + '</div>';
   }
-  /* 방향: 이번에는 앞모습만(옆·뒷모습은 방향별 아바타 사진이 필요해 다음 단계) */
-  function dirsHtml(act) {
-    return '<div class="dirs" role="group" aria-label="방향"><span>방향</span><div class="seg">' + [['front', '앞', '앞모습'], ['side', '옆', '옆모습'], ['back', '뒤', '뒷모습']].map(function (d) {
-      var on = d[0] === 'front'; return '<button type="button" class="' + (on ? 'on' : 'dis') + '" aria-pressed="' + on + '" data-act="' + (on ? 'noop' : 'soon') + '">' + (on ? '✓ ' : '') + d[act ? 2 : 1] + '</button>';
+  /* 방향(목업 C1·C4). C1 = 만들 방향 고르기(PC 실행 칸의 genView 와 같은 값 state.genViews, 방향마다 1회. 사진이 없는 방향은 흐리게 + 이유 = PC angWhy).
+     C4 = 볼 방향(만든 그림이 있는 방향만. 만드는 중이면 「만드는 중」). 옆·뒤 만들기·저장은 PC 코드(wearAll·angNext·angPoll) 그대로 */
+  var DIRS = [['front', '앞', '앞모습'], ['side', '옆', '옆모습'], ['back', '뒤', '뒷모습']];
+  function homeAng(wn) { var v = ui.angle; return v !== 'front' && wn && angTryOk(v, wn.key) ? v : 'front'; }
+  function dirsHtml(see, wn) {
+    var gv = genViews(), cur = see ? homeAng(wn) : '';
+    return '<div class="dirs" role="group" aria-label="' + (see ? '보는 방향' : '만들 방향') + '"><span>' + (see ? '보기' : '방향') + '</span><div class="seg">' + DIRS.map(function (d) {
+      var v = d[0], on, ok, why = '';
+      if (see) { ok = v === 'front' || angTryOk(v, wn.key); on = v === cur; if (!ok) why = angBusy && angBusy.view === v && angBusy.key === wn.key ? 'busy' : 'none'; }
+      else { ok = v === 'front' || !!angSrc(v); on = ok && gv.indexOf(v) >= 0; }
+      return '<button type="button" class="' + (on ? 'on' : ok ? '' : 'dis') + '" aria-pressed="' + on + '" data-act="' + (see ? 'angPick' : 'genView') + '" data-v="' + v + '"' + (why ? ' data-why="' + why + '"' : '') + '>' + (on && !see ? '✓ ' : '') + d[see ? 2 : 1] + (why === 'busy' ? '…' : '') + '</button>';
     }).join('') + '</div></div>';
   }
   /* 입은 모습 아래 한 줄: 만들 때 사이즈. 신발·사이즈가 지금 고른 것과 다르면 다시 입히라고(pc.js 1846~1865행 stageStatus 와 같은 판단·같은 문구) */
@@ -1486,6 +1555,48 @@
     var t = wn.name + ' · 만들 때 사이즈 ' + its.map(function (x) { return (multi ? CATS[x.cat] + ' ' : '') + (ms[x.id] || '?'); }).join(', ');
     if (its.some(function (x) { return ms[x.id] && curSize(x) && ms[x.id] !== curSize(x); })) return { warn: true, t: t + ' — 지금 고른 사이즈와 달라요. 다시 입혀야 그림에 반영돼요.' };
     return { warn: false, t: t };
+  }
+  /* C5 핏 서랍 내용. 계산·판정·문구는 PC 피팅룸 핏 칸(pc.js 1878~1972행 viewFitting 의 fitcard·사이즈 비교)과 같다.
+     PC 와 다른 점: 옷 탭은 2벌 이상일 때만, 고른 사이즈를 큰 글자로(목업 C5), 사이즈 비교는 「다른 사이즈로 보기」를 눌러 펼침, 구매하기는 홈의 구매 창(buyOpen) */
+  function fitSheet() {
+  /* ▼ pc.js 1879행 그대로 */
+    var fr = fitResults(); fr.results = (fr.results || []).filter(function (r) { return r.cat !== 'shoe'; }); /* 2026-11-13 사용자 지시: 신발은 핏 내용(태그·탭·판정)에 넣지 않음 */
+  /* ▲ */
+    var res = fr.results;
+    if (!res.length) return '<p class="p">신발은 핏을 계산하지 않아요. 옷을 함께 고르면 여기에서 옷의 핏을 볼 수 있어요.</p>';
+  /* ▼ pc.js 1937~1944행 그대로 */
+    var vd = fitVerdict(fr), active = res.filter(function (r) { return r.cat === ui.fitTab; })[0] || res[0] || null, parts = active && active.current ? active.current.parts : [];
+    var names = BASE_CFG.gradeNames[active && active.cat === 'shoe' ? 'shoe' : 'body'];
+    var aic = active ? imgCols(active.garment) : null;
+    var partHtml = parts.map(function (p) {
+      var idx = p.kind === 'circ' ? p.gradeIdx : GIDX[p.gradeKey], val2 = p.kind === 'circ' ? p.grade + ' ' + sgn(p.ease) + (p.unit || (active.cat === 'shoe' ? 'mm' : 'cm')) : p.text, pn = partName(aic, p);
+      return '<div class="part"><div class="ph"><b>' + h(pn) + '</b><span class="muted">' + h(val2) + '</span></div><div class="segs" role="img" aria-label="' + h(pn + ' ' + val2) + '">' +
+        [0, 1, 2, 3, 4].map(function (i) { return '<div class="seg' + (i === idx ? ' g-' + p.gradeKey : '') + '"></div>'; }).join('') + '</div></div>';
+    }).join('');
+  /* ▲ */
+  /* ▼ pc.js 1946행 그대로 */
+    var ag = active && active.garment, buy = '', buyNote = '';
+  /* ▲ */
+  /* ▼ pc.js 1964~1969행 그대로 */
+      var unit = active.cat === 'shoe' ? 'mm' : 'cm';
+      var szCards = (ag.sizes || []).map(function (row) {
+        var e = (active.all || []).filter(function (x) { return x.size === row.label; })[0], st = sizeState(e), on = row.label === active.chosen, rec = row.label === active.recommended;
+        return '<button type="button" class="szc' + (on ? ' on' : '') + '" aria-pressed="' + on + '" data-act="size" data-cat="' + active.cat + '" data-v="' + h(row.label) + '"><div class="szh"><b>' + h(row.label) + '</b>' + (on ? '<em>선택됨</em>' : rec ? '<em>추천</em>' : '') + '<span class="chip ' + st[0] + '">' + h(st[1]) + '</span></div>' +
+          '<dl>' + (active.cat === 'shoe' && !E.num(row.inner) ? '<dt>표기 사이즈</dt><dd>' + h(row.label) + '</dd><dt>안쪽 길이 실측</dt><dd class="na">정보 없음</dd>' : (CMP_COLS[active.cat] || []).map(function (k) { var n = E.num(row[k]), c = n ? cmpCell(aic, ag, row, k, n, unit) : [aic && aic.name[k] || fieldLabel(ag, k)]; return '<dt>' + h(c[0]) + '</dt>' + (n ? '<dd>' + h(c[1]) + '</dd>' : '<dd class="na">정보 없음</dd>'); }).join('')) + '</dl></button>';
+      }).join('');
+  /* ▲ */
+    var pref = (FSTYLE.filter(function (f) { return f[0] === (state.profile.pref || 'fit'); })[0] || FSTYLE[1])[2];
+    var tabs = res.length > 1 ? '<div class="chips" role="tablist" aria-label="옷별 핏 보기">' + res.map(function (r) { var o = r === active; return '<button type="button" role="tab" aria-selected="' + o + '" class="chip' + (o ? ' on' : '') + '" data-act="fitTab" data-cat="' + r.cat + '">' + CATS[r.cat] + '</button>'; }).join('') + '</div>' : '';
+    var ch = active.chosen ? String(active.chosen) : '', rc = active.recommended ? String(active.recommended) : '';
+    return tabs +
+      '<div class="size"><div class="L">' + (ch ? h(ch) : '–') + '</div><div><p>' + h(ag.name) + (rc ? ' · ' + (ch && ch !== rc ? '추천 ' + h(rc) : h(rc) + ' 추천') : '') + '</p><small>' + (who() === 'base' ? '기본 모델(' + h(baseModel().name) + ') 치수와 옷 실측으로 계산한 결과' : '내 몸 치수와 옷 실측으로 계산한 결과') + '</small></div></div>' +
+      '<div class="verdict"><span class="chip ' + vd.cls + '">' + h(vd.st) + '</span><b>' + h(vd.b) + '</b><span class="muted">' + h(vd.why) + '</span></div>' +
+      (parts.length ? '<div class="scale" aria-hidden="true">' + names.map(function (n) { return '<span>' + h(n) + '</span>'; }).join('') + '</div>' : '') +
+      (active.current && active.current.labelEst ? '<p class="note">실측표가 없어 표준 치수로 추정했어요. 실측표를 넣으면 정확해져요.</p>' : '') + partHtml +
+      (rc ? '<p class="note">추천 사이즈: <b>' + h(rc) + '</b> (핏 스타일 ' + h(pref) + ' 기준)</p>' : '') +
+      '<div class="row"><button type="button" class="btn ghost sm" data-act="fitSz" aria-expanded="' + !!ui.fitSz + '">' + (ui.fitSz ? '사이즈 비교 닫기' : '다른 사이즈로 보기') + '</button><button type="button" class="btn sm" data-act="buyOpen">구매하기</button></div>' +
+      (ui.fitSz ? (szCards ? '<p class="note">누르면 그 사이즈로 바뀌어요. 그림은 다시 입혀야 바뀌어요.</p><div class="szrow">' + szCards + '</div>' : '<p class="note">이 옷은 사이즈 표가 없어요.</p>') : '') +
+      '<p class="note">추정 결과이며 실제 착용감을 보장하지 않습니다.</p>';
   }
   function viewHome() {
     var w = who(), hp = homePic(), pic = hp.url, n = state.closet.length, set = wearSet(), wn = hp.worn, sheet;
@@ -1500,22 +1611,29 @@
       sheet = '<div class="gerr" role="alert"><b>입혀 보지 못했어요</b><p>' + h(ui.genErr) + '</p><div class="row"><button type="button" class="btn ghost sm" data-act="errClose">닫기</button>' + (set.length ? '<button type="button" class="btn sm" data-act="wear">다시 시도</button>' : '') + '</div></div>';
     } else if (!n) {
       sheet = '<p class="big">입어볼 옷을 먼저 넣어 주세요</p><p class="p">쇼핑 화면 캡처나 옷 사진 1장이면 돼요</p><button type="button" class="btn" data-act="plus">＋ 옷 사진 넣기</button>';
+    } else if (wn && !ui.slotsOpen && ui.fit) {
+      /* C5 핏 서랍: 만들 때 사이즈 줄(사이즈를 바꾸면 다시 입히라는 안내·버튼)은 서랍 위에 그대로 두고, 핏 내용만 서랍 안에서 넘겨 본다 */
+      var nt5 = wornNote(wn, set);
+      sheet = '<button type="button" class="fitx" data-act="fitClose" aria-expanded="true">⌄ 핏 접기</button><p class="wline' + (nt5.warn ? ' warn' : '') + '">' + h(nt5.t) + '</p>' +
+        (nt5.warn ? '<button type="button" class="btn" data-act="wear">다시 입히기 · 1회 사용</button>' : '') +
+        '<div class="fitd" role="region" aria-label="핏 결과">' + fitSheet() + '</div>';
     } else if (wn && !ui.slotsOpen) {
       /* C4 입은 모습: 서랍은 한 줄 */
       var nt = wornNote(wn, set);
-      sheet = dirsHtml(true) + '<p class="wline' + (nt.warn ? ' warn' : '') + '">' + h(nt.t) + '</p>' +
+      sheet = dirsHtml(true, wn) + (angBusy ? '<p class="wline" role="status">' + h(ANG_NAME[angBusy.view]) + '을 만들고 있어요. 보통 1~2분, 다 되면 알려 드려요.</p>' : '') + '<p class="wline' + (nt.warn ? ' warn' : '') + '">' + h(nt.t) + '</p>' +
         (nt.warn ? '<button type="button" class="btn" data-act="wear">다시 입히기 · 1회 사용</button>' : '') +
-        '<div class="row"><button type="button" class="btn ghost sm" data-act="soon">⌃ 핏 자세히</button><button type="button" class="btn ghost sm" data-act="buyOpen">구매하기</button></div>' +
+        '<div class="row"><button type="button" class="btn ghost sm" data-act="fitOpen" aria-expanded="false">⌃ 핏 자세히</button><button type="button" class="btn ghost sm" data-act="buyOpen">구매하기</button></div>' +
         '<button type="button" class="lk" data-act="slotsOpen">옷 바꿔서 다시 입어보기</button>';
     } else {
       /* C1 옷 고르기 */
       sheet = slotsHtml() + dirsHtml(false) +
-        '<button type="button" class="btn" data-act="wear">' + (set.length ? (wn ? '다시 입어보기' : '입어보기') + ' · 1회 사용' : '입어보기') + '</button>' +
+        (angBusy ? '<p class="wline" role="status">' + h(ANG_NAME[angBusy.view]) + '을 만들고 있어요. 다 되면 다시 입어볼 수 있어요.</p>' : '') +
+        '<button type="button" class="btn" data-act="wear"' + (angBusy ? ' disabled' : '') + '>' + (set.length ? (wn ? '다시 입어보기' : '입어보기') + (genViews().length ? ' · ' + genViews().length + '회 사용' : ' · 방향을 골라 주세요') : '입어보기') + '</button>' +
         (wn ? '<button type="button" class="lk" data-act="slotsClose">입은 모습 보기</button>' : '');
     }
     return '<header class="top">' + LOGO + '<div class="pills"><button type="button" class="pill who" data-act="go" data-page="me" aria-label="지금 입어보는 쪽 ' + (w === 'base' ? '기본 모델 ' + h(baseModel().name) : '내 아바타') + ', 바꾸기">' + (w === 'base' ? '기본 모델' : '내 아바타') + ' ▾</button>' +
       '<button type="button" class="pill" data-act="go" data-page="plan" aria-label="' + leftSay + ', 요금제 보기">남은 <b>' + leftText() + '</b></button></div></header>' +
-      '<div class="stage"><div class="bg" style="' + bgUrl(pic) + '"></div><div class="ph" role="img" aria-label="' + h(hp.alt) + '" style="' + bgUrl(pic) + '"></div><button type="button" class="zoombtn" data-act="homeZoom">⤢ 크게 보기</button>' +
+      '<div class="stage' + (wn && !ui.slotsOpen && ui.fit && !genPending && !ui.genErr ? ' sm' : '') + '"><div class="bg" style="' + bgUrl(pic) + '"></div><div class="ph" role="img" aria-label="' + h(hp.alt) + '" style="' + bgUrl(pic) + '"></div><button type="button" class="zoombtn" data-act="homeZoom">⤢ 크게 보기</button>' +
       (wn && !genPending ? '<span class="madeby">입은 모습</span>' : '') + '</div>' +
       '<div class="sheet"><div class="grab" aria-hidden="true"></div>' + sheet + '</div>' + pickHtml() + buyHtml() + plusHtml() + tabsHtml();
   }
@@ -1961,14 +2079,14 @@
     if (cf && cf.catAuto && !cf.tEdit && cf.name && cf.catName !== cf.name) { cf.catName = cf.name; var gc = guessCat(cf.name); if (gc) { cf.catHit = true; if (gc !== cf.cat) { cfCatTo(gc); return; } } }
     var p = ui.page, key = cf ? 'add' : ui.onb ? 'onb' + ui.onb : p + (p === 'me' && ui.meEdit ? ':edit' : '');
     var inner = cf ? viewAdd() : ui.onb === 1 ? viewOnbBody() : ui.onb === 2 ? viewOnbModel() : p === 'closet' ? viewCloset() : p === 'history' ? viewHistory() : p === 'me' ? viewMe() : p === 'plan' ? viewPlan() : p === 'set' ? viewSettings() : viewHome();
-    var ae = document.activeElement, keep = ae && app.contains(ae) && ae.id, sel = null, scr = null, b0 = app.querySelector('.body'), c0 = app.querySelector('.chips');
+    var ae = document.activeElement, keep = ae && app.contains(ae) && ae.id, sel = null, scr = null, b0 = app.querySelector('.body'), c0 = app.querySelector('.chips'), f0 = app.querySelector('.fitd');
     try { sel = keep && ae.selectionStart; } catch (e) {}
-    if (ui.vkey === key) scr = [b0 ? b0.scrollTop : 0, c0 ? c0.scrollLeft : 0];
+    if (ui.vkey === key) scr = [b0 ? b0.scrollTop : 0, c0 ? c0.scrollLeft : 0, f0 ? f0.scrollTop : 0];
     var vk = {}; /* 다시 그려도 아직 저장 안 한 몸 치수 입력은 그대로 둔다 */
     if (ui.vkey === key) Array.prototype.forEach.call(app.querySelectorAll('#h,#w,input[data-mf]'), function (i) { if (i.id) vk[i.id] = i.value; });
     app.innerHTML = inner; ui.vkey = key;
     Object.keys(vk).forEach(function (k) { var e = document.getElementById(k); if (e && e.value !== vk[k]) e.value = vk[k]; });
-    if (scr) { var b1 = app.querySelector('.body'), c1 = app.querySelector('.chips'); if (b1) b1.scrollTop = scr[0]; if (c1) c1.scrollLeft = scr[1]; }
+    if (scr) { var b1 = app.querySelector('.body'), c1 = app.querySelector('.chips'); if (b1) b1.scrollTop = scr[0]; if (c1) c1.scrollLeft = scr[1]; var f1 = app.querySelector('.fitd'); if (f1) f1.scrollTop = scr[2]; } /* 핏 서랍(C5)도 탭·사이즈를 눌러 다시 그려도 보던 자리 그대로 */
     if (keep) { var a = document.getElementById(keep); if (a) { a.focus(); try { if (sel != null) a.setSelectionRange(sel, sel); } catch (e) {} } }
   }
 
@@ -2097,9 +2215,31 @@
     closetCat: function (el) { if (CATS[el.dataset.cat]) { ui.closetCat = el.dataset.cat; ui.vkey = ''; render(); } },
     homeZoom: function () { var hp = homePic(); openViewer([{ url: hp.url, alt: hp.alt }], 0); },
     /* 4단계 입어보기 (C1·C2·C4·C7). 입히기는 PC 와 같은 wearAll(앞모습만) */
-    wear: function () { ui.genErr = null; wearAll({ frontOnly: true }); },
+    wear: function () { ui.genErr = null; ui.fit = false; ui.fitSz = false; ui.angle = 'front'; wearAll(); }, /* 고른 방향(state.genViews)마다 1회 — PC 와 같음 */
+    /* 만들 방향 켜고 끄기: 사진이 없는 방향은 PC 처럼 고를 수 없고 이유(angWhy)를 알려 줌 */
+    genView: function (el) {
+      var gv = el.dataset.v; if (gv !== 'front' && !angSrc(gv)) { toast(angWhy(gv), 3500); return; }
+      state.genViews = state.genViews || { front: true }; state.genViews[gv] = !state.genViews[gv]; save(); render(); /* = pc.js 2743행 genView */
+    },
+    /* 볼 방향: 만든 그림이 있는 방향만 */
+    angPick: function (el) {
+      var w = el.dataset.why, v = el.dataset.v;
+      if (w === 'busy') { toast(ANG_NAME[v] + '을 만들고 있어요. 다 되면 알려 드려요.', 3000); return; }
+      if (w === 'none') { toast('이 옷의 ' + ANG_NAME[v] + '은 아직 만들지 않았어요. 「옷 바꿔서 다시 입어보기」에서 ' + ANG_NAME[v] + '을 켜고 입혀 보세요.', 4500); return; }
+      ui.angle = v; render();
+    },
     errClose: function () { ui.genErr = null; render(); },
-    slotsOpen: function () { ui.slotsOpen = true; render(); },
+    slotsOpen: function () { ui.slotsOpen = true; ui.fit = false; ui.fitSz = false; render(); },
+    /* C5 핏 서랍 열기·닫기·사이즈 비교 펼치기. 옷 탭(fitTab)·사이즈 바꾸기(size)는 아래 PC 코드 그대로 — 사이즈를 바꿔도 횟수는 쓰지 않고, 그림은 「다시 입히기」를 눌러야 바뀐다 */
+    fitOpen: function () { ui.fit = true; ui.fitSz = false; render(); var d = app.querySelector('.fitd'); if (d) d.scrollTop = 0; },
+    fitClose: function () { ui.fit = false; ui.fitSz = false; render(); },
+    fitSz: function () { ui.fitSz = !ui.fitSz; render(); },
+  /* ▼ pc.js 2767행 그대로 */
+    fitTab: function (el) { ui.fitTab = el.dataset.cat; render(); },
+  /* ▲ */
+  /* ▼ pc.js 2771행 그대로 */
+    size: function (el) { var s = state.sel[el.dataset.cat]; if (s) { s.size = el.dataset.v; save(); render(); } },
+  /* ▲ */
     slotsClose: function () { ui.slotsOpen = false; render(); },
     slotPick: function (el) { if (CATS[el.dataset.cat]) { ui.pick = el.dataset.cat; ui.plus = false; render(); } },
     pickClose: function () { ui.pick = null; render(); },
@@ -2111,7 +2251,7 @@
       var c = state.sel[it.cat];
       if (c && c.id === it.id) { delete state.sel[it.cat]; if (!wearSet().length) delete state.wearLast; }
       else { state.sel[it.cat] = { id: it.id, size: null }; exclusiveSel(it.cat); }
-      ui.pick = null; ui.genErr = null; save(); render();
+      ui.pick = null; ui.genErr = null; ui.fit = false; ui.fitSz = false; save(); render();
     },
     buyOpen: function () { ui.buy = true; render(); },
     buyClose: function () { ui.buy = false; render(); },
@@ -2266,7 +2406,7 @@
     if (/(^#|&)(access_token|error_code)=/.test(location.hash)) { location.reload(); return; } /* 앱이 열린 창에서 메일의 링크를 연 경우: 처음부터 다시 읽는다 */
     if (location.hash === '#add' && ui.cf) return;
     var drop = !!ui.cf; ui.cf = null;
-    var p = pageFromHash(); closeViewer(); if (p !== ui.page || drop) { ui.page = p; ui.plus = false; ui.meEdit = false; ui.pick = null; ui.buy = false; render(); }
+    var p = pageFromHash(); closeViewer(); if (p !== ui.page || drop) { ui.page = p; ui.plus = false; ui.meEdit = false; ui.pick = null; ui.buy = false; ui.fit = false; ui.fitSz = false; render(); }
   });
   /* ▼ pc.js 3060~3073행 그대로 */
   /* 2026-11-10 다른 탭(검정·밝은 버전)이 같은 프로필을 저장하면 그 내용을 바로 다시 읽는다.
@@ -2293,7 +2433,7 @@
   function boot() {
     if (user && Sync.hasLocal()) {
       /* 이 기기에 내 자료가 있으면 바로 열고, 뒤에서 서버와 맞춘다(다른 기기에서 고친 것이 더 새로우면 그 내용으로) */
-      state = load(); render(); loadMedia().then(function () { ui.mediaReady = true; render(); genResume(); });
+      state = load(); render(); loadMedia().then(function () { ui.mediaReady = true; render(); genResume(); angResume(); });
       Sync.pull().then(function (r) { if (!user) return; if (r.applied) { state = load(); mediaAgain(); } pullBlobs(); }, function () {});
     } else if (user) afterAuth(); /* 로그인은 되어 있는데 이 기기에 자료가 없으면 서버에서 먼저 받는다 */
     else render();

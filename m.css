@@ -298,3 +298,36 @@ button.lk{text-decoration:none}
 .pkn .im span{font:500 34px var(--lat);color:var(--pri)}
 .pkgrid .g small{min-height:19px}
 .pop a.pick{text-decoration:none;color:var(--fg)}
+
+/* ---------- 2026-11-20 4단계 2차: 핏 서랍(목업 C5). 색·등급 표시는 PC 피팅룸 핏 칸(pc.css .chip.s-*·.seg.g-*)과 같은 값 ---------- */
+.stage.sm{min-height:170px} /* 서랍을 올려도 사진은 작아질 뿐(contain) 없어지지 않게 */
+.fitx{min-height:44px;margin:-6px 0 -8px;font-size:14px;color:var(--muted);display:flex;align-items:center;justify-content:center}
+.fitd{max-height:40vh;max-height:40dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;display:flex;flex-direction:column;gap:12px;margin:0 -16px;padding:0 16px 2px}
+.fitd .chips{flex:none}
+.fitd .size .L{font-size:22px}
+.fitd .verdict{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+.fitd .verdict b{font-size:20px;line-height:1.3;font-weight:800}
+.fitd .muted,.fitd .note{font-size:13px;color:var(--muted);line-height:1.55}
+.fitd .note b{color:var(--fg)}
+.fitd span.chip{min-height:0;padding:3px 10px;font-size:13px;font-weight:700;border-radius:99px;border:1px solid transparent}
+.fitd .chip.s-ok{color:#7FD6A6;background:rgba(92,192,138,.12)}
+.fitd .chip.s-tight{color:var(--errText);background:rgba(255,122,133,.12)}
+.fitd .chip.s-loose{color:#8FBDF0;background:rgba(106,165,230,.14)}
+.fitd .chip.s-check{color:var(--tight);background:rgba(255,180,84,.12)}
+.fitd .chip.s-none{color:var(--muted);background:var(--panel2)}
+.fitd .scale{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px;font-size:13px;color:var(--muted);text-align:center}
+.fitd .part{display:flex;flex-direction:column;gap:6px}
+.fitd .part .ph{display:flex;justify-content:space-between;gap:8px;font-size:14px}
+.fitd .segs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px;background:none;padding:0;border-radius:0}
+.fitd .segs .seg{display:block;height:10px;padding:0;border-radius:3px;background:var(--panel2)}
+.fitd .seg.g-fit{background:var(--fit)}.fitd .seg.g-tight{background:var(--tight)}.fitd .seg.g-loose{background:var(--loose)}.fitd .seg.g-tightBad{background:var(--err)}.fitd .seg.g-over{background:#B39DFF}
+.fitd .szrow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fitd .szc{display:flex;flex-direction:column;gap:8px;text-align:left;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--ink);min-width:0;color:var(--fg)}
+.fitd .szc.on{border:2px solid var(--pri);padding:11px}
+.fitd .szh{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.fitd .szh b{font:700 18px var(--lat)}
+.fitd .szh em{font-style:normal;font-size:13px;color:var(--pri)}
+.fitd .szc dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:3px 8px;font-size:13px}
+.fitd .szc dt{color:var(--muted)}
+.fitd .szc dd{margin:0;text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.fitd .szc dd.na{color:var(--muted);font-weight:500}
