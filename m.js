@@ -140,7 +140,7 @@
      view·angle·genErr·genSizes 는 PC 입히기 코드(wearAll·genPoll·angDone)가 쓰는 값이라 PC 와 같은 이름·같은 처음 값 */
   /* 5단계: itm = 옷장 카드를 눌러 연 창(D1)의 옷 id · buy 가 문자열이면 그 옷(또는 옷 조합 키)의 구매 창 */
   var ui = { page: pageFromHash(), bodyTab: null, closetCat: 'outer', meEdit: false, plus: false, cf: null, onb: 0, onbBase: null, mediaReady: false, vkey: '', itm: null,
-    view: 'me', angle: 'front', genErr: null, genSizes: {}, pick: null, slotsOpen: false, buy: false, genWait: null, fitTab: null, fit: false, fitSz: false,
+    view: 'me', angle: 'front', genErr: null, genSizes: {}, pick: null, slotsOpen: false, buy: false, genWait: null, fitTab: null, fit: false, fitSz: false, low: false,
     au: { mode: '', err: '', busy: false, email: '', agree: false, note: '' }, imp: '', wait: '',
     lg: { mode: 'list', id: null, err: '', fails: 0, until: 0 } };
   var SOON = '다음 단계에서 연결돼요';
@@ -263,7 +263,7 @@
   /* ▲ */
   /* pc.js 249~250행(pageFromHash·go)을 모바일 화면 목록에 맞게 고침. 다른 화면으로 가면 저장 안 한 「옷 확인」은 버린다 */
   function pageFromHash() { var p = (location.hash || '').replace('#', ''); return MPAGES.indexOf(p) >= 0 ? p : 'home'; }
-  function go(p) { ui.page = p; ui.plus = false; ui.meEdit = false; ui.cf = null; ui.pick = null; ui.buy = false; ui.fit = false; ui.fitSz = false; ui.itm = null; if (location.hash !== '#' + p) location.hash = '#' + p; render(); }
+  function go(p) { ui.page = p; ui.plus = false; ui.meEdit = false; ui.cf = null; ui.pick = null; ui.buy = false; ui.fit = false; ui.fitSz = false; ui.itm = null; ui.low = false; if (location.hash !== '#' + p) location.hash = '#' + p; render(); }
   /* ▼ pc.js 251~257행 그대로 */
   function exclusiveSel(cat) {
     /* 2026-11-12 사용자 결정: 원피스 위에 상의(종류 제한 없음)를 겹쳐 입을 수 있다. 원피스와 하의만 서로 바꿔 끼운다 */
@@ -1402,7 +1402,7 @@
     loadMedia().then(function () { ui.mediaReady = true; render(); genResume(); angResume(); }); /* PC enterApp 과 같이 옆·뒤 만들기도 이어받음 */
   }
   /* 로그아웃·로그인 만료: 기다리던 입히기는 이 화면에서 멈춘다(기기에 남은 기록 fit-gen-pending 은 그대로 두어 다시 로그인하면 6분 안이면 이어받음) */
-  function genStop() { genPending = null; angBusy = null; waitEnd(); ui.genErr = null; ui.pick = null; ui.slotsOpen = false; ui.buy = false; ui.fit = false; ui.fitSz = false; ui.itm = null; }
+  function genStop() { genPending = null; angBusy = null; waitEnd(); ui.genErr = null; ui.pick = null; ui.slotsOpen = false; ui.buy = false; ui.fit = false; ui.fitSz = false; ui.itm = null; ui.low = false; }
   /* ---------- 계정: 로그인한 뒤 서버 내용 받기 ---------- */
   function mediaAgain() { var uid = user && user.id; return loadMedia().then(function () { if (user && user.id === uid) { ui.mediaReady = true; syncDraw(); } }); }
   function pullBlobs() { Sync.blobSync(true).catch(function () {}); } /* 다 받으면 Sync.on 의 blobs 가 불린다 */
@@ -1691,6 +1691,9 @@
         (nt.warn ? '<button type="button" class="btn" data-act="wear">다시 입히기 · 1회 사용</button>' : '') +
         '<div class="row"><button type="button" class="btn ghost sm" data-act="fitOpen" aria-expanded="false">⌃ 핏 자세히</button><button type="button" class="btn ghost sm" data-act="buyOpen">구매하기</button></div>' +
         '<button type="button" class="lk" data-act="slotsOpen">옷 바꿔서 다시 입어보기</button><p class="ainote">' + AI_SHORT + '</p>';
+    } else if (ui.low && !wn) {
+      /* 옷 칸을 손가락으로 쓸어 내린 상태: 한 줄만 남기고 사진을 크게. 이 줄을 누르거나 위로 쓸면 다시 펼침 */
+      sheet = '<button type="button" class="fitx" style="margin-bottom:14px" data-act="lowOff" aria-expanded="false">⌃ 옷 고르기 펼치기</button>';
     } else {
       /* C1 옷 고르기 */
       sheet = slotsHtml() + dirsHtml(false) +
@@ -1815,7 +1818,7 @@
         kvHtml([['성별', p.gender === 'male' ? '남성' : '여성'], ['키', p.height, 'cm'], ['몸무게', p.weight, 'kg']].concat(MFIELDS.map(function (f) { return [f[1], m[f[0]], f[2]]; }))) +
         '<div class="callout">모르는 칸은 비우면 키·몸무게로 추정해요.</div>';
     }
-    return '<header class="top"><h1>내 정보</h1><span class="pill st">' + h(planNow().name) + ' 플랜</span></header><main class="body">' + seg + body +
+    return '<header class="top"><h1>내 정보</h1><div class="pills"><span class="pill st">' + h(planNow().name) + ' 플랜</span><button type="button" class="pill who" data-act="go" data-page="set" aria-label="설정 (계정 · 로그아웃 · 선호 핏)">⚙ 설정</button></div></header><main class="body">' + seg + body +
       '<div class="list"><button type="button" data-act="go" data-page="plan">요금제 <span>' + h(planNow().name) + ' · 남은 ' + leftText() + ' ›</span></button><button type="button" data-act="go" data-page="set">설정 <span>계정 · 선호 핏 ›</span></button><a href="privacy.html">개인정보 처리방침 <span>›</span></a></div></main>' + plusHtml() + tabsHtml();
   }
 
@@ -2375,7 +2378,8 @@
       ui.angle = v; render();
     },
     errClose: function () { ui.genErr = null; render(); },
-    slotsOpen: function () { ui.slotsOpen = true; ui.fit = false; ui.fitSz = false; render(); },
+    slotsOpen: function () { ui.slotsOpen = true; ui.low = false; ui.fit = false; ui.fitSz = false; render(); },
+    lowOff: function () { ui.low = false; render(); },
     /* C5 핏 서랍 열기·닫기·사이즈 비교 펼치기. 옷 탭(fitTab)·사이즈 바꾸기(size)는 아래 PC 코드 그대로 — 사이즈를 바꿔도 횟수는 쓰지 않고, 그림은 「다시 입히기」를 눌러야 바뀐다 */
     fitOpen: function () { ui.fit = true; ui.fitSz = false; render(); var d = app.querySelector('.fitd'); if (d) d.scrollTop = 0; },
     fitClose: function () { ui.fit = false; ui.fitSz = false; render(); },
@@ -2560,9 +2564,35 @@
     noop: function () {}
   };
   app.addEventListener('click', function (e) {
+    if (Date.now() - swAt < 400) return; /* 방금 쓸어서 칸을 움직였으면, 손을 뗀 자리의 버튼이 같이 눌리지 않게 */
     var el = e.target.closest('[data-act]');
     if (el && ACT[el.dataset.act]) ACT[el.dataset.act](el);
   });
+  /* 홈 아래 칸(손잡이 줄이 있는 칸)을 손가락으로 쓸기. 아래로: 핏 서랍이면 접고, 입은 모습이 있는데 옷 칸을 펼친 상태면 입은 모습으로, 옷 고르기면 한 줄로 내림. 위로: 내린 옷 칸을 다시 펼침.
+     칸 안에서 따로 넘겨 보는 곳(핏 내용·실패 이유)에서 시작한 쓸기는 그곳의 넘기기라 건드리지 않는다. 화면은 손을 뗄 때 한 번만 바뀐다(끌려오는 움직임 없음) */
+  var sw = null, swAt = 0;
+  function sheetSwipe(down) {
+    if (!user || !state || ui.page !== 'home' || ui.cf || ui.onb || ui.imp || ui.wait || genPending || ui.genErr || !state.closet.length) return false;
+    var wn = homePic().worn;
+    if (!down) { if (ui.low && !wn) { ui.low = false; render(); return true; } return false; }
+    if (wn && !ui.slotsOpen) { if (!ui.fit) return false; ACT.fitClose(); return true; }
+    if (wn) { ACT.slotsClose(); return true; }
+    if (ui.low) return false;
+    ui.low = true; render(); return true;
+  }
+  app.addEventListener('touchstart', function (e) {
+    sw = null; var t = e.touches, g = e.target;
+    if (t.length !== 1 || !g || !g.closest || !g.closest('.sheet') || g.closest('.fitd,.gerr p')) return;
+    sw = { x: t[0].clientX, y: t[0].clientY };
+  }, { passive: true });
+  app.addEventListener('touchend', function (e) {
+    var s = sw, t = e.changedTouches && e.changedTouches[0]; sw = null;
+    if (!s || !t || e.touches.length) return;
+    var dx = t.clientX - s.x, dy = t.clientY - s.y;
+    if (Math.abs(dy) < 40 || Math.abs(dy) < Math.abs(dx) * 1.5) return;
+    if (sheetSwipe(dy > 0)) swAt = Date.now();
+  }, { passive: true });
+  app.addEventListener('touchcancel', function () { sw = null; }, { passive: true });
   /* 자판의 「이동/완료」: 다음 빈 칸으로, 다 찼으면 그 창의 큰 버튼을 누른 것과 같게 */
   app.addEventListener('keydown', function (e) {
     if (e.key !== 'Enter' || e.isComposing || !e.target || e.target.tagName !== 'INPUT' || e.target.type === 'checkbox') return;
@@ -2596,7 +2626,7 @@
     if (/(^#|&)(access_token|error_code)=/.test(location.hash)) { location.reload(); return; } /* 앱이 열린 창에서 메일의 링크를 연 경우: 처음부터 다시 읽는다 */
     if (location.hash === '#add' && ui.cf) return;
     var drop = !!ui.cf; ui.cf = null;
-    var p = pageFromHash(); closeViewer(); if (p !== ui.page || drop) { ui.page = p; ui.plus = false; ui.meEdit = false; ui.pick = null; ui.buy = false; ui.fit = false; ui.fitSz = false; ui.itm = null; render(); }
+    var p = pageFromHash(); closeViewer(); if (p !== ui.page || drop) { ui.page = p; ui.plus = false; ui.meEdit = false; ui.pick = null; ui.buy = false; ui.fit = false; ui.fitSz = false; ui.itm = null; ui.low = false; render(); }
   });
   /* ▼ pc.js 3060~3073행 그대로 */
   /* 2026-11-10 다른 탭(검정·밝은 버전)이 같은 프로필을 저장하면 그 내용을 바로 다시 읽는다.
