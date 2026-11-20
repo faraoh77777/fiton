@@ -1203,8 +1203,8 @@
         });
       }
       if (j.status === 'failed') {
-        var why = String(j.error || '').slice(0, 200);
-        genFinish(id, false, '입은 모습을 만들지 못했어요.' + (why ? ' (사유: ' + why + ')' : ' 잠시 뒤 다시 시도해 주세요.'), why ? 15000 : 0);
+        var why = String(j.error || '').slice(0, 200), sbF = subNow(); if (sbF.used > 0) sbF.used--; save(); /* 2026-11-20 서버가 만들지 못했으면 사용자 잘못이 아니므로 횟수를 돌려준다 */
+        genFinish(id, false, '입은 모습을 만들지 못했어요. 횟수는 돌려 드렸어요.' + (why ? ' (사유: ' + why + ')' : ' 잠시 뒤 다시 시도해 주세요.'), why ? 15000 : 0);
         return;
       }
       setTimeout(function () { genPoll(id, taskId, t0); }, 4000);
@@ -1286,7 +1286,7 @@
         }).catch(function () { angDone(job, false, ANG_NAME[job.view] + ' 그림을 정리하지 못했어요. 다시 시도해 주세요.'); });
         return;
       }
-      if (j.status === 'failed') { var why2 = String(j.error || '').slice(0, 200); angDone(job, false, ANG_NAME[job.view] + '을 만들지 못했어요.' + (why2 ? ' (사유: ' + why2 + ')' : ' 잠시 뒤 다시 시도해 주세요.')); return; }
+      if (j.status === 'failed') { var why2 = String(j.error || '').slice(0, 200), sbF2 = subNow(); if (sbF2.used > 0) sbF2.used--; save(); angDone(job, false, ANG_NAME[job.view] + '을 만들지 못했어요. 횟수는 돌려 드렸어요.' + (why2 ? ' (사유: ' + why2 + ')' : ' 잠시 뒤 다시 시도해 주세요.')); return; }
       setTimeout(function () { angPoll(job, avB); }, 4000);
     }).catch(function () { setTimeout(function () { angPoll(job, avB); }, 6000); });
   }
@@ -1581,7 +1581,7 @@
   function viewOnbModel() {
     var cur = ui.onbBase || baseModel().id;
     return '<header class="top"><button type="button" class="back" data-act="onbBack">‹ 이전</button><span class="pill st">2 / 2</span></header><main class="body"><div class="steps" aria-hidden="true"><i class="on"></i><i class="on"></i></div><h1 class="h s">누구에게 입혀 볼까요?</h1>' +
-      '<div class="card col"><b style="font-size:16px">내 아바타</b><p class="p">방금 넣은 내 치수로 입어봐요. 아바타 사진이 없으면 기본 캐릭터 사진에 내 치수로 입혀 드려요.</p><div class="row"><button type="button" class="btn ghost sm" data-act="' + (window.AvatarMake ? 'avMake' : 'soon') + '">아바타 만들기</button><button type="button" class="btn sm" data-act="onbMe">내 치수로 시작</button></div></div>' +
+      '<div class="card col"><b style="font-size:16px">내 아바타</b><p class="p">방금 넣은 내 치수로 입어봐요. 아바타 사진이 없으면 기본 캐릭터 사진에 내 치수로 입혀 드려요.</p><div class="row"><button type="button" class="btn ghost sm" data-act="' + (window.AvatarMake ? 'avMake' : 'soon') + '">아바타 만들기</button><button type="button" class="btn sm" data-act="onbMe">사진 없이 시작</button></div></div>' +
       '<div class="sec"><h2 style="font-size:16px">기본 모델로 시작</h2><span>나중에 바꿀 수 있어요</span></div><p class="p">기본 모델은 그 모델의 치수로 입어봐요. 내 아바타와 내 치수는 바뀌지 않아요.</p>' + modelsHtml(cur, 'onbPick') + '</main>' +
       '<div class="foot"><button type="button" class="btn ghost" data-act="onbStart" data-id="' + h(cur) + '">이 모델로 시작</button></div>';
   }

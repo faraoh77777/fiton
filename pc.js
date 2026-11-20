@@ -1346,8 +1346,8 @@
         });
       }
       if (j.status === 'failed') {
-        var why = String(j.error || '').slice(0, 200);
-        genFinish(id, false, '입은 모습을 만들지 못했어요.' + (why ? ' (사유: ' + why + ')' : ' 잠시 뒤 다시 시도해 주세요.'), why ? 15000 : 0);
+        var why = String(j.error || '').slice(0, 200), sbF = subNow(); if (sbF.used > 0) sbF.used--; save(); /* 2026-11-20 서버가 만들지 못했으면 사용자 잘못이 아니므로 횟수를 돌려준다 */
+        genFinish(id, false, '입은 모습을 만들지 못했어요. 횟수는 돌려 드렸어요.' + (why ? ' (사유: ' + why + ')' : ' 잠시 뒤 다시 시도해 주세요.'), why ? 15000 : 0);
         return;
       }
       setTimeout(function () { genPoll(id, taskId, t0); }, 4000);
@@ -1429,7 +1429,7 @@
         }).catch(function () { angDone(job, false, ANG_NAME[job.view] + ' 그림을 정리하지 못했어요. 다시 시도해 주세요.'); });
         return;
       }
-      if (j.status === 'failed') { var why2 = String(j.error || '').slice(0, 200); angDone(job, false, ANG_NAME[job.view] + '을 만들지 못했어요.' + (why2 ? ' (사유: ' + why2 + ')' : ' 잠시 뒤 다시 시도해 주세요.')); return; }
+      if (j.status === 'failed') { var why2 = String(j.error || '').slice(0, 200), sbF2 = subNow(); if (sbF2.used > 0) sbF2.used--; save(); angDone(job, false, ANG_NAME[job.view] + '을 만들지 못했어요. 횟수는 돌려 드렸어요.' + (why2 ? ' (사유: ' + why2 + ')' : ' 잠시 뒤 다시 시도해 주세요.')); return; }
       setTimeout(function () { angPoll(job, avB); }, 4000);
     }).catch(function () { setTimeout(function () { angPoll(job, avB); }, 6000); });
   }
