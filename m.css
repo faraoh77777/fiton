@@ -331,3 +331,25 @@ button.lk{text-decoration:none}
 .fitd .szc dt{color:var(--muted)}
 .fitd .szc dd{margin:0;text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
 .fitd .szc dd.na{color:var(--muted);font-weight:500}
+/* 5단계: 옷장 카드 창(D1)·옷 고치기 삭제·기록 크게 보기 버튼(D3) */
+.pop.itm{gap:10px}
+.itmtop{display:flex;gap:12px;align-items:center}
+.itmtop .im{width:60px;height:80px;flex:none;border-radius:10px;overflow:hidden;background:var(--panel2);display:flex;align-items:center;justify-content:center}
+.itmtop .im img{width:100%;height:100%;object-fit:cover}
+.itmtop .im svg{width:32px;height:32px;fill:none;stroke:var(--line);stroke-width:1.5}
+.itmtop>div:last-child{min-width:0;display:flex;flex-direction:column;gap:4px}
+.itmtop b{font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.itmtop small{font-size:13px;color:var(--muted)}
+.pop.itm .pick{min-height:52px}
+.pick.del,.lk.del{color:var(--errText)}
+.vinfo .vacts{margin-top:8px}
+/* 6단계: 내 아바타 앞·옆·뒤 3장 */
+.avs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.avc{display:flex;flex-direction:column;gap:6px;min-width:0}
+.avim{display:block;width:100%;aspect-ratio:9/16;border-radius:12px;overflow:hidden;background:var(--panel2);padding:0}
+.avim img{width:100%;height:100%;object-fit:cover;object-position:50% 0}
+.avim.none{border:1px dashed var(--line);display:flex;align-items:center;justify-content:center;text-align:center;color:var(--muted);font-size:13px}
+.avc .btn.sm{padding:0 6px;font-size:14px}
+.avc .lk{min-height:44px;font-size:13px}
+/* 아바타 만들기 창(공통 avatar-make.js)의 얼굴 크기 막대를 휴대폰 손가락 크기로 */
+input[data-am-size]{height:44px}
