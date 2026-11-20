@@ -3072,8 +3072,223 @@
   });
   app.addEventListener('focusout', function () { if (syncDue) setTimeout(function () { if (syncDue) syncDraw(); }, 500); });
 
+  /* ---------- 2026-11-20 이메일 계정 로그인(모바일 m.html 과 같은 fit-sync.js) ----------
+     · 이 덩어리는 m.js 가 줄 번호로 옮겨 쓰는 구간(3073행까지) 뒤에 둔다 → 위쪽 줄 번호는 바뀌지 않는다.
+     · 위쪽 함수(save·blobPut·blobDel·render·viewSettings·ACT.logout)는 고치지 않고 여기서 감싼다(m.src.js 55~57행과 같은 방식).
+     · 계정 자료는 프로필 id 'acc_<계정 id>' 로 예전과 같은 자리에 저장. 닉네임+PIN 프로필은 첫 로그인 때 한 번 「가져오기」로만 쓴다.
+     · fit-sync.js 가 없거나 서버 설정이 없으면 예전 닉네임+PIN 화면 그대로. */
+  var Sync = window.FitSync, ACC = !!(Sync && Sync.enabled());
+  function acctUser() { var s = Sync.session(); return s ? { id: Sync.localId(), nick: String(s.email || '').split('@')[0] || '회원', email: s.email || '', acct: true } : null; }
+  function auBlank(mode, err) { return { mode: mode || 'login', err: err || '', busy: false, email: '', agree: false, note: '' }; }
+  if (ACC) {
+    ui.au = auBlank(); ui.imp = ''; ui.wait = '';
+    var save0 = save, blobPut0 = blobPut, blobDel0 = blobDel, render0 = render, viewSettings0 = viewSettings, logout0 = ACT.logout;
+    save = function () { save0(); if (user && user.acct) Sync.touch(); };
+    blobPut = function (k, v) { return blobPut0(k, v).then(function (r) { if (user && user.acct) Sync.blobUp(k); return r; }); };
+    blobDel = function (k) { return blobDel0(k).then(function (r) { if (user && user.acct) Sync.blobDel(k); return r; }); };
+    /* 로그인 전·자료 받는 중·예전 프로필 가져오기는 로그인 화면 틀(왼쪽 소개 + 오른쪽 상자)에 그린다 */
+    render = function () {
+      if (user && state && !ui.imp) return render0();
+      syncDue = false; app.className = ''; app.innerHTML = viewAcct();
+      var f = app.querySelector('.lbox [autofocus]') || (ui.au.err && app.querySelector('.lbox .in.bad input'));
+      if (f && f.focus) try { f.focus(); } catch (e) {}
+    };
+    viewSettings = function () {
+      var st = Sync.pending() ? '아직 서버에 올리지 못한 내용이 있어요. 인터넷에 연결되면 올려요.' : '로그인한 계정 · 서버에 저장됨';
+      return viewSettings0().replace('<b>' + h(user.nick) + ' 님</b><small>이 브라우저에 저장된 프로필</small>', '<b class="acmail">' + h(user.email || user.nick) + '</b><small>' + st + '</small>')
+        .replace('data-act="logout">프로필 바꾸기</button>', 'data-act="logout">로그아웃</button>' +
+          /* 이 브라우저에 예전 닉네임+PIN 프로필이 남아 있으면 언제든 가져올 수 있게(휴대폰에서 먼저 가입한 계정은 첫 로그인 때 「가져올까요?」가 안 나온다) */
+          (Core.readUsers().length ? '<button type="button" class="obtn" data-act="impOpen">예전 프로필 가져오기</button>' : ''));
+    };
+    /* 로그인 화면·자료 받는 중에는 그림 붙여넣기를 앱(옷 넣기)으로 넘기지 않는다. 글자 붙여넣기는 그대로 */
+    document.addEventListener('paste', function (e) { if (!user || !state || ui.imp) e.stopImmediatePropagation(); }, true);
+  }
+  var AU_TITLE = { login: '로그인', signup: '회원가입', reset: '비밀번호 다시 정하기', sent: '메일을 보냈어요', newpw: '새 비밀번호' };
+  function auPw(id, label, ac) { return '<label for="' + id + '">' + label + '<span class="in"><input type="password" id="' + id + '" autocomplete="' + ac + '" maxlength="72"></span></label>'; }
+  function auBody() {
+    var a = ui.au, m = a.mode;
+    var mail = '<label for="auemail">이메일<span class="in"><input type="email" id="auemail" autocomplete="' + (m === 'signup' ? 'email' : 'username') + '" autocapitalize="off" spellcheck="false" placeholder="name@example.com" maxlength="120" value="' + h(a.email) + '"' + (a.email ? '' : ' autofocus') + '></span></label>';
+    var err = '<div class="err" id="auerr" role="alert">' + h(a.err) + '</div>';
+    var sw = function (to, q, t) { return '<button type="button" class="aulk" data-act="auOpen" data-v="' + to + '">' + q + ' <b>' + t + '</b></button>'; };
+    var head = '<h1>' + AU_TITLE[m] + '</h1>';
+    if (m === 'signup') return head + '<p class="sub">휴대폰과 같은 계정으로 옷장·기록·아바타를 같이 써요.</p>' + mail + auPw('aupw', '비밀번호 (8자 이상)', 'new-password') + auPw('aupw2', '비밀번호 한 번 더', 'new-password') +
+      '<label class="auchk"><input type="checkbox" id="auagree"' + (a.agree ? ' checked' : '') + '><span><a href="privacy.html" target="_blank" rel="noopener">개인정보 처리방침</a>에 동의해요 (꼭)</span></label>' + err +
+      '<button type="button" class="new" id="aubtn" data-act="auSignup">가입하고 시작하기</button>' + sw('login', '이미 회원이신가요?', '로그인');
+    if (m === 'reset') return head + '<p class="sub">가입한 이메일로 비밀번호를 다시 정하는 링크를 보내 드려요.</p>' + mail + err +
+      '<button type="button" class="new" id="aubtn" data-act="auReset">메일 보내기</button>' + sw('login', '비밀번호가 생각났나요?', '로그인');
+    if (m === 'sent') return head + '<p class="sub">' + h(a.note) + '</p><button type="button" class="new" data-act="auOpen" data-v="login">로그인으로</button>';
+    if (m === 'newpw') return head + '<p class="sub">새로 쓸 비밀번호를 넣어 주세요.</p>' + auPw('aupw', '새 비밀번호 (8자 이상)', 'new-password') + auPw('aupw2', '새 비밀번호 한 번 더', 'new-password') + err +
+      '<button type="button" class="new" id="aubtn" data-act="auNewPw">비밀번호 바꾸기</button>';
+    return head + '<p class="sub">휴대폰에서 가입한 계정으로도 로그인할 수 있어요.</p>' + mail + auPw('aupw', '비밀번호', 'current-password') + err +
+      '<button type="button" class="new" id="aubtn" data-act="auLogin">로그인</button>' + sw('reset', '비밀번호를 잊으셨나요?', '다시 정하기') + sw('signup', '처음이신가요?', '회원가입');
+  }
+  function impBody() {
+    var lg = ui.lg;
+    if (ui.imp === 'pin') {
+      var u = Core.userById(lg.id);
+      return '<h1>PIN 입력</h1><div style="display:flex;align-items:center;gap:12px">' + (u ? dot(u) + '<b style="font-size:20px">' + h(u.nick) + '</b>' : '') + '</div><label>PIN 4자리<input type="password" id="lgpin" inputmode="numeric" maxlength="4" autocomplete="off" autofocus></label>' +
+        '<p class="sub">그 프로필을 만들 때 정한 PIN이에요. 5번 틀리면 30초 동안 잠깁니다.</p><div class="err" id="lgerr">' + h(lg.err) + '</div><button type="button" class="new" data-act="impGo">가져오기</button><button type="button" class="btn" data-act="impBack">뒤로</button>';
+    }
+    return '<h1>이 브라우저에 있던 자료를 가져올까요?</h1><p class="sub">예전에 만든 프로필이 있어요. 고르면 그 프로필의 치수·아바타·옷장·기록을 내 계정에 옮겨 담아요. 원래 프로필은 그대로 남아요.</p>' +
+      (state ? '<p class="sub auwarn">지금 계정에 있는 치수·옷장·기록은 고른 프로필의 내용으로 바뀌어요(휴대폰에서도 바뀝니다).</p>' : '') + '<div class="ulist">' +
+      Core.readUsers().map(function (u) { return '<button type="button" class="ubtn" data-act="impPick" data-id="' + h(u.id) + '">' + dot(u) + h(u.nick) + '</button>'; }).join('') + '</div>' +
+      '<button type="button" class="btn" data-act="impSkip">' + (state ? '가져오지 않고 돌아가기' : '가져오지 않고 새로 시작') + '</button>';
+  }
+  function viewAcct() {
+    var st0 = FD.styles[0], body = ui.wait ? '<h1>' + h(ui.wait) + '</h1><p class="sub">잠시만 기다려 주세요.</p>' : ui.imp ? impBody() : auBody();
+    return '<div class="login acct"><section class="lintro" aria-label="FITON 소개"><div class="logo">' + LOGO_MARK + '</div><div class="lpics"><img src="assets/avatar_default.jpg" alt="기본 캐릭터 전신">' +
+      (st0 && st0.modelImage ? '<img src="' + h(st0.modelImage) + '" alt="' + h(st0.title) + ' 입은 모습">' : '') + '</div><p class="lsay">쇼츠에서 본 스타일, <em>바로 입어보기</em></p></section>' +
+      '<main class="lmain"><div class="lbox"' + (ui.wait ? ' aria-busy="true"' : '') + '><div class="logo lblogo">' + LOGO_MARK + '</div>' + body + '</div></main></div>';
+  }
+  function auErr(msg, id) {
+    ui.au.err = msg; var e = document.getElementById('auerr'); if (e) e.textContent = msg;
+    Array.prototype.forEach.call(app.querySelectorAll('.lbox .in'), function (x) { x.classList.remove('bad'); });
+    var f = id && document.getElementById(id); if (f) { var box = f.closest('.in'); if (box) box.classList.add('bad'); if (f.focus) f.focus(); }
+    return false;
+  }
+  function auBusy(on) { ui.au.busy = on; var b = document.getElementById('aubtn'); if (b) { if (on) { b.dataset.t = b.textContent; b.textContent = '잠시만요…'; b.disabled = true; } else { b.textContent = b.dataset.t || b.textContent; b.disabled = false; } } }
+  var MAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  function auMail() { var em = val('auemail').trim(); ui.au.email = em; if (!em) return auErr('이메일을 넣어 주세요', 'auemail'); if (!MAIL_RE.test(em)) return auErr('이메일 주소를 확인해 주세요', 'auemail'); return em; }
+  function auNewPass() {
+    var pw = val('aupw'), pw2 = val('aupw2');
+    if (pw.length < 8) return auErr('비밀번호는 8자 이상으로 정해 주세요', 'aupw');
+    if (pw !== pw2) return auErr('비밀번호 두 칸이 서로 달라요', 'aupw2');
+    return pw;
+  }
+  function accStop() { genPending = null; angBusy = null; ui.genErr = null; waitEnd(); pendClear(); clearUrls(); }
+  function mediaAgain() { var uid = user && user.id; return loadMedia().then(function () { if (user && user.id === uid) { ui.view = curView(); syncDraw(); } }); }
+  function pullBlobs() { Sync.blobSync(true).catch(function () {}); } /* 다 받으면 Sync.on 의 blobs 가 불린다 */
+  /* 처음 쓰는 계정: 치수 화면부터(예전 lgCreate 처럼 새 내용. 저장은 치수를 넣은 뒤에) */
+  function acctFresh() { state = blankState(); state.kindV = 2; ui.page = 'body'; ui.bodyTab = 'me'; /* 치수 칸이 있는 「내 아바타」 탭으로 */ try { location.hash = '#body'; } catch (e) {} enterApp(); toast('먼저 내 몸 정보를 넣어 주세요. 사이즈 추천에 써요.', 5000); }
+  /* 로그인·가입 직후: 먼저 서버 내용을 받고(받기 전에는 저장하지 않는다) → 서버에 내용이 있으면 바로 앱, 없으면 가져오기 또는 치수 화면 */
+  function afterAuth() {
+    user = acctUser(); if (!user) return;
+    ui.au = auBlank(); ui.wait = '내 자료를 불러오는 중…'; ui.imp = ''; state = null; render();
+    Sync.pull().then(function (r) {
+      if (!user) return;
+      ui.wait = '';
+      if (r.empty && !Sync.hasLocal()) {
+        if (Core.readUsers().length) { ui.imp = 'ask'; render(); return; }
+        acctFresh(); return;
+      }
+      state = load(); enterApp(); pullBlobs();
+    }, function (e) {
+      if (!user) return;
+      Sync.signOut(); user = null; state = null; ui.wait = '';
+      ui.au = auBlank('login', (e && e.message) || '내 자료를 불러오지 못했어요. 다시 로그인해 주세요'); render();
+    });
+  }
+  if (ACC) {
+    Object.assign(ACT, {
+      /* 로그아웃: 아직 못 올린 내용이 있으면 먼저 올리고(최대 6초) 나간다. 이 브라우저에 저장된 자료는 지우지 않는다 */
+      logout: function () {
+        if (!user || !user.acct) return logout0();
+        if (genPending && !confirm('입은 모습을 만드는 중이에요. 로그아웃하면 이 화면에서는 결과를 받지 못해요. 계속할까요?')) return;
+        var done = function () {
+          if (!user) return;
+          Sync.signOut(); accStop(); user = null; state = null; ui.imp = ''; ui.wait = ''; ui.au = auBlank(); render();
+        };
+        if (!Sync.pending()) return done();
+        toast('저장한 내용을 서버에 올리는 중…', 2500);
+        Promise.race([Sync.flush().then(function () { return Sync.blobSync(false); }).catch(function () {}), new Promise(function (r) { setTimeout(r, 6000); })]).then(done);
+      },
+      auOpen: function (el) { var a = ui.au, em = val('auemail').trim(); if (a.busy) return; a.mode = el.dataset.v; a.err = ''; if (em) a.email = em; render(); },
+      auSignup: function () {
+        if (ui.au.busy) return;
+        var em = auMail(); if (!em) return; var pw = auNewPass(); if (!pw) return;
+        var ag = document.getElementById('auagree'); ui.au.agree = !!(ag && ag.checked);
+        if (!ui.au.agree) return auErr('개인정보 처리방침에 동의해 주세요');
+        auErr(''); auBusy(true);
+        Sync.signUp(em, pw).then(function (r) {
+          auBusy(false);
+          if (!r.ok) return auErr(r.err);
+          if (r.confirm) { ui.au.mode = 'sent'; ui.au.err = ''; ui.au.note = em + ' 으로 가입 확인 메일을 보냈어요. 메일의 링크를 누른 뒤 로그인해 주세요.'; render(); return; }
+          afterAuth();
+        });
+      },
+      auLogin: function () {
+        if (ui.au.busy) return;
+        var em = auMail(); if (!em) return; var pw = val('aupw'); if (!pw) return auErr('비밀번호를 넣어 주세요', 'aupw');
+        auErr(''); auBusy(true);
+        Sync.signIn(em, pw).then(function (r) { auBusy(false); if (!r.ok) return auErr(r.err, 'aupw'); afterAuth(); });
+      },
+      auReset: function () {
+        if (ui.au.busy) return;
+        var em = auMail(); if (!em) return;
+        auErr(''); auBusy(true);
+        Sync.recover(em, location.origin + location.pathname).then(function (r) {
+          auBusy(false);
+          if (!r.ok) return auErr(r.err);
+          ui.au.mode = 'sent'; ui.au.err = ''; ui.au.note = em + ' 으로 비밀번호를 다시 정하는 링크를 보냈어요. 가입한 이메일일 때만 메일이 가요. 메일이 안 보이면 스팸함도 확인해 주세요.'; render();
+        });
+      },
+      auNewPw: function () {
+        if (ui.au.busy) return;
+        var pw = auNewPass(); if (!pw) return;
+        auErr(''); auBusy(true);
+        Sync.setPassword(pw).then(function (r) { auBusy(false); if (!r.ok) return auErr(r.err); toast('비밀번호를 바꿨어요.', 2500); afterAuth(); });
+      },
+      /* 이 브라우저에 있던 닉네임+PIN 프로필 자료 가져오기(첫 로그인 때 한 번). 원래 프로필은 지우지 않는다 */
+      impPick: function (el) { ui.imp = 'pin'; ui.lg = { mode: 'pin', id: el.dataset.id, err: '', fails: ui.lg.fails || 0, until: ui.lg.until || 0 }; render(); },
+      impBack: function () { ui.imp = 'ask'; ui.lg.err = ''; render(); },
+      impSkip: function () { ui.imp = ''; if (state) render(); else acctFresh(); },
+      /* 설정에서 다시 열기: 이미 자료가 있는 계정이므로 덮어쓴다는 것을 화면에 적고, 가져오기 직전에 한 번 더 묻는다 */
+      impOpen: function () { if (!user || !user.acct || !Core.readUsers().length) return; if (genPending || angBusy) { toast('입은 모습을 만드는 중에는 가져올 수 없어요. 끝난 뒤 다시 눌러 주세요.', 4000); return; } ui.imp = 'ask'; ui.lg.err = ''; render(); },
+      impGo: function () {
+        var u = Core.userById(ui.lg.id); if (!u) { ACT.impBack(); return; }
+        if (!checkPin(u)) return;
+        if (state && !confirm('지금 계정의 치수·옷장·기록이 ' + u.nick + ' 프로필의 내용으로 바뀌어요. 계속할까요?')) return;
+        ui.wait = '가져오는 중…'; render();
+        Sync.importLocal(u.id).then(function (n) {
+          ui.wait = ''; ui.imp = ''; state = load(); save(); enterApp();
+          toast(u.nick + ' 프로필의 자료를 가져왔어요.' + (n ? ' 사진 ' + n + '장은 서버에 올리는 중이에요.' : ''), 4000);
+        }, function (e) { ui.wait = ''; ui.lg.err = (e && e.message) || '가져오지 못했어요.'; render(); });
+      }
+    });
+    /* 로그인 상자에서 Enter = 그 상자의 버튼 */
+    app.addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter' || !e.target.id) return;
+      if (/^au(email|pw|pw2)$/.test(e.target.id)) { var b = document.getElementById('aubtn'); if (b && !b.disabled) { e.preventDefault(); b.click(); } }
+      else if (e.target.id === 'lgpin' && ui.imp === 'pin') { e.preventDefault(); ACT.impGo(); }
+    });
+    Sync.on({
+      expire: function () { if (!user) return; accStop(); user = null; state = null; ui.imp = ''; ui.wait = ''; ui.au = auBlank('login', '다시 로그인해 주세요'); render(); },
+      blobs: function () { mediaAgain(); } /* 서버에서 사진을 받으면 화면에 반영 */
+    });
+    /* PC 는 창을 오래 켜 두므로, 창으로 돌아올 때마다 서버를 먼저 확인한다(휴대폰에서 고친 더 새 내용이 있으면 받아서 다시 그림).
+       이 창에서 저장하고 아직 못 올린 내용이 더 새로우면 fit-sync 가 받지 않고 그대로 올린다. 30초에 한 번까지 */
+    var backT = 0;
+    var comeBack = function () {
+      if (document.visibilityState !== 'visible' || !user || !user.acct || !state || Date.now() - backT < 30000) return;
+      backT = Date.now();
+      Sync.pull().then(function (r) { if (!user || !user.acct || !state) return; if (r.applied) { state = load(); mediaAgain(); } pullBlobs(); }, function () {});
+    };
+    document.addEventListener('visibilitychange', comeBack); window.addEventListener('focus', comeBack);
+  }
+
   /* ---------- 시작 ---------- */
   ui.cf = blankForm('outer'); ui.af = blankAcc();
-  if (user) { state = load(); ui.view = curView(); render(); loadMedia().then(function () { ui.view = curView(); render(); genResume(); angResume(); }); }
-  else render();
+  function bootOld() {
+    if (user) { state = load(); ui.view = curView(); render(); loadMedia().then(function () { ui.view = curView(); render(); genResume(); angResume(); }); }
+    else render();
+  }
+  function bootAcc() {
+    user = acctUser();
+    if (user && Sync.hasLocal()) {
+      /* 이 브라우저에 내 자료가 있으면 바로 열고, 뒤에서 서버와 맞춘다(다른 기기에서 고친 것이 더 새로우면 그 내용으로) */
+      backT = Date.now(); bootOld();
+      Sync.pull().then(function (r) { if (!user) return; if (r.applied) { state = load(); mediaAgain(); } pullBlobs(); }, function () {});
+    } else if (user) afterAuth(); /* 로그인은 되어 있는데 이 브라우저에 자료가 없으면 서버에서 먼저 받는다 */
+    else render();
+  }
+  if (!ACC) bootOld();
+  else if (/(^#|&)(access_token|error_code)=/.test(location.hash)) {
+    /* 메일의 링크(비밀번호 다시 정하기·가입 확인)로 들어온 경우 */
+    user = null;
+    Sync.fromLink().then(function (r) {
+      if (r && !r.err && r.type === 'recovery') { ui.au = auBlank('newpw'); render(); return; }
+      if (r && r.err && !Sync.session()) ui.au = auBlank('login', r.err);
+      bootAcc();
+    });
+  } else bootAcc();
 })();

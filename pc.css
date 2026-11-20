@@ -1310,3 +1310,17 @@ button{font-size:14px}
 .pg-body .fxBody .avbtns>label.btn{font-size:13px !important;padding:0 6px}
 .pg-body .fxBody .avbtns>.lk{flex:0 0 auto;font-size:13px;padding:0 8px}
 }
+
+/* 2026-11-20 이메일 계정 로그인(pc.js 맨 끝 덩어리). 상자·버튼은 예전 로그인(.lbox .new/.btn) 그대로 */
+.acct .lbox .in{display:flex;border-radius:12px}
+.acct .lbox .in>input{flex:1;min-width:0}
+.acct .lbox .in.bad>input{border-color:var(--errText);outline:1px solid var(--errText)}
+.acct .lbox .auchk{flex-direction:row;align-items:center;gap:10px;min-height:44px;font-weight:500;color:var(--fg)}
+.acct .lbox .auchk>input{width:20px;height:20px;min-height:0;flex:0 0 auto;accent-color:var(--pri)}
+.acct .lbox .auchk a{color:var(--pri);text-decoration:underline}
+.acct .lbox .aulk{background:none;border:0;color:var(--muted);font-size:14px;min-height:40px;padding:0;text-align:left;cursor:pointer}
+.acct .lbox .aulk b{color:var(--fg);text-decoration:underline}
+.acct .lbox .aulk:hover b{color:var(--pri)}
+.acct .lbox .err:empty{min-height:0}
+.setprof .acmail{overflow-wrap:anywhere}
+.acct .lbox .auwarn{color:var(--warnText)}
