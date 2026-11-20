@@ -7,10 +7,10 @@
      입히기·결과 정리(얼굴 되돌리기·아바타 모습 비교·옷만 합치기·배경)는 pc.js 의 wearAll·genPoll 을 그대로 쓰고, 화면 쪽(대기·완료·실패 표시)만 모바일로 새로 짰다(waitStart·waitEnd·genFinish).
    · 2026-11-20 4단계(2차): C4 의 「핏 자세히」 → 핏 서랍(C5). 판정·부위별 등급·사이즈 비교는 PC 피팅룸 핏 칸(viewFitting)의 계산·문구를 그대로 쓰고, 서랍 모양만 모바일로(fitSheet).
    · 2026-11-20 4단계(3차): 옆·뒷모습. C1 방향 버튼 = 만들 방향(PC genViews, 방향마다 1회), C4 방향 버튼 = 만든 그림 보기. 만들기는 PC wearAll·angNext 그대로.
-   · 2026-11-20 5단계: 옷장 카드를 누르면 「입어보기 · 고치기 · 구매 · 지우기」(목업 D1), 기록 크게 보기에 「다시 입기 · 지우기 · 구매하기」(목업 D3).
+   · 2026-11-20 5단계: 옷장 카드를 누르면 「입어보기 · 고치기 · 구매 · 지우기」(목업 D1), 기록 크게 보기에 「홈에서 보기 · 지우기 · 구매하기」(7단계에 「다시 입기」→「홈에서 보기」, PC 「피팅룸에서 보기」에 맞춤)(목업 D3).
      고치기는 「옷 확인」 화면을 PC editItem(cfLoad)·cfSave 그대로 써서 고치고, 지우기는 PC delItem·histDel·dropTryon 그대로(사진·입은 모습 함께 지움).
    · 2026-11-20 6단계: 내 아바타 = PC 와 같은 앞·옆·뒤 사진 올리기·지우기(normAvatar 표준 틀·avSetup 배경색) + 아바타 만들기(PC 와 같은 avatar-make.js 창, avMake 그대로).
-   · 아직 안 하는 것: 액세서리(사용자 지시로 끔, PC 도 tryon-config acc:false)·기록 날짜별 묶기(저장된 기록에 날짜가 없음). 그 버튼들은 「다음 단계에서 연결돼요」 안내만 띄운다. */
+   · 아직 안 하는 것: 액세서리(사용자 지시로 끔, PC 도 tryon-config acc:false)·기록 날짜별 묶기(사용자 지시로 뺌). 그 버튼들은 「다음 단계에서 연결돼요」 안내만 띄운다. */
 (function () {
   'use strict';
 
@@ -190,6 +190,9 @@
   }
   /* ▲ */
   /* 기기에 저장할 때마다 서버에도 올리도록 위의 save·blobPut·blobDel 에 한 줄씩 덧붙인다(기기 저장 방식은 그대로) */
+  /* 7단계: 알림 글을 짧은 사이에 두 번 띄우면 같은 자리에 겹쳐 보여(PC toast 는 새 상자를 계속 만듦) 휴대폰에서는 앞 알림을 지우고 새 알림만 보인다 */
+  var toast0 = toast;
+  toast = function (msg, ms) { Array.prototype.forEach.call(document.querySelectorAll('.toast'), function (t) { t.remove(); }); toast0(msg, ms); };
   var save0 = save, blobPut0 = blobPut, blobDel0 = blobDel;
   save = function () { save0(); if (user && user.acct) Sync.touch(); };
   blobPut = function (k, v) { return blobPut0(k, v).then(function (r) { if (user && user.acct) Sync.blobUp(k); return r; }); };
@@ -1657,8 +1660,11 @@
       (rc ? '<p class="note">추천 사이즈: <b>' + h(rc) + '</b> (핏 스타일 ' + h(pref) + ' 기준)</p>' : '') +
       '<div class="row"><button type="button" class="btn ghost sm" data-act="fitSz" aria-expanded="' + !!ui.fitSz + '">' + (ui.fitSz ? '사이즈 비교 닫기' : '다른 사이즈로 보기') + '</button><button type="button" class="btn sm" data-act="buyOpen">구매하기</button></div>' +
       (ui.fitSz ? (szCards ? '<p class="note">누르면 그 사이즈로 바뀌어요. 그림은 다시 입혀야 바뀌어요.</p><div class="szrow">' + szCards + '</div>' : '<p class="note">이 옷은 사이즈 표가 없어요.</p>') : '') +
-      '<p class="note">추정 결과이며 실제 착용감을 보장하지 않습니다.</p>';
+      '<p class="note">' + AI_NOTE + '</p>';
   }
+  /* 7단계 사용자 지시: AI 옷 입기는 참고용이라는 안내. C4 입은 모습에 짧은 한 줄, 핏 서랍 맨 아래에 전체 문구(PC 「추정 결과이며 실제 착용감을 보장하지 않습니다」 대신) */
+  var AI_SHORT = 'AI로 만든 그림이라 참고용이에요. 실제 옷과 다를 수 있어요.';
+  var AI_NOTE = 'FITON의 AI 옷 입기는 AI로 만든 그림이라 참고용이에요. 실제 옷의 색·핏·길이·질감과 다를 수 있어요. 사이즈 추천은 입력한 치수와 옷 실측표로 계산한 추정이라 착용감을 보장하지 않아요. 구매 전에 쇼핑몰의 상품 정보를 꼭 확인해 주세요.';
   function viewHome() {
     var w = who(), hp = homePic(), pic = hp.url, n = state.closet.length, set = wearSet(), wn = hp.worn, sheet;
     var leftSay = unlimited() ? '이번 달 남은 횟수 제한 없음(시험 중)' : '이번 달 남은 횟수 ' + planNow().limit + '회 중 ' + tryLeft() + '회'; /* pc.js 1577행과 같은 문구 */
@@ -1684,7 +1690,7 @@
       sheet = dirsHtml(true, wn) + (angBusy ? '<p class="wline" role="status">' + h(ANG_NAME[angBusy.view]) + '을 만들고 있어요. 보통 1~2분, 다 되면 알려 드려요.</p>' : '') + '<p class="wline' + (nt.warn ? ' warn' : '') + '">' + h(nt.t) + '</p>' +
         (nt.warn ? '<button type="button" class="btn" data-act="wear">다시 입히기 · 1회 사용</button>' : '') +
         '<div class="row"><button type="button" class="btn ghost sm" data-act="fitOpen" aria-expanded="false">⌃ 핏 자세히</button><button type="button" class="btn ghost sm" data-act="buyOpen">구매하기</button></div>' +
-        '<button type="button" class="lk" data-act="slotsOpen">옷 바꿔서 다시 입어보기</button>';
+        '<button type="button" class="lk" data-act="slotsOpen">옷 바꿔서 다시 입어보기</button><p class="ainote">' + AI_SHORT + '</p>';
     } else {
       /* C1 옷 고르기 */
       sheet = slotsHtml() + dirsHtml(false) +
@@ -1766,7 +1772,7 @@
 
   /* 기록 크게 보기(D3) 아래 버튼. wear = pc.js 2950행 histShow 와 같은 옷 고르기(횟수 안 씀, 그 입은 모습을 홈에 보임) — PC 는 피팅룸으로 가므로 홈으로 가게 손으로 씀.
      del = PC histDel 그대로(묻고 지움) · buy = 그 기록의 옷 구매 링크 창 */
-  var VACTS = '<div class="row vacts"><button type="button" class="btn ghost sm" data-v="a:wear">다시 입기</button><button type="button" class="btn ghost sm" data-v="a:del">지우기</button><button type="button" class="btn sm" data-v="a:buy">구매하기</button></div>';
+  var VACTS = '<div class="row vacts"><button type="button" class="btn ghost sm" data-v="a:wear">홈에서 보기</button><button type="button" class="btn ghost sm" data-v="a:del">지우기</button><button type="button" class="btn sm" data-v="a:buy">구매하기</button></div>';
   function histAct(v, e) {
     var key = e.key;
     if (v === 'del') { var n = histList().length; ACT.histDel({ dataset: { id: key } }); return histList().length < n ? 'drop' : ''; }

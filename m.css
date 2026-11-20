@@ -353,3 +353,5 @@ button.lk{text-decoration:none}
 .avc .lk{min-height:44px;font-size:13px}
 /* 아바타 만들기 창(공통 avatar-make.js)의 얼굴 크기 막대를 휴대폰 손가락 크기로 */
 input[data-am-size]{height:44px}
+/* 7단계: AI 참고용 안내 한 줄(입은 모습) */
+.sheet .ainote{font-size:13px;color:var(--muted);text-align:center;line-height:1.5;margin-top:-6px}
