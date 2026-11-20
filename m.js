@@ -1684,6 +1684,9 @@
       sheet = '<button type="button" class="fitx" data-act="fitClose" aria-expanded="true">⌄ 핏 접기</button><p class="wline' + (nt5.warn ? ' warn' : '') + '">' + h(nt5.t) + '</p>' +
         (nt5.warn ? '<button type="button" class="btn" data-act="wear">다시 입히기 · 1회 사용</button>' : '') +
         '<div class="fitd" role="region" aria-label="핏 결과">' + fitSheet() + '</div>';
+    } else if (wn && !ui.slotsOpen && ui.low) {
+      /* 입은 모습 칸을 손가락으로 쓸어 내린 상태: 한 줄만 남기고 사진을 크게. 이 줄을 누르거나 위로 쓸면 다시 펼침 */
+      sheet = '<button type="button" class="fitx" style="margin-bottom:14px" data-act="lowOff" aria-expanded="false">⌃ 펼치기</button>';
     } else if (wn && !ui.slotsOpen) {
       /* C4 입은 모습: 서랍은 한 줄 */
       var nt = wornNote(wn, set);
@@ -2381,7 +2384,7 @@
     slotsOpen: function () { ui.slotsOpen = true; ui.low = false; ui.fit = false; ui.fitSz = false; render(); },
     lowOff: function () { ui.low = false; render(); },
     /* C5 핏 서랍 열기·닫기·사이즈 비교 펼치기. 옷 탭(fitTab)·사이즈 바꾸기(size)는 아래 PC 코드 그대로 — 사이즈를 바꿔도 횟수는 쓰지 않고, 그림은 「다시 입히기」를 눌러야 바뀐다 */
-    fitOpen: function () { ui.fit = true; ui.fitSz = false; render(); var d = app.querySelector('.fitd'); if (d) d.scrollTop = 0; },
+    fitOpen: function () { ui.fit = true; ui.low = false; ui.fitSz = false; render(); var d = app.querySelector('.fitd'); if (d) d.scrollTop = 0; },
     fitClose: function () { ui.fit = false; ui.fitSz = false; render(); },
     fitSz: function () { ui.fitSz = !ui.fitSz; render(); },
   /* ▼ pc.js 2767행 그대로 */
@@ -2574,25 +2577,33 @@
   function sheetSwipe(down) {
     if (!user || !state || ui.page !== 'home' || ui.cf || ui.onb || ui.imp || ui.wait || genPending || ui.genErr || !state.closet.length) return false;
     var wn = homePic().worn;
-    if (!down) { if (ui.low && !wn) { ui.low = false; render(); return true; } return false; }
-    if (wn && !ui.slotsOpen) { if (!ui.fit) return false; ACT.fitClose(); return true; }
+    if (!down) { if (ui.low && !(wn && ui.slotsOpen)) { ui.low = false; render(); return true; } return false; }
+    if (wn && !ui.slotsOpen) { if (ui.fit) { ACT.fitClose(); return true; } if (ui.low) return false; ui.low = true; render(); return true; }
     if (wn) { ACT.slotsClose(); return true; }
     if (ui.low) return false;
     ui.low = true; render(); return true;
   }
-  app.addEventListener('touchstart', function (e) {
-    sw = null; var t = e.touches, g = e.target;
-    if (t.length !== 1 || !g || !g.closest || !g.closest('.sheet') || g.closest('.fitd,.gerr p')) return;
+  /* 알림 글(.toast)은 body 에 붙어 칸 위를 덮는다. 알림 위에서 시작했어도 그 자리가 칸 안이면 칸을 쓴 것으로 본다 → 그래서 document 에서 듣는다 */
+  function inSheet(g, x, y) {
+    if (!g || !g.closest) return false;
+    if (g.closest('.sheet')) return !g.closest('.fitd,.gerr p');
+    if (!g.closest('.toast')) return false;
+    var sh = app.querySelector('.sheet'), r = sh && sh.getBoundingClientRect();
+    return !!r && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  }
+  document.addEventListener('touchstart', function (e) {
+    sw = null; var t = e.touches;
+    if (t.length !== 1 || !inSheet(e.target, t[0].clientX, t[0].clientY)) return;
     sw = { x: t[0].clientX, y: t[0].clientY };
   }, { passive: true });
-  app.addEventListener('touchend', function (e) {
+  document.addEventListener('touchend', function (e) {
     var s = sw, t = e.changedTouches && e.changedTouches[0]; sw = null;
     if (!s || !t || e.touches.length) return;
     var dx = t.clientX - s.x, dy = t.clientY - s.y;
     if (Math.abs(dy) < 40 || Math.abs(dy) < Math.abs(dx) * 1.5) return;
     if (sheetSwipe(dy > 0)) swAt = Date.now();
   }, { passive: true });
-  app.addEventListener('touchcancel', function () { sw = null; }, { passive: true });
+  document.addEventListener('touchcancel', function () { sw = null; }, { passive: true });
   /* 자판의 「이동/완료」: 다음 빈 칸으로, 다 찼으면 그 창의 큰 버튼을 누른 것과 같게 */
   app.addEventListener('keydown', function (e) {
     if (e.key !== 'Enter' || e.isComposing || !e.target || e.target.tagName !== 'INPUT' || e.target.type === 'checkbox') return;
