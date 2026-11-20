@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ko" data-skin="black">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>FITON — 옷 사진 하나로 바로 입어보기</title>
+<meta name="theme-color" content="#0E0F11">
+<link rel="icon" href="assets/icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap">
+<link rel="stylesheet" href="m.css?v=20261120a">
+<!-- 모바일은 지금 블랙만. skin.js 는 pc-*.html 파일 이름·pc.css 를 기준으로 동작해 여기서는 읽지 않는다(화면 색 고르기 없음) -->
+</head>
+<body>
+<div id="app"></div>
+<!-- 1~2단계에 쓰는 공통 파일만(?v= 값은 pc-black.html 과 같게). 입히기·사이즈 읽기·아바타 만들기 파일은 그 기능을 연결하는 단계에서 추가 -->
+<script src="fit-core.js?v=20261111b"></script>
+<script src="fit-config.js?v=20261105a"></script>
+<script src="fit-engine.js?v=20261111a"></script>
+<script src="tryon-config.js?v=20261117b"></script>
+<script src="styles-data.js?v=20261105a"></script>
+<!-- 2026-11-20 계정(이메일 로그인)·서버 저장. 지금은 모바일만 읽는다 -->
+<script src="fit-sync.js?v=20261120a"></script>
+<script src="m.js?v=20261120a"></script>
+</body>
+</html>
