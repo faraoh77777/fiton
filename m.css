@@ -218,3 +218,38 @@ button.lk{text-decoration:none}
 .me .tx b.el{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .aucard>label.chk{display:flex}
 .aucard .lk+.lk{margin-top:-12px}
+
+/* ---------- 2026-11-20 3단계 옷 확인(목업 B3) ---------- */
+.addtop{display:flex;gap:12px;align-items:stretch}
+.aph{flex:none;width:96px;border-radius:14px;background:var(--panel2);border:1px solid var(--line);overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;position:relative;min-height:128px;color:var(--muted)}
+.aph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.aph span{font-size:28px;color:var(--pri)}
+.aph small{position:relative;z-index:1;font-size:13px;margin-top:auto;width:100%;text-align:center;padding:4px 0;background:rgba(14,15,17,.72);color:var(--fg)}
+.aph span+small{margin-top:0;background:none;color:var(--muted)}
+.aff{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
+.aff label,.one label{display:block;font-size:13px;color:var(--muted)}
+.sec .rec{color:var(--pri);font-weight:700}
+.tscroll{overflow-x:auto;margin:0 -16px;padding:0 16px;scrollbar-width:thin}
+.stbl{border-collapse:collapse;min-width:100%;font-size:14px}
+.stbl th,.stbl td{border-bottom:1px solid var(--line);padding:10px 8px;text-align:center;white-space:nowrap}
+.stbl thead th{font-size:13px;color:var(--muted);font-weight:500}
+.stbl tbody th{font-weight:700;text-align:left}
+.stbl tbody th small{margin-left:6px;font-size:13px;color:var(--onPri);background:var(--pri);border-radius:6px;padding:1px 6px;font-weight:700}
+.stbl tr.on{background:rgba(198,244,50,.12)}
+.stbl .nil{color:var(--line)}
+.stbl.ed td{padding:4px}
+.stbl.ed input{width:84px;height:44px;border-radius:10px;background:var(--panel2);border:1px solid var(--line);color:var(--fg);font-size:16px;text-align:center;padding:0 6px}
+.stbl.ed .rm,.tedit .rm,.tedit .thx{min-width:44px!important;min-height:44px!important;font-size:14px;color:var(--muted)}
+/* 직접 고치기: PC 표(formTable) 그대로를 휴대폰 크기로 */
+.tedit{margin:0 -16px;padding:0 16px;display:flex;flex-direction:column;gap:8px}
+.tedit>div[style*="overflow-x"]{margin:0 -16px;padding:0 16px}
+.tedit .hint{font-size:13px!important;color:var(--muted);line-height:1.55}
+.tedit .imgt{border-collapse:collapse}
+.tedit .imgt th,.tedit .imgt td{padding:4px;vertical-align:top;border-bottom:1px solid var(--line)}
+.tedit .imgt textarea{width:84px;min-height:44px;border-radius:10px;background:var(--panel2);border:1px solid var(--line);color:var(--fg);font:500 14px/1.3 var(--kr);padding:6px;resize:none;display:block}
+.tedit .imgt input{width:72px;height:44px;border-radius:10px;background:var(--panel2);border:1px solid var(--line);color:var(--fg);font-size:16px;text-align:center;padding:0 4px}
+.tedit .imgt .thx{display:block;width:100%;font-size:13px}
+.tedit .tu{display:block;font-size:13px;color:var(--tight);min-height:0}
+.tedit .lkacts{display:flex;gap:8px}
+.tedit .lkacts .lk{width:auto;flex:1}
+.stbl.ed input:focus,.tedit textarea:focus,.tedit input:focus{outline:0;border-color:var(--pri)}

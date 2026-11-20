@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap">
-<link rel="stylesheet" href="m.css?v=20261120a">
+<link rel="stylesheet" href="m.css?v=20261120b">
 <!-- 모바일은 지금 블랙만. skin.js 는 pc-*.html 파일 이름·pc.css 를 기준으로 동작해 여기서는 읽지 않는다(화면 색 고르기 없음) -->
 </head>
 <body>
@@ -20,8 +20,16 @@
 <script src="fit-engine.js?v=20261111a"></script>
 <script src="tryon-config.js?v=20261117b"></script>
 <script src="styles-data.js?v=20261105a"></script>
+<!-- 2026-11-20 3단계 옷 넣기: 상품 이름·가격 글자 읽기(sizeocr.js)·AI 사이즈표 읽기(aifit/*, fit-notes.js). pc-black.html 과 같은 파일·같은 순서·같은 ?v= -->
+<script src="sizeocr.js?v=20261113c"></script>
+<script src="aifit/aifit-data.js?v=20261113a"></script>
+<script src="aifit/size-normalizer.js?v=20261112c"></script>
+<script src="aifit/style-fit.js?v=20261106a"></script>
+<script src="aifit/size-extract.js?v=20261112a"></script>
+<script src="aifit/fitting-notices.js?v=20261106a"></script>
+<script src="fit-notes.js?v=20261113a"></script>
 <!-- 2026-11-20 계정(이메일 로그인)·서버 저장. 지금은 모바일만 읽는다 -->
 <script src="fit-sync.js?v=20261120a"></script>
-<script src="m.js?v=20261120a"></script>
+<script src="m.js?v=20261120b"></script>
 </body>
 </html>
