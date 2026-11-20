@@ -253,3 +253,48 @@ button.lk{text-decoration:none}
 .tedit .lkacts{display:flex;gap:8px}
 .tedit .lkacts .lk{width:auto;flex:1}
 .stbl.ed input:focus,.tedit textarea:focus,.tedit input:focus{outline:0;border-color:var(--pri)}
+
+/* ---------- 2026-11-20 4단계 입어보기(목업 C1~C4·C7) ---------- */
+.slots.s6{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.slots.s6 .slot{height:62px}
+.dirs{display:flex;align-items:center;gap:10px}
+.dirs>span{flex:none;font-size:13px;color:var(--muted)}
+.dirs .seg{flex:1}
+.dirs .seg button{min-height:44px}
+.seg button.dis{opacity:.45}
+.stage .madeby{position:absolute;right:12px;top:12px;background:rgba(14,15,17,.8);border:1px solid var(--pri);color:var(--pri);border-radius:12px;min-height:32px;padding:0 10px;font-size:13px;display:flex;align-items:center}
+.wline{font-size:13px;color:var(--muted);text-align:center;line-height:1.5}
+.wline.warn{color:var(--tight)}
+.gwait{display:flex;flex-direction:column;gap:8px}
+.ghead{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.ghead b{font-size:17px}
+.ghead span{font-size:13px;color:var(--muted);flex:none}
+.gbar{height:8px;border-radius:9px;background:var(--panel2);overflow:hidden}
+.gbar b{display:block;height:100%;width:0;background:var(--pri);border-radius:9px;transition:width .5s linear}
+.gname{font-size:14px;color:var(--fg);line-height:1.5}
+.gname small{display:block;font-size:13px;color:var(--muted)}
+.gwait .p{text-align:left}
+/* 기다리는 동안 안내(pc.js notesHtml 그대로 만든 칸) */
+.wnotes{background:var(--panel2);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.wcard{display:none}
+.wcard.on{display:block}
+.wcard small{font-size:13px;color:var(--muted)}
+.wcard b{display:block;font-size:14px;margin-top:2px}
+.wcard p{font-size:13px;color:var(--muted);line-height:1.55;margin-top:2px}
+.wcard.warn small{color:var(--tight)}
+.wdots{display:flex;gap:5px;justify-content:center}
+.wdots i{width:6px;height:6px;border-radius:50%;background:var(--line)}
+.wdots i.on{background:var(--pri)}
+.wfoot{font-size:13px;color:var(--muted);text-align:center}
+.gerr{display:flex;flex-direction:column;gap:10px}
+.gerr>b{font-size:17px;color:var(--errText)}
+.gerr p{font-size:14px;color:var(--muted);line-height:1.6;max-height:30vh;overflow-y:auto}
+/* C2 옷장에서 고르기 */
+.pop.pk{max-height:calc(100% - 160px - var(--st) - var(--sb));gap:10px}
+.pkh{display:flex;justify-content:space-between;align-items:center;min-height:44px}
+.pkh .x{min-height:44px;padding:0 4px;font-size:14px;color:var(--muted);flex:none}
+.pkgrid{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;display:grid;grid-template-columns:1fr 1fr;gap:12px 10px;align-content:start}
+.pkn .im{border:1px dashed var(--line);background:var(--ink)}
+.pkn .im span{font:500 34px var(--lat);color:var(--pri)}
+.pkgrid .g small{min-height:19px}
+.pop a.pick{text-decoration:none;color:var(--fg)}

@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap">
-<link rel="stylesheet" href="m.css?v=20261120b">
+<link rel="stylesheet" href="m.css?v=20261120c">
 <!-- 모바일은 지금 블랙만. skin.js 는 pc-*.html 파일 이름·pc.css 를 기준으로 동작해 여기서는 읽지 않는다(화면 색 고르기 없음) -->
 </head>
 <body>
@@ -28,8 +28,11 @@
 <script src="aifit/size-extract.js?v=20261112a"></script>
 <script src="aifit/fitting-notices.js?v=20261106a"></script>
 <script src="fit-notes.js?v=20261113a"></script>
+<!-- 2026-11-20 4단계 입어보기: 얼굴 되돌리기·아바타 모습 비교(facekeep.js)·배경 레이어(fit-layer.js). 이 둘이 없으면 PC 입히기 코드가 「아바타 모습 불변」 확인을 건너뛰므로 꼭 함께. pc-black.html 과 같은 ?v= -->
+<script src="facekeep.js?v=20261118a"></script>
+<script src="fit-layer.js?v=20261117g"></script>
 <!-- 2026-11-20 계정(이메일 로그인)·서버 저장. 지금은 모바일만 읽는다 -->
 <script src="fit-sync.js?v=20261120a"></script>
-<script src="m.js?v=20261120b"></script>
+<script src="m.js?v=20261120c"></script>
 </body>
 </html>
