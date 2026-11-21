@@ -1,9 +1,10 @@
-/* FITON 모바일 (m.html) — 승인된 목업 fiton-mobile-설계\v3_전신보임_빠진화면추가_큰글자\모바일_v3.html 의 값(PC 블랙 색·글꼴)을 실제 휴대폰 화면에 맞게 옮김.
-   목업의 휴대폰 틀(390×844 고정) 대신 화면 전체 높이(100dvh)·안전 영역(노치·홈 막대)을 쓴다. 글자 최소 13px, 누르는 곳 최소 44px. 지금은 블랙만. */
-:root{--ink:#0E0F11;--panel:#17191D;--panel2:#22252B;--line:#3A3E46;--fg:#F2F2EE;--muted:#A7ABB3;
-  --pri:#C6F432;--onPri:#0E0F11;--fit:#5CC08A;--tight:#FFB454;--loose:#6AA5E6;--err:#FF7A85;--errText:#FF9D90;
+/* FITON 모바일 (m.html) — 승인된 목업 fiton-mobile-설계\v3_전신보임_빠진화면추가_큰글자\모바일_v3.html 의 틀을 실제 휴대폰 화면에 맞게 옮김.
+   목업의 휴대폰 틀(390×844 고정) 대신 화면 전체 높이(100dvh)·안전 영역(노치·홈 막대)을 쓴다. 글자 최소 13px, 누르는 곳 최소 44px.
+   2026-11-21 색 = 목업 v2(옛 쇼츠 색: 사진 위 흰 글씨·흰 카드·빨간 버튼 #e5392b·고른 표시 검정 #141414), 배치 = 목업 v4. 변수 이름은 예전 그대로(--ink = 바탕, --fg = 글씨) */
+:root{--ink:#F4F2EF;--panel:#FFFFFF;--panel2:#F0EDE8;--line:#E2DED8;--fg:#141414;--muted:#6B6862;--dark:#141414;
+  --pri:#E5392B;--onPri:#FFFFFF;--fit:#2E8B57;--tight:#C97A14;--loose:#2F6FB5;--err:#D93025;--errText:#C62F22;
   --kr:'IBM Plex Sans KR','Malgun Gothic',sans-serif;--lat:'Space Grotesk','IBM Plex Sans KR','Malgun Gothic',sans-serif;
-  --st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px);--sl:env(safe-area-inset-left,0px);--sr:env(safe-area-inset-right,0px);color-scheme:dark}
+  --st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px);--sl:env(safe-area-inset-left,0px);--sr:env(safe-area-inset-right,0px);color-scheme:light}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden;background:var(--ink)}
 body{color:var(--fg);font:400 15px/1.5 var(--kr);-webkit-text-size-adjust:100%;text-size-adjust:100%;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
@@ -46,7 +47,7 @@ img{display:block;max-width:100%}
 .btn.sm{min-height:48px;font-size:15px}
 .btn.off{background:var(--panel2);color:var(--muted)}
 .lk{font-size:14px;color:var(--muted);text-align:center;min-height:44px;display:flex;align-items:center;justify-content:center;text-decoration:underline;width:100%}
-.callout{font-size:13px;color:var(--tight);background:rgba(255,180,84,.12);border-radius:12px;padding:10px 12px;line-height:1.55}
+.callout{font-size:13px;color:var(--tight);background:#FFF3E3;border-radius:12px;padding:10px 12px;line-height:1.55}
 .hint{font-size:14px;color:var(--muted);line-height:1.6}
 .err{font-size:14px;color:var(--errText);min-height:21px}
 
@@ -64,20 +65,11 @@ img{display:block;max-width:100%}
 .slot.has{border-style:solid;border-color:var(--pri);justify-content:flex-end}
 .slot.has span{background:rgba(14,15,17,.82);width:100%;text-align:center;color:var(--fg);padding:3px 0}
 
-/* ---------- 아래 버튼 5개 ---------- */
-.tabs{flex:none;border-top:1px solid var(--line);background:var(--panel);display:flex;padding:0 4px var(--sb);position:relative;z-index:6;height:calc(66px + var(--sb))}
-.tabs button{flex:1;min-width:0;height:66px;min-height:44px;text-align:center;font-size:13px;color:var(--muted);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
-.tabs svg{width:26px;height:26px;display:block;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
-.tabs .on{color:var(--pri);font-weight:700}
-.tabs .plus{flex:none;width:78px;justify-content:flex-start}
-.tabs .plus i{display:flex;width:62px;height:62px;border-radius:50%;background:var(--pri);color:var(--onPri);font:500 34px var(--lat);align-items:center;justify-content:center;margin:-24px auto 0;border:5px solid var(--panel);font-style:normal;transition:transform .15s}
-.tabs .plus.open i{transform:rotate(45deg)}
-
 /* ---------- 고르는 줄·카드 ---------- */
 .chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:0 16px}
 .chips::-webkit-scrollbar{display:none}
 .chip{flex:none;min-height:44px;padding:0 16px;border-radius:99px;border:1px solid var(--line);font-size:15px;display:flex;align-items:center;color:var(--muted);white-space:nowrap}
-.chip.on{background:var(--pri);color:var(--onPri);border-color:var(--pri);font-weight:700}
+.chip.on{background:var(--dark);color:#fff;border-color:var(--dark);font-weight:700}
 .chip small{font-size:13px;margin-left:5px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 10px}
 .g{min-width:0;text-align:left;display:block;width:100%}
@@ -89,13 +81,13 @@ img{display:block;max-width:100%}
 .g p{font-size:14px;margin-top:6px;color:var(--fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .g small{font-size:13px;color:var(--muted);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .g.sel .im{outline:3px solid var(--pri);outline-offset:-3px}
-.tag{position:absolute;left:8px;top:8px;background:rgba(14,15,17,.8);border-radius:8px;padding:3px 8px;font:700 13px var(--lat);color:var(--pri)}
-.tag.r{left:auto;right:8px;font-family:var(--kr);color:var(--fg)}
+.tag{position:absolute;left:8px;top:8px;background:rgba(20,20,20,.72);border-radius:8px;padding:3px 8px;font:700 13px var(--lat);color:#fff}
+.tag.r{left:auto;right:8px;font-family:var(--kr);color:#fff}
 /* pc.css 58행과 같은 값: 코디 사진(모델 사진)에서 옷 부분이 보이게 */
 .p-top{object-position:50% 28%}.p-low{object-position:50% 72%}.p-foot{object-position:50% 100%}.p-mid{object-position:50% 45%}
 .seg{display:flex;background:var(--panel2);border-radius:12px;padding:3px}
 .seg button{flex:1;min-width:0;text-align:center;font-size:14px;min-height:44px;display:flex;align-items:center;justify-content:center;border-radius:9px;color:var(--muted);padding:0 4px}
-.seg .on{background:var(--ink);color:var(--fg);font-weight:700}
+.seg .on{background:var(--dark);color:#fff;font-weight:700}
 .empty{flex:1 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:36px 12px;color:var(--muted);font-size:15px;line-height:1.6}
 .empty svg{width:56px;height:56px;fill:none;stroke:var(--line);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
 .empty b{color:var(--fg);font-size:17px}
@@ -141,8 +133,8 @@ img{display:block;max-width:100%}
 .models img{width:100%;height:100%;object-fit:cover;object-position:50% 0}
 .models img.ct{object-fit:contain}
 .models .on{border-color:var(--pri)}
-.models span{position:absolute;left:0;right:0;bottom:0;background:rgba(14,15,17,.8);font-size:13px;text-align:center;padding:3px 0;color:var(--fg)}
-.models .on span{color:var(--pri);font-weight:700}
+.models span{position:absolute;left:0;right:0;bottom:0;background:rgba(20,20,20,.72);font-size:13px;text-align:center;padding:3px 0;color:#fff}
+.models .on span{background:var(--pri);font-weight:700}
 
 /* ---------- 요금제 ---------- */
 .size{display:flex;align-items:center;gap:12px}
@@ -155,8 +147,9 @@ img{display:block;max-width:100%}
 .plan li svg{width:16px;height:16px;flex:none;margin-top:3px;fill:none;stroke:var(--pri);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 
 /* ---------- ＋ 창 ---------- */
-.dim{position:absolute;inset:0;background:rgba(8,9,10,.66);z-index:4}
-.pop{position:absolute;left:14px;right:14px;bottom:calc(84px + var(--sb));z-index:5;background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:18px;display:flex;flex-direction:column;gap:12px}
+.dim{position:absolute;inset:0;background:rgba(0,0,0,.4);z-index:4}
+.dim.dp{z-index:6} /* 창 위에 뜨는 작은 창(고르기·구매·옷장 카드·옷 넣기)의 어두운 바탕 */
+.pop{position:absolute;left:14px;right:14px;bottom:calc(12px + var(--sb));z-index:7;box-shadow:0 8px 30px rgba(0,0,0,.25);background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:18px;display:flex;flex-direction:column;gap:12px}
 .pop h2{font-size:18px}
 .pick{display:flex;align-items:center;gap:14px;min-height:62px;border-radius:14px;background:var(--panel2);border:1px solid var(--line);padding:0 16px;font-size:16px;font-weight:600;width:100%;text-align:left}
 .pick svg{width:26px;height:26px;fill:none;stroke:var(--pri);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
@@ -165,10 +158,11 @@ img{display:block;max-width:100%}
 /* ---------- 크게 보기 ---------- */
 .viewer{position:fixed;inset:0;z-index:70;background:#000;display:flex;flex-direction:column;padding-left:var(--sl);padding-right:var(--sr)}
 .viewer .top{background:#000}
-.viewer .back{color:var(--fg)}
+.viewer .back{color:#fff}
+.viewer .pill{color:#ddd;border-color:#555}
 .vstage{flex:1;min-height:0;position:relative;overflow:hidden;touch-action:none}
 .vstage img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;transform-origin:50% 50%;-webkit-user-select:none;user-select:none;-webkit-user-drag:none}
-.navb{position:absolute;top:50%;margin-top:-24px;width:48px;height:48px;border-radius:50%;background:rgba(14,15,17,.8);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--fg);z-index:2}
+.navb{position:absolute;top:50%;margin-top:-24px;width:48px;height:48px;border-radius:50%;background:rgba(20,20,20,.7);border:1px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;z-index:2}
 .navb:disabled{opacity:.3}
 .navb.l{left:10px}.navb.r{right:10px}
 .vhint{position:absolute;left:0;right:0;bottom:10px;text-align:center;font-size:13px;color:#fff;text-shadow:0 1px 4px #000;pointer-events:none}
@@ -179,7 +173,7 @@ img{display:block;max-width:100%}
 .vinfo .hit b{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* ---------- 알림 글 (pc.css 59·441행과 같은 색) ---------- */
-.toast{position:fixed;left:50%;bottom:calc(96px + var(--sb));transform:translateX(-50%);background:var(--fg);color:var(--ink);border:1px solid var(--fg);border-radius:12px;padding:12px 18px;z-index:80;width:max-content;max-width:calc(100vw - 32px);font-size:14px;line-height:1.5;text-align:center}
+.toast{position:fixed;left:50%;top:calc(108px + var(--st));transform:translateX(-50%);background:var(--fg);color:var(--ink);border:1px solid var(--fg);border-radius:12px;padding:12px 18px;z-index:80;width:max-content;max-width:calc(100vw - 32px);font-size:14px;line-height:1.5;text-align:center}
 
 /* ---------- 2026-11-20 첫 화면(목업 v5): 영상이 화면 전체, 맨 아래 문구 한 줄 + 버튼 한 줄, 누르면 가운데 창 ---------- */
 [hidden]{display:none!important}
@@ -192,8 +186,11 @@ img{display:block;max-width:100%}
 .cut{position:absolute;right:16px;top:calc(58px + var(--st));z-index:3;background:rgba(14,15,17,.78);border-radius:99px;height:32px;padding:0 12px;display:flex;align-items:center;gap:6px}
 .cut i{width:6px;height:6px;border-radius:50%;background:var(--muted);display:block}.cut i.on{background:var(--pri)}
 .hfoot{position:absolute;left:0;right:0;bottom:0;z-index:3;padding:0 20px calc(8px + var(--sb));display:flex;flex-direction:column;gap:10px}
-.hfoot .h{font-size:20px;text-align:center;text-shadow:0 1px 6px rgba(0,0,0,.7)}
-.hfoot .btn.ghost{background:rgba(34,37,43,.82)}
+.hfoot .h{font-size:20px;text-align:center;text-shadow:0 1px 6px rgba(0,0,0,.7);color:#fff}
+.hfoot .h em{color:#fff}
+.hfoot .btn.ghost{background:rgba(20,20,20,.6);color:#fff;border-color:rgba(255,255,255,.4)}
+.hfoot .lk{color:#ddd}
+.htop .logo{color:#fff}
 .auwrap{position:absolute;left:0;right:0;top:0;height:100%;z-index:5;display:flex;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:calc(8px + var(--st)) 16px 8px}
 .aucard{margin:auto;width:100%;max-width:420px;background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:10px 18px 8px;display:flex;flex-direction:column;gap:10px;box-shadow:0 18px 50px rgba(0,0,0,.55)}
 .aucard>label{display:block;font-size:13px;color:var(--muted);min-width:0}
@@ -224,7 +221,7 @@ button.lk{text-decoration:none}
 .aph{flex:none;width:96px;border-radius:14px;background:var(--panel2);border:1px solid var(--line);overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;position:relative;min-height:128px;color:var(--muted)}
 .aph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .aph span{font-size:28px;color:var(--pri)}
-.aph small{position:relative;z-index:1;font-size:13px;margin-top:auto;width:100%;text-align:center;padding:4px 0;background:rgba(14,15,17,.72);color:var(--fg)}
+.aph small{position:relative;z-index:1;font-size:13px;margin-top:auto;width:100%;text-align:center;padding:4px 0;background:rgba(20,20,20,.72);color:#fff}
 .aph span+small{margin-top:0;background:none;color:var(--muted)}
 .aff{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
 .aff label,.one label{display:block;font-size:13px;color:var(--muted)}
@@ -235,7 +232,7 @@ button.lk{text-decoration:none}
 .stbl thead th{font-size:13px;color:var(--muted);font-weight:500}
 .stbl tbody th{font-weight:700;text-align:left}
 .stbl tbody th small{margin-left:6px;font-size:13px;color:var(--onPri);background:var(--pri);border-radius:6px;padding:1px 6px;font-weight:700}
-.stbl tr.on{background:rgba(198,244,50,.12)}
+.stbl tr.on{background:rgba(229,57,43,.08)}
 .stbl .nil{color:var(--line)}
 .stbl.ed td{padding:4px}
 .stbl.ed input{width:84px;height:44px;border-radius:10px;background:var(--panel2);border:1px solid var(--line);color:var(--fg);font-size:16px;text-align:center;padding:0 6px}
@@ -262,7 +259,6 @@ button.lk{text-decoration:none}
 .dirs .seg{flex:1}
 .dirs .seg button{min-height:44px}
 .seg button.dis{opacity:.45}
-.stage .madeby{position:absolute;right:12px;top:12px;background:rgba(14,15,17,.8);border:1px solid var(--pri);color:var(--pri);border-radius:12px;min-height:32px;padding:0 10px;font-size:13px;display:flex;align-items:center}
 .wline{font-size:13px;color:var(--muted);text-align:center;line-height:1.5}
 .wline.warn{color:var(--tight)}
 .gwait{display:flex;flex-direction:column;gap:8px}
@@ -300,7 +296,6 @@ button.lk{text-decoration:none}
 .pop a.pick{text-decoration:none;color:var(--fg)}
 
 /* ---------- 2026-11-20 4단계 2차: 핏 서랍(목업 C5). 색·등급 표시는 PC 피팅룸 핏 칸(pc.css .chip.s-*·.seg.g-*)과 같은 값 ---------- */
-.stage.sm{min-height:170px} /* 서랍을 올려도 사진은 작아질 뿐(contain) 없어지지 않게 */
 .fitx{min-height:44px;margin:-6px 0 -8px;font-size:14px;color:var(--muted);display:flex;align-items:center;justify-content:center}
 .fitd{max-height:40vh;max-height:40dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;display:flex;flex-direction:column;gap:12px;margin:0 -16px;padding:0 16px 2px}
 .fitd .chips{flex:none}
@@ -310,10 +305,10 @@ button.lk{text-decoration:none}
 .fitd .muted,.fitd .note{font-size:13px;color:var(--muted);line-height:1.55}
 .fitd .note b{color:var(--fg)}
 .fitd span.chip,.hfit span.chip{min-height:0;padding:3px 10px;font-size:13px;font-weight:700;border-radius:99px;border:1px solid transparent}
-.fitd .chip.s-ok,.hfit .chip.s-ok{color:#7FD6A6;background:rgba(92,192,138,.12)}
-.fitd .chip.s-tight,.hfit .chip.s-tight{color:var(--errText);background:rgba(255,122,133,.12)}
-.fitd .chip.s-loose,.hfit .chip.s-loose{color:#8FBDF0;background:rgba(106,165,230,.14)}
-.fitd .chip.s-check,.hfit .chip.s-check{color:var(--tight);background:rgba(255,180,84,.12)}
+.fitd .chip.s-ok,.hfit .chip.s-ok{color:var(--fit);background:#E8F5EE}
+.fitd .chip.s-tight,.hfit .chip.s-tight{color:var(--errText);background:#FDECEA}
+.fitd .chip.s-loose,.hfit .chip.s-loose{color:var(--loose);background:#E8F0FA}
+.fitd .chip.s-check,.hfit .chip.s-check{color:var(--tight);background:#FFF3E3}
 .fitd .chip.s-none,.hfit .chip.s-none{color:var(--muted);background:var(--panel2)}
 .fitd .scale{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px;font-size:13px;color:var(--muted);text-align:center}
 .fitd .part{display:flex;flex-direction:column;gap:6px}
@@ -356,9 +351,99 @@ input[data-am-size]{height:44px}
 /* 7단계: AI 참고용 안내 한 줄(입은 모습) */
 .sheet .ainote{font-size:13px;color:var(--muted);text-align:center;line-height:1.5;margin-top:-6px}
 /* 2026-11-21 홈/피팅룸 나누기: 홈 아래 칸(이름·사이즈·핏 한 줄), 가운데 ＋ = 피팅룸(지금 화면이면 테두리), 옷장 위 「＋ 옷 넣기」 */
-.sheet.home{padding-top:16px;padding-bottom:30px} /* 맨 아래 AI 안내 줄이 가운데 ＋ 에 가리지 않게 */
-.sheet .hname{font-size:15px;color:var(--fg);text-align:center;line-height:1.5}
 .sheet .hfit{font-size:14px;color:var(--muted);text-align:center;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:-4px}
-.tabs .plus.on i{box-shadow:0 0 0 2px var(--pri)}
 .top h1 .cnt{font-size:13px;color:var(--muted);font-weight:400;margin-left:4px}
-.pill.addb{color:var(--pri);border-color:var(--pri);font-size:14px}
+
+/* ---------- 2026-11-21 쇼츠형 한 화면(목업 v4 배치 · v2 색): 화면 가득 사진 + 위 줄·보기 고르기 + 오른쪽 둥근 버튼 + 아래 흰 카드. 아래 탭 없음 ---------- */
+.sv{flex:1;min-height:0;position:relative;display:flex;flex-direction:column;overflow:hidden;background:#2A2A2A}
+.sv>.bg{position:absolute;inset:-30px;background:center/cover no-repeat;filter:blur(26px) brightness(.6)}
+.sv .stage{flex:1;min-height:0;position:relative;overflow:hidden;background:none}
+.sv .stage .ph{position:absolute;inset:calc(40px + var(--st)) 0 4px;background:center bottom/contain no-repeat}
+.sv .shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.42) 0,rgba(0,0,0,0) 22%,rgba(0,0,0,0) 78%,rgba(0,0,0,.28) 100%);pointer-events:none}
+.top.stop{position:absolute;left:0;right:0;top:0;z-index:3;color:#fff}
+.stop .logo{color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.5)}.stop .logo i{color:#fff}
+.stop .pill{background:rgba(20,20,20,.55);border-color:rgba(255,255,255,.35);color:#fff}
+.stop .pill b{color:#FFB3AB}
+.modes{position:absolute;left:12px;top:calc(56px + var(--st));z-index:3;display:flex;gap:6px}
+.modes button{min-height:44px;padding:0 14px;border-radius:99px;background:rgba(20,20,20,.6);color:#fff;font-size:14px;font-weight:700}
+.modes button.on{background:#fff;color:var(--dark)}
+.rail{position:absolute;right:6px;bottom:8px;z-index:3;display:flex;flex-direction:column;gap:6px;align-items:center}
+.rail button{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:58px;font-size:13px;font-weight:700;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.75)}
+.rail i{width:46px;height:46px;border-radius:50%;background:rgba(20,20,20,.6);display:flex;align-items:center;justify-content:center;font-style:normal}
+.rail svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.rail .on i{background:#fff;color:var(--dark);box-shadow:0 0 0 2px var(--pri)}
+.sfoot{position:absolute;left:12px;right:74px;bottom:10px;z-index:3;display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.sv .zoombtn{position:static;width:44px;height:44px;min-height:44px;padding:0;border-radius:50%;justify-content:center;background:rgba(20,20,20,.6);border:0;color:#fff;font-size:17px}
+.snote{font-size:13px;background:rgba(20,20,20,.6);color:#fff;border-radius:99px;padding:5px 11px;line-height:1.4}
+.aview{display:flex;gap:4px;background:rgba(20,20,20,.6);border-radius:99px;padding:3px}
+.aview button{min-height:44px;min-width:44px;padding:0 10px;border-radius:99px;color:#fff;font-size:13px;font-weight:700}
+.aview button.on{background:#fff;color:var(--dark)}
+/* 아래 흰 카드 */
+.sv .sheet{flex:none;position:relative;z-index:2;margin:0 10px calc(10px + var(--sb));background:#fff;color:var(--fg);border:0;border-radius:16px;padding:10px 14px 14px;display:flex;flex-direction:column;gap:8px;box-shadow:0 4px 18px rgba(0,0,0,.3)}
+.sv .sheet .grab{width:40px;height:4px;background:#D6D2CC;margin:0 auto}
+.sv .sheet .big{text-align:center;font-size:16px;font-weight:700}
+.sv .sheet .p{text-align:center}
+.ctitle{font-size:17px;font-weight:800;line-height:1.35;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.sv .sheet .wline{text-align:left;margin-top:-4px}
+.lbl{font-size:13px;color:var(--muted)}
+.sv .sheet .hfit{justify-content:flex-start;margin:0;font-size:14px;color:var(--fg);display:flex;align-items:center;gap:8px}
+.hfit .more{margin-left:auto;min-height:44px;font-size:13px;color:var(--muted)}
+.hfit span.chip{min-height:0;padding:3px 10px;font-size:13px;font-weight:700;border-radius:99px;border:1px solid transparent}
+.sv .slots.s6{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:5px}
+.sv .slots.s6 .slot{height:54px;border:1.5px dashed #CFCAC3;border-radius:10px;background-color:#fff;font-size:13px;color:var(--muted)}
+.sv .slots.s6 .slot.has{border:2px solid var(--pri);background-color:#FFF6F5;color:var(--fg);font-weight:700}
+.sv .slots.s6 .slot.has span{background:rgba(20,20,20,.7);color:#fff;padding:2px 0;font-size:13px}
+.drow{display:flex;gap:8px;align-items:center}
+.drow .dirs{flex:1;min-width:0;gap:6px}
+.pill2{flex:none;min-height:44px;padding:0 14px;border-radius:99px;border:1.5px solid var(--pri);color:var(--pri);font-size:14px;font-weight:700;background:#fff}
+.btn.cta{flex-direction:column;gap:0;min-height:56px;font-size:17px;font-weight:800} /* 큰 빨간 버튼(아래 작은 글 「N회 사용」) */
+.btn small{display:block;font-size:13px;font-weight:500;opacity:.92}
+.btn:disabled{opacity:.55}
+.sv .sheet .ainote{margin-top:-2px}
+.sv .sheet .fitx{margin:0;min-height:44px}
+.sv .sheet .gname{color:var(--fg)}
+/* 추천 코디 카드 */
+.lhead{display:flex;align-items:center;gap:8px}
+.lhead .ar{flex:none;width:44px;height:44px;border-radius:50%;background:var(--panel2);font-size:22px;display:flex;align-items:center;justify-content:center}
+.lhead .lt{flex:1;min-width:0}
+.lhead .lt b{display:block;font-size:17px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lhead .lt span{font-size:13px;color:var(--muted)}
+.litems{display:flex;flex-wrap:wrap;gap:6px}
+.litems span{border:1px solid var(--line);border-radius:99px;padding:5px 11px;font-size:13px;font-weight:700}
+.litems span b{color:var(--pri)}
+.lwho{display:flex;gap:8px;align-items:center}
+.lwho .seg{flex:1;min-width:0}
+/* 아래에서 올라오는 창(옷장·기록·내 몸·설정·요금제·핏) */
+.panel{position:absolute;left:0;right:0;bottom:0;max-height:84%;z-index:5;background:var(--panel);color:var(--fg);border-radius:20px 20px 0 0;display:flex;flex-direction:column;padding-bottom:var(--sb);box-shadow:0 -6px 24px rgba(0,0,0,.25)}
+.panel>.grab{flex:none;width:40px;height:4px;background:#D6D2CC;margin:8px auto 0}
+.panel>.top{height:52px;min-height:52px;padding:0 92px 0 16px;justify-content:flex-start}
+.panel>.top h1{font-size:19px}
+.panel>.top .back{min-width:0;margin-right:8px}
+.panel>.top h1.mid{flex:none;text-align:left}
+.pclose{position:absolute;right:6px;top:12px;min-height:44px;padding:0 10px;font-size:14px;color:var(--muted);z-index:1}
+.panel>.body{flex:0 1 auto;min-height:0;padding-top:2px}
+.panel>.foot{background:var(--panel);border-top:1px solid var(--line)}
+.panel .cfoot{gap:6px;padding-top:8px}
+.addrow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.addrow button{min-height:46px;border:1px solid var(--line);border-radius:10px;font-size:13.5px;font-weight:700;background:#fff}
+.addrow button.new{border-color:var(--pri);color:var(--pri)}
+/* 옷장 카드(3줄): 누르면 옷 칸에, 「⋯」·길게 누르면 고치기·구매·지우기 */
+.panel .grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 8px}
+.panel .g.hist{grid-column:span 1}
+.g{position:relative}
+.gtap{display:block;width:100%;text-align:left;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.gtap img{-webkit-user-drag:none}
+.gmore{position:absolute;right:0;top:0;width:44px;height:44px;color:#fff;font-size:20px;font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.8);display:flex;align-items:flex-start;justify-content:flex-end;padding:4px 8px 0 0}
+.g .tag.r{right:auto;left:6px;top:auto;bottom:6px}
+.g p{font-size:13px}
+.g small{font-size:13px}
+/* 핏 창 */
+.panel.fitp .fitd{max-height:none;flex:0 1 auto;min-height:0;margin:0;padding:2px 16px 10px}
+.pfoot{flex:none;display:flex;gap:8px;padding:10px 16px 14px;border-top:1px solid var(--line)}
+.pfoot .btn{min-height:50px}
+.opt{display:flex;align-items:center;gap:10px}
+.opt>em{flex:none;width:52px;font-style:normal;font-size:13px;color:var(--muted)}
+.opt .seg{flex:1}
+/* 키가 작은 휴대폰: 오른쪽 버튼 글자를 숨기고 카드 안내 줄을 줄여 사진이 보이게 */
+@media (max-height:760px){.rail i{width:44px;height:44px}.rail{gap:4px}}
+@media (max-height:690px){.rail button span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}.sv .sheet .lbl,.sv .sheet .ainote{display:none}.sv .sheet{gap:6px;padding:8px 12px 12px}.modes{top:calc(52px + var(--st))}}
