@@ -1451,13 +1451,13 @@
   /* 로그인·가입 직후: 먼저 서버 내용을 받고(받기 전에는 저장하지 않는다) → 서버에 내용이 있으면 바로 홈, 없으면 처음 실행 단계 */
   function afterAuth() {
     user = acctUser(); if (!user) return;
-    ui.au = { mode: '', err: '', busy: false, email: '', agree: false, note: '' }; ui.wait = '내 자료를 불러오는 중…'; ui.onb = 0; ui.imp = ''; ui.cf = null; state = null; render();
+    ui.au = { mode: '', err: '', busy: false, email: '', agree: false, note: '' }; ui.wait = '내 자료를 불러오는 중…'; ui.onb = 0; ui.imp = ''; ui.impSet = false; ui.cf = null; state = null; render();
     Sync.pull().then(function (r) {
       if (!user) return;
       ui.wait = '';
       if (r.empty && !Sync.hasLocal()) {
         state = blankState(); state.kindV = 2; /* pc.js lgCreate 와 같은 새 내용. 저장은 치수를 넣거나 가져오기를 고른 뒤에 */
-        if (Core.readUsers().length) ui.imp = 'ask'; else ui.onb = 1;
+        if (impAny()) ui.imp = 'ask'; else ui.onb = 1;
         ui.page = 'home'; enterApp(); return;
       }
       state = load(); ui.page = 'home'; if (location.hash && location.hash !== '#home') location.hash = '#home';
@@ -1601,6 +1601,13 @@
   }
 
   /* ---------- 이 기기에 있던 프로필(닉네임+PIN) 자료 가져오기 — 가입·첫 로그인 때 한 번. 원래 프로필은 지우지 않는다 ---------- */
+  /* 2026-11-23 가져올 수 있는 예전 자료: 닉네임+PIN 프로필 + 이 브라우저에 남은 다른 계정(11-22 서버를 바꾸기 전 계정 등). PC(pc.js 계정 덩어리)와 같은 글 */
+  function oldAccs() { return Sync && Sync.oldAccounts ? Sync.oldAccounts() : []; }
+  function impAny() { return Core.readUsers().length > 0 || oldAccs().length > 0; }
+  function accLabel(o) {
+    var d = o.at ? new Date(o.at) : null;
+    return '예전 계정 자료 · 옷 ' + o.closet + '벌' + (o.height ? ' · ' + (o.gender === 'male' ? '남성 ' : '여성 ') + o.height + 'cm' : '') + (d ? ' · ' + (d.getMonth() + 1) + '/' + d.getDate() + ' 저장' : '');
+  }
   function viewImport() {
     var lg = ui.lg;
     if (ui.imp === 'pin') {
@@ -1610,9 +1617,11 @@
         '<p class="p">그 프로필을 만들 때 정한 PIN이에요. 5번 틀리면 30초 동안 잠깁니다.</p><div class="err" id="lgerr" role="alert">' + h(lg.err) + '</div></main>' +
         '<div class="foot"><button type="button" class="btn" data-act="impGo">가져오기</button></div>';
     }
-    return '<header class="top">' + LOGO + '</header><main class="body"><h1 class="h s">이 기기에 있던 자료를 가져올까요?</h1><p class="p">이 브라우저에 저장된 프로필이 있어요. 고르면 그 프로필의 치수·아바타·옷장·기록을 내 계정에 옮겨 담아요. 원래 프로필은 그대로 남아요.</p><div class="ulist">' +
-      Core.readUsers().map(function (u) { return '<button type="button" class="ubtn" data-act="impPick" data-id="' + h(u.id) + '">' + dot(u) + h(u.nick) + '</button>'; }).join('') + '</div></main>' +
-      '<div class="foot"><button type="button" class="btn ghost" data-act="impSkip">가져오지 않고 새로 시작</button></div>';
+    return '<header class="top">' + LOGO + '</header><main class="body"><h1 class="h s">이 기기에 있던 자료를 가져올까요?</h1><p class="p">이 브라우저에 예전에 쓰던 프로필이나 계정 자료가 있어요. 고르면 그 자료의 치수·아바타·옷장·기록을 내 계정에 옮겨 담아요. 원래 자료는 그대로 남아요.</p>' +
+      (ui.impSet ? '<p class="p" style="color:var(--pri)">지금 계정에 있는 치수·옷장·기록은 고른 자료의 내용으로 바뀌어요(PC 에서도 바뀝니다).</p>' : '') + '<div class="ulist">' +
+      Core.readUsers().map(function (u) { return '<button type="button" class="ubtn" data-act="impPick" data-id="' + h(u.id) + '">' + dot(u) + h(u.nick) + '</button>'; }).join('') +
+      oldAccs().map(function (o) { return '<button type="button" class="ubtn" data-act="impAcc" data-id="' + h(o.id) + '">' + h(accLabel(o)) + '</button>'; }).join('') + '</div></main>' +
+      '<div class="foot"><button type="button" class="btn ghost" data-act="impSkip">' + (ui.impSet ? '가져오지 않고 돌아가기' : '가져오지 않고 새로 시작') + '</button></div>';
   }
 
   /* 내 치수 입력 칸. pc.js 2192~2195행(viewBody 내 치수)과 같은 항목·같은 id(#h·#w·data-mf)·같은 구조(label > 이름 + span.in > input + small 단위)라 저장(bSave)을 그대로 쓴다 */
@@ -1943,7 +1952,7 @@
   /* ---------- 설정 (pc.js 2224~2231행 viewSettings 와 같은 항목. 화면 색(스킨)은 모바일에 아직 없음) ---------- */
   function viewSettings() {
     return subTop('설정') + '<main class="body"><section class="card col" aria-label="계정"><div class="sec"><h2 style="font-size:16px">계정</h2></div><div class="me"><div class="im" style="width:56px;height:75px"><img src="' + h(avatarShow()) + '" alt=""></div><div class="tx"><b class="el">' + h(user.email || user.nick) + '</b><small>' + (Sync.pending() ? '아직 서버에 올리지 못한 내용이 있어요. 인터넷에 연결되면 올려요.' : '로그인한 계정 · 서버에 저장됨') + '</small></div></div>' +
-      '<div class="row"><button type="button" class="btn ghost sm" data-act="go" data-page="me">내 몸 정보 고치기</button><button type="button" class="btn ghost sm" data-act="logout">로그아웃</button></div></section>' +
+      '<div class="row"><button type="button" class="btn ghost sm" data-act="go" data-page="me">내 몸 정보 고치기</button><button type="button" class="btn ghost sm" data-act="logout">로그아웃</button></div>' + (impAny() ? '<button type="button" class="btn ghost sm" data-act="impOpen">예전 자료 가져오기</button>' : '') + '</section>' +
       '<section class="card col" aria-label="선호 핏"><div class="sec"><h2 style="font-size:16px">선호 핏</h2></div><p class="p">' + PREF_SAY + '</p>' + prefSeg() + '</section>' +
       '<section class="card col" aria-label="요금제"><div class="size"><div class="L">' + leftText() + '</div><div><p>이번 달 남은 횟수' + (unlimited() ? ' · 제한 없음(시험 중)' : '') + '</p><small>지금은 ' + h(planNow().name) + ' 플랜</small></div></div><button type="button" class="btn ghost sm" data-act="go" data-page="plan">요금제 보기</button></section></main>';
   }
@@ -2659,13 +2668,26 @@
     /* 이 기기에 있던 프로필 자료 가져오기 */
     impPick: function (el) { ui.imp = 'pin'; ui.lg = { mode: 'pin', id: el.dataset.id, err: '', fails: ui.lg.fails || 0, until: ui.lg.until || 0 }; render(); },
     impBack: function () { ui.imp = 'ask'; ui.lg.err = ''; render(); },
-    impSkip: function () { ui.imp = ''; ui.onb = 1; render(); },
+    impSkip: function () { ui.imp = ''; if (ui.impSet) ui.impSet = false; else ui.onb = 1; render(); },
+    /* 2026-11-23 설정에서 다시 열기(이미 자료가 있는 계정: 덮어쓴다는 것을 화면에 적고, 가져오기 직전에 한 번 더 묻는다) */
+    impOpen: function () { if (!user || !impAny()) return; if (genPending) { toast('입은 모습을 만드는 중에는 가져올 수 없어요. 끝난 뒤 다시 눌러 주세요.', 4000); return; } ui.impSet = true; ui.imp = 'ask'; ui.lg.err = ''; render(); },
+    /* 2026-11-23 이 브라우저에 남은 예전 계정 자료 가져오기(PIN 없음). 원래 자료는 지우지 않는다 */
+    impAcc: function (el) {
+      var o = oldAccs().filter(function (x) { return x.id === el.dataset.id; })[0]; if (!o) { render(); return; }
+      if (ui.impSet && !confirm('지금 계정의 치수·옷장·기록(옷 ' + ((state && state.closet || []).length) + '벌)이 예전 계정 자료(옷 ' + o.closet + '벌)로 바뀌어요. 계속할까요?')) return;
+      ui.wait = '가져오는 중…'; render();
+      Sync.importLocal(o.id).then(function (n) {
+        ui.wait = ''; ui.imp = ''; ui.impSet = false; state = load(); save(); ui.page = 'home'; enterApp();
+        toast('예전 계정 자료를 가져왔어요(옷 ' + o.closet + '벌).' + (n ? ' 사진 ' + n + '장은 서버에 올리는 중이에요.' : ''), 4000);
+      }, function (e) { ui.wait = ''; render(); toast((e && e.message) || '가져오지 못했어요.', 4000); });
+    },
     impGo: function () {
       var u = Core.userById(ui.lg.id); if (!u) { ACT.impBack(); return; }
       if (!checkPin(u)) return;
+      if (ui.impSet && !confirm('지금 계정의 치수·옷장·기록이 ' + u.nick + ' 프로필의 내용으로 바뀌어요. 계속할까요?')) return;
       ui.wait = '가져오는 중…'; render();
       Sync.importLocal(u.id).then(function (n) {
-        ui.wait = ''; ui.imp = ''; state = load(); save(); ui.page = 'home'; enterApp();
+        ui.wait = ''; ui.imp = ''; ui.impSet = false; state = load(); save(); ui.page = 'home'; enterApp();
         toast(u.nick + ' 프로필의 자료를 가져왔어요.' + (n ? ' 사진 ' + n + '장은 서버에 올리는 중이에요.' : ''), 4000);
       }, function (e) { ui.wait = ''; ui.lg.err = (e && e.message) || '가져오지 못했어요.'; render(); });
     },

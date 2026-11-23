@@ -279,6 +279,25 @@
     });
   }
 
+  /* ---------- 이 기기에 남아 있는 다른 계정의 자료(2026-11-23: 11-22 서버를 새 FITON 프로젝트로 바꾸기 전 계정 등). 가져오기 목록에 쓴다 ----------
+     · localStorage 'fit-test-v1:acc_<계정 id>' 중 지금 계정이 아닌 것. 옷·기록·치수가 하나도 없으면 뺀다. at = 그 계정이 마지막으로 서버와 같아진 시각(있으면) */
+  function oldAccounts() {
+    var out = [], me = localId(), pre = Core.KEY + ':acc_';
+    try {
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i); if (!k || k.indexOf(pre) !== 0) continue;
+        var id = k.slice(Core.KEY.length + 1); if (id === me) continue;
+        var s = null; try { s = JSON.parse(localStorage.getItem(k)); } catch (e) {}
+        if (!s || typeof s !== 'object') continue;
+        var p = s.profile || {}, nc = Array.isArray(s.closet) ? s.closet.length : 0, nl = Object.keys(s.looks || {}).length;
+        if (!nc && !nl && !p.height) continue;
+        var mt = jget(META_KEY + ':' + id.slice(4)) || {}, at = Date.parse(mt.at || '') || mt.dirty || 0;
+        out.push({ id: id, closet: nc, gender: p.gender || '', height: p.height || '', at: at });
+      }
+    } catch (e) {}
+    return out.sort(function (a, b) { return b.closet - a.closet || b.at - a.at; });
+  }
+
   /* 화면을 떠날 때 못 올린 내용이 있으면 한 번 더 시도(작을 때만 끝까지 보내진다. 못 보내면 다음에 열 때 올린다) */
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden' && sess && pulled && meta().dirty) push(true).catch(function () {}); });
   window.addEventListener('online', function () { if (sess && pulled) { if (meta().dirty) pushSoon(300); blobSoon(); } });
@@ -286,7 +305,7 @@
   window.FitSync = {
     enabled: function () { return !!(cfg().url && cfg().anon); },
     session: session, localId: localId, signUp: signUp, signIn: signIn, signOut: signOut, recover: recover, setPassword: setPassword, fromLink: fromLink,
-    hasLocal: hasLocal, pull: pull, touch: touch, flush: flush, blobUp: blobUp, blobDel: blobDel, blobSync: blobSync, importLocal: importLocal,
+    hasLocal: hasLocal, pull: pull, touch: touch, flush: flush, blobUp: blobUp, blobDel: blobDel, blobSync: blobSync, importLocal: importLocal, oldAccounts: oldAccounts,
     pending: function () { if (!sess) return 0; var m = meta(); return (m.dirty ? 1 : 0) + m.up.length + m.del.length; },
     status: function () { return status; },
     on: function (h) { onExpire = h.expire || null; onStatus = h.status || null; onBlobs = h.blobs || null; }

@@ -3079,6 +3079,13 @@
      · fit-sync.js 가 없거나 서버 설정이 없으면 예전 닉네임+PIN 화면 그대로. */
   var Sync = window.FitSync, ACC = !!(Sync && Sync.enabled());
   function acctUser() { var s = Sync.session(); return s ? { id: Sync.localId(), nick: String(s.email || '').split('@')[0] || '회원', email: s.email || '', acct: true } : null; }
+  /* 2026-11-23 가져올 수 있는 예전 자료: 닉네임+PIN 프로필 + 이 브라우저에 남은 다른 계정(서버를 바꾸기 전 계정 등) */
+  function oldAccs() { return Sync && Sync.oldAccounts ? Sync.oldAccounts() : []; }
+  function impAny() { return Core.readUsers().length > 0 || oldAccs().length > 0; }
+  function accLabel(o) {
+    var d = o.at ? new Date(o.at) : null;
+    return '예전 계정 자료 · 옷 ' + o.closet + '벌' + (o.height ? ' · ' + (o.gender === 'male' ? '남성 ' : '여성 ') + o.height + 'cm' : '') + (d ? ' · ' + (d.getMonth() + 1) + '/' + d.getDate() + ' 저장' : '');
+  }
   function auBlank(mode, err) { return { mode: mode || 'login', err: err || '', busy: false, email: '', agree: false, note: '' }; }
   if (ACC) {
     ui.au = auBlank(); ui.imp = ''; ui.wait = '';
@@ -3098,7 +3105,7 @@
       return viewSettings0().replace('<b>' + h(user.nick) + ' 님</b><small>이 브라우저에 저장된 프로필</small>', '<b class="acmail">' + h(user.email || user.nick) + '</b><small>' + st + '</small>')
         .replace('data-act="logout">프로필 바꾸기</button>', 'data-act="logout">로그아웃</button>' +
           /* 이 브라우저에 예전 닉네임+PIN 프로필이 남아 있으면 언제든 가져올 수 있게(휴대폰에서 먼저 가입한 계정은 첫 로그인 때 「가져올까요?」가 안 나온다) */
-          (Core.readUsers().length ? '<button type="button" class="obtn" data-act="impOpen">예전 프로필 가져오기</button>' : ''));
+          (impAny() ? '<button type="button" class="obtn" data-act="impOpen">예전 프로필 가져오기</button>' : ''));
     };
     /* 로그인 화면·자료 받는 중에는 그림 붙여넣기를 앱(옷 넣기)으로 넘기지 않는다. 글자 붙여넣기는 그대로 */
     document.addEventListener('paste', function (e) { if (!user || !state || ui.imp) e.stopImmediatePropagation(); }, true);
@@ -3129,9 +3136,10 @@
       return '<h1>PIN 입력</h1><div style="display:flex;align-items:center;gap:12px">' + (u ? dot(u) + '<b style="font-size:20px">' + h(u.nick) + '</b>' : '') + '</div><label>PIN 4자리<input type="password" id="lgpin" inputmode="numeric" maxlength="4" autocomplete="off" autofocus></label>' +
         '<p class="sub">그 프로필을 만들 때 정한 PIN이에요. 5번 틀리면 30초 동안 잠깁니다.</p><div class="err" id="lgerr">' + h(lg.err) + '</div><button type="button" class="new" data-act="impGo">가져오기</button><button type="button" class="btn" data-act="impBack">뒤로</button>';
     }
-    return '<h1>이 브라우저에 있던 자료를 가져올까요?</h1><p class="sub">예전에 만든 프로필이 있어요. 고르면 그 프로필의 치수·아바타·옷장·기록을 내 계정에 옮겨 담아요. 원래 프로필은 그대로 남아요.</p>' +
+    return '<h1>이 브라우저에 있던 자료를 가져올까요?</h1><p class="sub">예전에 쓰던 프로필이나 계정 자료가 있어요. 고르면 그 자료의 치수·아바타·옷장·기록을 내 계정에 옮겨 담아요. 원래 자료는 그대로 남아요.</p>' +
       (state ? '<p class="sub auwarn">지금 계정에 있는 치수·옷장·기록은 고른 프로필의 내용으로 바뀌어요(휴대폰에서도 바뀝니다).</p>' : '') + '<div class="ulist">' +
-      Core.readUsers().map(function (u) { return '<button type="button" class="ubtn" data-act="impPick" data-id="' + h(u.id) + '">' + dot(u) + h(u.nick) + '</button>'; }).join('') + '</div>' +
+      Core.readUsers().map(function (u) { return '<button type="button" class="ubtn" data-act="impPick" data-id="' + h(u.id) + '">' + dot(u) + h(u.nick) + '</button>'; }).join('') +
+      oldAccs().map(function (o) { return '<button type="button" class="ubtn" data-act="impAcc" data-id="' + h(o.id) + '">' + h(accLabel(o)) + '</button>'; }).join('') + '</div>' +
       '<button type="button" class="btn" data-act="impSkip">' + (state ? '가져오지 않고 돌아가기' : '가져오지 않고 새로 시작') + '</button>';
   }
   function viewAcct() {
@@ -3168,7 +3176,7 @@
       if (!user) return;
       ui.wait = '';
       if (r.empty && !Sync.hasLocal()) {
-        if (Core.readUsers().length) { ui.imp = 'ask'; render(); return; }
+        if (impAny()) { ui.imp = 'ask'; render(); return; }
         acctFresh(); return;
       }
       state = load(); enterApp(); pullBlobs();
@@ -3233,7 +3241,17 @@
       impBack: function () { ui.imp = 'ask'; ui.lg.err = ''; render(); },
       impSkip: function () { ui.imp = ''; if (state) render(); else acctFresh(); },
       /* 설정에서 다시 열기: 이미 자료가 있는 계정이므로 덮어쓴다는 것을 화면에 적고, 가져오기 직전에 한 번 더 묻는다 */
-      impOpen: function () { if (!user || !user.acct || !Core.readUsers().length) return; if (genPending || angBusy) { toast('입은 모습을 만드는 중에는 가져올 수 없어요. 끝난 뒤 다시 눌러 주세요.', 4000); return; } ui.imp = 'ask'; ui.lg.err = ''; render(); },
+      impOpen: function () { if (!user || !user.acct || !impAny()) return; if (genPending || angBusy) { toast('입은 모습을 만드는 중에는 가져올 수 없어요. 끝난 뒤 다시 눌러 주세요.', 4000); return; } ui.imp = 'ask'; ui.lg.err = ''; render(); },
+      /* 2026-11-23 이 브라우저에 남은 예전 계정 자료 가져오기(PIN 없음 — 같은 브라우저에 이미 있는 자료). 원래 자료는 지우지 않는다 */
+      impAcc: function (el) {
+        var o = oldAccs().filter(function (x) { return x.id === el.dataset.id; })[0]; if (!o) { render(); return; }
+        if (state && !confirm('지금 계정의 치수·옷장·기록(옷 ' + ((state.closet || []).length) + '벌)이 예전 계정 자료(옷 ' + o.closet + '벌)로 바뀌어요. 계속할까요?')) return;
+        ui.wait = '가져오는 중…'; render();
+        Sync.importLocal(o.id).then(function (n) {
+          ui.wait = ''; ui.imp = ''; state = load(); save(); enterApp();
+          toast('예전 계정 자료를 가져왔어요(옷 ' + o.closet + '벌).' + (n ? ' 사진 ' + n + '장은 서버에 올리는 중이에요.' : ''), 4000);
+        }, function (e) { ui.wait = ''; render(); toast((e && e.message) || '가져오지 못했어요.', 4000); });
+      },
       impGo: function () {
         var u = Core.userById(ui.lg.id); if (!u) { ACT.impBack(); return; }
         if (!checkPin(u)) return;
