@@ -156,17 +156,21 @@ img{display:block;max-width:100%}
 .pick small{margin-left:auto;font-weight:400;font-size:13px;color:var(--muted)}
 
 /* ---------- 크게 보기 ---------- */
-.viewer{position:fixed;inset:0;z-index:70;background:#000;display:flex;flex-direction:column;padding-left:var(--sl);padding-right:var(--sr)}
-.viewer .top{background:#000}
+.viewer{position:fixed;inset:0;z-index:70;background:#000;overflow:hidden}
+/* 2026-11-23 크게 보기 = 사진이 화면 전체(잘리지 않게, 남는 곳은 같은 사진을 흐리게). 위 줄·옷 정보는 사진 위에 겹침 */
+.viewer .vtop{position:absolute;left:0;right:0;top:0;z-index:3;padding-left:calc(16px + var(--sl));padding-right:calc(16px + var(--sr));background:linear-gradient(180deg,rgba(0,0,0,.55),rgba(0,0,0,0))}
+.viewer .vtop .back{text-shadow:0 1px 3px rgba(0,0,0,.6)}
+.viewer .pill.vib{color:#fff;background:rgba(20,20,20,.55);border-color:rgba(255,255,255,.4);font-weight:700}
+.vbg{display:none}
 .viewer .back{color:#fff}
 .viewer .pill{color:#ddd;border-color:#555}
-.vstage{flex:1;min-height:0;position:relative;overflow:hidden;touch-action:none}
+.vstage{position:absolute;inset:0;overflow:hidden;touch-action:none}
 .vstage img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;transform-origin:50% 50%;-webkit-user-select:none;user-select:none;-webkit-user-drag:none}
 .navb{position:absolute;top:50%;margin-top:-24px;width:48px;height:48px;border-radius:50%;background:rgba(20,20,20,.7);border:1px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;z-index:2}
 .navb:disabled{opacity:.3}
 .navb.l{left:10px}.navb.r{right:10px}
-.vhint{position:absolute;left:0;right:0;bottom:10px;text-align:center;font-size:13px;color:#fff;text-shadow:0 1px 4px #000;pointer-events:none}
-.vinfo{flex:none;background:var(--panel);border-top:1px solid var(--line);border-radius:22px 22px 0 0;padding:14px 16px calc(16px + var(--sb));display:flex;flex-direction:column;gap:6px;max-height:34vh;overflow-y:auto}
+.vhint{position:absolute;left:0;right:0;bottom:calc(10px + var(--sb));text-align:center;font-size:13px;color:#fff;text-shadow:0 1px 4px #000;pointer-events:none}
+.vinfo{position:absolute;left:0;right:0;bottom:0;z-index:4;background:var(--panel);border-top:1px solid var(--line);border-radius:22px 22px 0 0;padding:14px 16px calc(16px + var(--sb));display:flex;flex-direction:column;gap:6px;max-height:34vh;overflow-y:auto}
 .vinfo h2{font-size:16px}
 .vinfo .hit{font-size:14px;display:flex;gap:8px;align-items:baseline}
 .vinfo .hit small{color:var(--muted);font-size:13px;flex:none}
@@ -356,11 +360,11 @@ input[data-am-size]{height:44px}
 
 /* ---------- 2026-11-21 쇼츠형 한 화면(목업 v4 배치 · v2 색): 화면 가득 사진 + 위 줄·보기 고르기 + 오른쪽 둥근 버튼 + 아래 흰 카드. 아래 탭 없음 ---------- */
 .sv{flex:1;min-height:0;position:relative;display:flex;flex-direction:column;overflow:hidden;background:#2A2A2A}
-.sv>.bg{position:absolute;inset:-30px;background:center/cover no-repeat;filter:blur(26px) brightness(.6)}
+.sv>.bg{position:absolute;inset:-40px;background:center top/100% 5000% no-repeat;filter:blur(24px)}
 .sv .stage{flex:1;min-height:0;position:relative;overflow:hidden;background:none}
 .sv .stage .ph{position:absolute;inset:calc(40px + var(--st)) 0 4px;background:center bottom/contain no-repeat}
-.sv .shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.42) 0,rgba(0,0,0,0) 22%,rgba(0,0,0,0) 78%,rgba(0,0,0,.28) 100%);pointer-events:none}
-.top.stop{position:absolute;left:0;right:0;top:0;z-index:3;color:#fff}
+.sv .shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 0,rgba(0,0,0,0) 78%,rgba(0,0,0,.28) 100%);pointer-events:none}
+.top.stop{position:absolute;left:0;right:0;top:0;z-index:3;color:#fff;background:rgba(20,20,20,.22);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
 .stop .logo{color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.5)}.stop .logo i{color:#fff}
 .stop .pill{background:rgba(20,20,20,.55);border-color:rgba(255,255,255,.35);color:#fff}
 .stop .pill b{color:#FFB3AB}
@@ -447,3 +451,38 @@ input[data-am-size]{height:44px}
 /* 키가 작은 휴대폰: 오른쪽 버튼 글자를 숨기고 카드 안내 줄을 줄여 사진이 보이게 */
 @media (max-height:760px){.rail i{width:44px;height:44px}.rail{gap:4px}}
 @media (max-height:690px){.rail button span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}.sv .sheet .lbl,.sv .sheet .ainote{display:none}.sv .sheet{gap:6px;padding:8px 12px 12px}.modes{top:calc(52px + var(--st))}}
+
+/* ---------- 2026-11-23 홈 = FITON 소개(PC 홈 글), 피팅룸(추천 코디·내 모습)은 「피팅룸 들어가기」로 ---------- */
+.intro{flex:1;min-height:0;display:flex;flex-direction:column;background:var(--ink);word-break:keep-all}.ibody{gap:12px;padding-top:4px}
+.ipics{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ipics.one{grid-template-columns:minmax(0,62%);justify-content:center}
+.ipic{position:relative;aspect-ratio:9/16;width:100%;max-width:calc(44vh * 9 / 16);justify-self:center;border-radius:16px;overflow:hidden;background:#2A2A2A}
+.ipic img{width:100%;height:100%;object-fit:cover;object-position:50% 20%}
+.ipic span{position:absolute;left:8px;top:8px;font-size:13px;font-weight:700;padding:3px 10px;border-radius:99px;background:rgba(20,20,20,.6);color:#fff}
+.ipic span.on{background:var(--pri)}
+.intro .season{align-self:flex-start;font-size:13px;font-weight:700;color:var(--pri);background:#FFF0EE;border-radius:99px;padding:4px 12px}
+.isteps{list-style:none;display:flex;gap:6px}
+.isteps li{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:13px;font-weight:600;text-align:center;line-height:1.35;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 6px}
+.isteps b{flex:none;width:22px;height:22px;border-radius:50%;background:var(--dark);color:#fff;font:700 13px var(--lat);display:flex;align-items:center;justify-content:center}
+.lsay{font-size:15px;font-weight:700;text-align:center}.lsay em{color:var(--pri);font-style:normal}
+.ifoot{flex:none;padding:10px 16px calc(12px + var(--sb));background:var(--ink);border-top:1px solid var(--line)}
+.stop .tl{display:flex;align-items:center;gap:6px;min-width:0}
+.stop .hbtn{width:44px;height:44px;flex:none;border-radius:50%;background:rgba(20,20,20,.55);border:1px solid rgba(255,255,255,.35);color:#fff;display:flex;align-items:center;justify-content:center}
+.stop .hbtn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round}
+@media (max-width:370px){.stop .logo{font-size:17px}}
+@media (max-height:700px){.ipic{max-width:calc(32vh * 9 / 16)}.intro .h{font-size:22px}}
+
+/* 2026-11-23 피팅룸(내 모습) 카드 맨 위: 옷 이름 + 기본 모델/내 아바타 */
+.fhead{display:flex;align-items:center;gap:8px}
+.fhead .ctitle{flex:1;min-width:0}
+.fhead .seg{flex:none}
+.fhead .seg button{flex:none;padding:0 10px;font-size:13px}
+/* 2026-11-23 추천 코디 「이 코디 핏 보기」 = 코디 이름 줄 오른쪽 */
+.lhead .pill2{padding:0 10px;font-size:13px}
+/* 2026-11-23 창 뒤 화면(위 줄 포함 그대로) */
+.pbase{display:contents}
+/* 2026-11-23 사용자 지시: 소개(홈) 위 줄도 피팅룸 위 줄과 같은 모양. 뒤가 사진이 아니라 밝은 바탕이라 막을 조금 진하게(피팅룸 사진 벽 위와 비슷한 회색) */
+.top.stop.istop{position:relative;background:rgba(20,20,20,.45)}
+/* 2026-11-23 오른쪽 버튼 6개가 위 줄과 겹칠 때만(railFit): 이름 숨김·간격 줄임 */
+.rail.tight{gap:4px}.rail.tight button span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.rail.tight2{gap:0;bottom:2px}.rail.tight2 button{height:44px;justify-content:center}.rail.tight2 i{width:40px;height:40px}
