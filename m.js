@@ -2347,12 +2347,37 @@
     Array.prototype.forEach.call(app.querySelectorAll('.sv .stage .ph'), function (el) {
       var m = /url\(["']?(.*?)["']?\)/.exec(el.style.backgroundImage || ''); if (!m) return;
       var u = m[1], d = phDims[u];
-      if (!d) { var im = new Image(); im.onload = function () { phDims[u] = [im.naturalWidth, im.naturalHeight]; phFeather(); }; im.src = u; return; }
+      if (!d) { var im = new Image(); im.onload = function () { phDims[u] = [im.naturalWidth, im.naturalHeight, phEdges(im)]; phFeather(); }; im.src = u; return; }
       var W = el.clientWidth, H = el.clientHeight; if (!W || !H || !d[0] || !d[1]) return;
       var s = Math.min(W / d[0], H / d[1]), w = d[0] * s, h = d[1] * s, l = (W - w) / 2, t = H - h, f = 28, ft = 16, fb = 8;
       var mk = 'linear-gradient(90deg,transparent ' + l.toFixed(1) + 'px,#000 ' + (l + f).toFixed(1) + 'px,#000 ' + (l + w - f).toFixed(1) + 'px,transparent ' + (l + w).toFixed(1) + 'px),linear-gradient(180deg,transparent ' + t.toFixed(1) + 'px,#000 ' + (t + ft).toFixed(1) + 'px,#000 ' + (t + h - fb).toFixed(1) + 'px,transparent ' + (t + h).toFixed(1) + 'px)';
       el.style.webkitMaskImage = mk; el.style.maskImage = mk; el.style.webkitMaskComposite = 'source-in'; el.style.maskComposite = 'intersect';
+      /* 2026-11-24 사용자 지시(폰 캡처: 인물이 작고 양옆 바탕색이 부자연스러움): 사진이 화면보다 좁게 그려져 양옆이 비면, 뒤 흐린 바탕을 사진 왼쪽·오른쪽 가장자리의 실제 색(줄마다)으로 채워 사진 바탕과 이어 붙임 */
+      var sv = el.closest('.sv'), bg = sv && sv.querySelector(':scope>.bg'), ed = d[2];
+      if (bg && ed) {
+        var er = el.getBoundingClientRect(), br = bg.getBoundingClientRect(), y0 = er.top - br.top + t;
+        var gr = function (arr) { return 'linear-gradient(180deg,' + arr.map(function (c, i) { return c + ' ' + (y0 + h * (i + 0.5) / arr.length).toFixed(1) + 'px'; }).join(',') + ')'; };
+        bg.style.background = gr(ed[0]) + ' left top/50.5% 100% no-repeat,' + gr(ed[1]) + ' right top/50.5% 100% no-repeat,' + ed[2];
+      }
     });
+  }
+  /* 사진 왼쪽·오른쪽 끝 2% 띠의 색을 48줄로 잰다. 다른 사이트 사진 등 읽을 수 없으면 null(예전 흐린 바탕 그대로) */
+  function phEdges(im) {
+    try {
+      var N = 48, c = document.createElement('canvas'); c.width = 50; c.height = N;
+      var x = c.getContext('2d'); x.drawImage(im, 0, 0, 50, N);
+      var a = x.getImageData(0, 0, 50, N).data, L = [], R = [], i, k, sum = [0, 0, 0];
+      var px = function (col, row) { var o = (row * 50 + col) * 4; return [a[o], a[o + 1], a[o + 2]]; };
+      for (i = 0; i < N; i++) {
+        var l = px(0, i), l2 = px(1, i), r = px(49, i), r2 = px(48, i);
+        L.push('rgb(' + [0, 1, 2].map(function (j) { return Math.round((l[j] + l2[j]) / 2); }).join(',') + ')');
+        R.push('rgb(' + [0, 1, 2].map(function (j) { return Math.round((r[j] + r2[j]) / 2); }).join(',') + ')');
+        for (k = 0; k < 3; k++) sum[k] += l[k] + r[k];
+      }
+      var T = [], B = [], cl = function (o) { return 'rgb(' + Math.round((a[o] + a[o + 50 * 4]) / 2) + ',' + Math.round((a[o + 1] + a[o + 1 + 50 * 4]) / 2) + ',' + Math.round((a[o + 2] + a[o + 2 + 50 * 4]) / 2) + ')'; };
+      for (i = 0; i < 50; i++) { T.push(cl(i * 4)); B.push(cl(((N - 2) * 50 + i) * 4)); }
+      return [L, R, 'rgb(' + sum.map(function (v) { return Math.round(v / (2 * N)); }).join(',') + ')', T, B];
+    } catch (e) { return null; }
   }
   function railFit() {
     /* 2026-11-23 사용자 지시: 오른쪽 둥근 버튼은 위 줄 바로 아래 한 자리에 고정(카드 높이와 상관없이). 카드가 올라와 버튼과 겹칠 때만 이름을 숨기고 간격을 줄임 */
@@ -2388,6 +2413,28 @@
       var vinf = o.querySelector('.vinfo'); if (vinf) { var sy = null; vinf.addEventListener('touchstart', function (ev) { sy = ev.touches[0].clientY; }, { passive: true }); vinf.addEventListener('touchend', function (ev) { var dy = ev.changedTouches[0].clientY - sy; if (sy != null && dy > 50 && vinf.scrollTop <= 0) { infoOn = false; vinf.hidden = true; var vd2 = o.querySelector('.vdock'); if (vd2) vd2.hidden = false; } sy = null; }, { passive: true }); }
       img = o.querySelector('.vstage img');
       var st = o.querySelector('.vstage');
+      /* 2026-11-24 사용자 지시: 크게 보기에서 사진이 화면보다 작게 그려져 검은 띠(엣지)가 생김 → 남는 곳을 사진 가장자리의 실제 색으로 채워 화면이 사진 바탕으로 꽉 차 보이게 하고, 이어지는 가장자리는 부드럽게 지움 */
+      (function (u, im0) {
+        function fill() {
+          var d = phDims[u], vb = st.querySelector('.vbg'), W = st.clientWidth, H = st.clientHeight;
+          if (!d || !vb || !W || !H || img !== im0) return;
+          var s = Math.min(W / d[0], H / d[1]), w = d[0] * s, hh = d[1] * s, l = (W - w) / 2, tp = (H - hh) / 2, gx = l > 1.5, gy = tp > 1.5, ed = d[2];
+          if (!ed || (!gx && !gy)) return;
+          var f = 24, mk = [];
+          mk.push(gx ? 'linear-gradient(90deg,transparent ' + l.toFixed(1) + 'px,#000 ' + (l + f).toFixed(1) + 'px,#000 ' + (l + w - f).toFixed(1) + 'px,transparent ' + (l + w).toFixed(1) + 'px)' : 'linear-gradient(#000,#000)');
+          mk.push(gy ? 'linear-gradient(180deg,transparent ' + tp.toFixed(1) + 'px,#000 ' + (tp + f).toFixed(1) + 'px,#000 ' + (tp + hh - f).toFixed(1) + 'px,transparent ' + (tp + hh).toFixed(1) + 'px)' : 'linear-gradient(#000,#000)');
+          var m = mk.join(','); im0.style.webkitMaskImage = m; im0.style.maskImage = m; im0.style.webkitMaskComposite = 'source-in'; im0.style.maskComposite = 'intersect';
+          var gv = function (arr) { return 'linear-gradient(180deg,' + arr.map(function (c, i) { return c + ' ' + (tp + hh * (i + 0.5) / arr.length).toFixed(1) + 'px'; }).join(',') + ')'; };
+          var gh = function (arr) { return 'linear-gradient(90deg,' + arr.map(function (c, i) { return c + ' ' + (l + w * (i + 0.5) / arr.length).toFixed(1) + 'px'; }).join(',') + ')'; };
+          var layers = [];
+          if (gx) { layers.push(gv(ed[0]) + ' left top/' + (l + f) + 'px 100% no-repeat'); layers.push(gv(ed[1]) + ' right top/' + (l + f) + 'px 100% no-repeat'); }
+          if (gy) { layers.push(gh(ed[3]) + ' left top/100% ' + (tp + f) + 'px no-repeat'); layers.push(gh(ed[4]) + ' left bottom/100% ' + (tp + f) + 'px no-repeat'); }
+          layers.push(ed[2]);
+          vb.style.display = 'block'; vb.style.position = 'absolute'; vb.style.inset = '0'; vb.style.filter = 'none'; vb.style.background = layers.join(',');
+        }
+        if (phDims[u]) setTimeout(fill, 0);
+        else { var q = new Image(); q.onload = function () { phDims[u] = [q.naturalWidth, q.naturalHeight, phEdges(q)]; fill(); }; q.src = u; }
+      })(e.url, img);
       st.addEventListener('touchstart', function (ev) {
         var t = ev.touches;
         if (t.length === 2) t0 = { d: Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY), k: z.k };

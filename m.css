@@ -362,9 +362,11 @@ input[data-am-size]{height:44px}
 .sv{flex:1;min-height:0;position:relative;display:flex;flex-direction:column;overflow:hidden;background:#2A2A2A}
 .sv>.bg{position:absolute;inset:-40px;background:center top/100% 5000% no-repeat;filter:blur(24px)}
 .sv .stage{flex:1;min-height:0;position:relative;overflow:hidden;background:none}
-.sv .stage .ph{position:absolute;inset:calc(40px + var(--st)) 0 4px;background:center bottom/contain no-repeat}
+.sv .stage .ph{position:absolute;inset:calc(20px + var(--st)) 0 4px;background:center bottom/contain no-repeat}
 .sv .shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 0,rgba(0,0,0,0) 78%,rgba(0,0,0,.28) 100%);pointer-events:none}
 .top.stop{position:absolute;left:0;right:0;top:0;z-index:3;color:#fff;background:rgba(20,20,20,.22);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+/* 2026-11-24 피팅룸 위 줄 막의 딱딱한 아래 경계(사진 바탕이 두 색으로 갈라져 보임)를 없애고 위에서 아래로 서서히 사라지게(소개 화면은 그대로) */
+.sv .top.stop{background:linear-gradient(180deg,rgba(20,20,20,.42),rgba(20,20,20,.18) 55%,rgba(20,20,20,0));-webkit-backdrop-filter:none;backdrop-filter:none}
 .stop .logo{color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.5)}.stop .logo i{color:#fff}
 .stop .pill{background:rgba(20,20,20,.55);border-color:rgba(255,255,255,.35);color:#fff}
 .stop .pill b{color:#FFB3AB}
@@ -450,7 +452,7 @@ input[data-am-size]{height:44px}
 .opt .seg{flex:1}
 /* 키가 작은 휴대폰: 오른쪽 버튼 글자를 숨기고 카드 안내 줄을 줄여 사진이 보이게 */
 @media (max-height:760px){.rail i{width:44px;height:44px}.rail{gap:4px}}
-@media (max-height:690px){.rail button span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}.sv .sheet .lbl,.sv .sheet .ainote{display:none}.sv .sheet{gap:6px;padding:8px 12px 12px}.modes{top:calc(52px + var(--st))}}
+@media (max-height:690px){.sv .sheet .lbl,.sv .sheet .ainote{display:none}.sv .sheet{gap:6px;padding:8px 12px 12px}.modes{top:calc(52px + var(--st))}}
 
 /* ---------- 2026-11-23 홈 = FITON 소개(PC 홈 글), 피팅룸(추천 코디·내 모습)은 「피팅룸 들어가기」로 ---------- */
 .intro{flex:1;min-height:0;display:flex;flex-direction:column;background:var(--ink);word-break:keep-all}.ibody{gap:12px;padding-top:4px}
@@ -503,3 +505,7 @@ input[data-am-size]{height:44px}
 .vinfo .vgrab{display:flex;justify-content:center;align-items:center;width:100%;min-height:44px;margin:-14px 0 -8px;flex:none}
 .viewer.hasdock .vhint{bottom:calc(112px + var(--sb))}
 .vgrab .fxbar{width:40px;height:4px;border-radius:2px;background:#D6D2CC}
+
+/* 2026-11-24 옷장 카드 「⋯」: 밝은 사진 위에서도 보이게 어두운 동그라미 + 흰 테두리 (누르는 범위는 그대로 넓게) */
+.gmore{top:6px;right:6px;width:34px;height:34px;padding:0;align-items:center;justify-content:center;border-radius:50%;background:rgba(20,20,20,.78);border:1.5px solid rgba(255,255,255,.9);box-shadow:0 1px 4px rgba(0,0,0,.45);text-shadow:none;font-size:18px;line-height:1}
+.gmore::after{content:'';position:absolute;inset:-6px}

@@ -834,8 +834,11 @@ button{font-size:14px}
 .lintro .logo,.lbox .logo{font-size:36px;letter-spacing:.04em;display:flex;align-items:center;gap:12px}
 .lbox .lblogo{display:none}
 @media (max-width:959px){.lbox .lblogo{display:flex}}
-.lgmark{flex:0 0 46px;width:46px;height:46px;display:grid;place-items:center;background:var(--pri);color:var(--onPri);border-radius:28%}
-.lgmark svg{width:64%;height:64%;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+/* 2026-11-26 로그인 마크 = 앱 아이콘(글자 FIT/ON, 빨강) 그대로. 옷걸이 그림 제거 */
+.lgmark{flex:0 0 46px;width:46px;height:46px;display:block;border-radius:22%;overflow:hidden}
+.lgmark img{display:block;width:100%;height:100%}
+/* 2026-11-26 블랙 버전: 검정 아이콘이 검정 바탕과 섞여 얇은 테두리로 구분 */
+html[data-skin="black"] .lgmark{box-sizing:border-box;border:1px solid rgba(255,255,255,.28)}
 
 /* ==================== 2026-11-12 다섯 화면 일관성 (A안) ====================
    피팅룸 · 내 옷장 · 액세서리 · 입어본 기록 · 내 몸 정보를 같은 규칙으로 맞춘다. 기능(data-act·입력 id·저장)은 그대로이고 배치와 모양만 바뀐다.

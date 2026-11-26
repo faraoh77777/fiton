@@ -2166,7 +2166,7 @@
   }
 
   /* 2026-11-12 로그인 화면 로고: 옷걸이 마크 + 두 색 글자(FIT + ON) */
-  var LOGO_MARK = '<span class="lgmark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7.5a2.2 2.2 0 1 1 2.2-2.2c0 1.4-2.2 1.5-2.2 3.2v1l8.2 5.4a1.2 1.2 0 0 1-.7 2.2H4.5a1.2 1.2 0 0 1-.7-2.2L12 9.5"></path></svg></span><span>FIT<i>ON</i></span>';
+  var LOGO_MARK = '<span class="lgmark"><img src="assets/icons/icon-192.png?v=20261126a" alt=""></span><span>FIT<i>ON</i></span>';
 
   /* ---------- 내 몸 정보 ---------- */
   function viewBody() {
